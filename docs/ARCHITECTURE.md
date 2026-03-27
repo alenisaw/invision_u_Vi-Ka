@@ -72,7 +72,7 @@ An AI-driven decision-support system for the inVision U admissions committee. Th
 |-------|---------|----------|
 | `faster-whisper large-v3` | Local (GPU, ~3GB VRAM) | Primary: RU+EN transcription |
 | Groq Whisper API | API | Fallback if local fails / faster processing |
-
+#### six seven
 **ASR Pipeline Rules:**
 - Extract audio only — video frame data never enters the pipeline
 - Store: transcript text, timestamps, language tags, confidence per segment
