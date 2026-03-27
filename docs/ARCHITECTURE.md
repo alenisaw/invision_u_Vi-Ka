@@ -50,8 +50,8 @@ An AI-driven decision-support system for the inVision U admissions committee. Th
 #### LLM — Signal Extraction & Explanation
 | Model | Provider | Use Case | Tier |
 |-------|----------|----------|------|
-| `Qwen2.5-72B-Instruct` | OpenRouter | Deep signal extraction, explanation generation | Primary |
-| `Qwen2.5-7B-Instruct` | OpenRouter | Fast field-level classification, consistency checks | Secondary / High-volume |
+| `Qwen3.5-72B-Instruct` | OpenRouter | Deep signal extraction, explanation generation | Primary |
+| `Qwen3.5-7B-Instruct` | OpenRouter | Fast field-level classification, consistency checks | Secondary / High-volume |
 | `Llama-3.3-70B` | Groq (free) | Fallback / validation cross-check | Fallback |
 
 **Why Qwen family:**
@@ -72,7 +72,7 @@ An AI-driven decision-support system for the inVision U admissions committee. Th
 |-------|---------|----------|
 | `faster-whisper large-v3` | Local (GPU, ~3GB VRAM) | Primary: RU+EN transcription |
 | Groq Whisper API | API | Fallback if local fails / faster processing |
-#### six seven
+
 **ASR Pipeline Rules:**
 - Extract audio only — video frame data never enters the pipeline
 - Store: transcript text, timestamps, language tags, confidence per segment
@@ -332,7 +332,7 @@ class CandidateProfile:
 **This module never receives Layer 1 data. Input is Layer 3 only.**
 
 Responsibilities:
-- Call Qwen2.5-72B-Instruct via OpenRouter with structured prompts
+- Call Qwen3.5-72B-Instruct via OpenRouter with structured prompts
 - Extract signals from: video transcript, essay, test answers, project descriptions
 - Return standardized signal JSON for M6
 
@@ -879,8 +879,8 @@ DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/invisionu
 # LLM API
 OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-LLM_PRIMARY_MODEL=qwen/qwen-2.5-72b-instruct
-LLM_FAST_MODEL=qwen/qwen-2.5-7b-instruct
+LLM_PRIMARY_MODEL=qwen/qwen-3.5-72b-instruct
+LLM_FAST_MODEL=qwen/qwen-3.5-7b-instruct
 LLM_FALLBACK_MODEL=meta-llama/llama-3.3-70b-instruct
 
 # Groq (ASR + LLM fallback)
