@@ -1,0 +1,13 @@
+.agent/
+__pycache__/
+.idea/
+.vscode/
+*.iml
+catboost_info/
+*.log
+*.tmp
+Thumbs.db
+.DS_Store
+backend/tests/m6_scoring/results/*
+!backend/tests/m6_scoring/results/.gitkeep
+backend/tests/m6_scoring/notebooks/.ipynb_checkpoints/

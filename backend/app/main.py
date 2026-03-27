@@ -1,3 +1,14 @@
+"""
+File: main.py
+Purpose: FastAPI application entry point.
+
+Notes:
+- Keeps startup resilient while modules land incrementally from multiple teammates.
+- Registers available routers without crashing on placeholder or still-evolving modules.
+"""
+
+from __future__ import annotations
+
 from importlib import import_module
 import logging
 
