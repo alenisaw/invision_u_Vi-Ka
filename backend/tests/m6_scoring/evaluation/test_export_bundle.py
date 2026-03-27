@@ -52,6 +52,8 @@ class M6EvaluationBundleTests(unittest.TestCase):
                 self.assertTrue(Path(path).exists())
             self.assertIn("balanced_model_comparison", exported)
             self.assertIn("stress_model_comparison", exported)
+            self.assertIn("balanced_status_distribution", exported)
+            self.assertIn("stress_status_distribution", exported)
             self.assertIn("gbr_predictions", exported)
         finally:
             if output_dir.exists():

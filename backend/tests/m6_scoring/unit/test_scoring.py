@@ -32,12 +32,16 @@ class ScoringServiceTests(unittest.TestCase):
         self.assertEqual(len(score.sub_scores), 8)
         self.assertGreaterEqual(score.review_priority_index, 0.0)
         self.assertLessEqual(score.review_priority_index, 1.0)
+        self.assertIn(score.score_status, {"STRONG_RECOMMEND", "RECOMMEND", "WAITLIST", "DECLINED"})
         self.assertIn(score.confidence_band, {"LOW", "MEDIUM", "HIGH"})
         self.assertIn(score.review_recommendation, {"REQUIRES_MANUAL_REVIEW", "STANDARD_REVIEW", "FAST_TRACK_REVIEW"})
         self.assertEqual(score.model_family, "gbr")
+        self.assertIsInstance(score.decision_summary, str)
+        self.assertIsInstance(score.top_strengths, list)
+        self.assertIsInstance(score.top_risks, list)
         self.assertIn(
             score.recommendation_status,
-            {"STRONG_RECOMMEND", "RECOMMEND", "REVIEW_NEEDED", "LOW_SIGNAL", "MANUAL_REVIEW"},
+            {"STRONG_RECOMMEND", "RECOMMEND", "WAITLIST", "DECLINED"},
         )
 
     def test_score_batch_assigns_ranking_positions(self) -> None:
@@ -74,17 +78,16 @@ class ScoringServiceTests(unittest.TestCase):
         score = self.service.score_candidate(self.fixtures["incomplete"])
 
         self.assertFalse(score.shortlist_eligible)
-        self.assertIn(score.recommendation_status, {"LOW_SIGNAL", "MANUAL_REVIEW"})
+        self.assertEqual(score.recommendation_status, "DECLINED")
         self.assertIn("low_completeness", score.caution_flags)
 
-    def test_risky_profile_triggers_uncertainty(self) -> None:
-        """Critical data flags should push the candidate toward manual review logic."""
+    def test_risky_profile_keeps_borderline_status_without_forced_manual(self) -> None:
+        """Low ASR quality alone should not force manual review after the routing redesign."""
 
         score = self.service.score_candidate(self.fixtures["risky"])
 
-        self.assertTrue(score.uncertainty_flag)
-        self.assertEqual(score.recommendation_status, "MANUAL_REVIEW")
-        self.assertEqual(score.review_recommendation, "REQUIRES_MANUAL_REVIEW")
+        self.assertIn(score.recommendation_status, {"WAITLIST", "DECLINED"})
+        self.assertFalse(score.manual_review_required)
 
     def test_model_can_be_saved_and_loaded(self) -> None:
         """The optional ML artifact path should remain usable."""

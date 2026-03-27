@@ -2,6 +2,7 @@
 # Purpose: Standalone dependency set for running the M6 module, tests, evaluation, and notebook.
 
 pydantic==2.10.3
+PyYAML==6.0.2
 numpy==2.1.3
 pandas==2.2.3
 scipy==1.14.1

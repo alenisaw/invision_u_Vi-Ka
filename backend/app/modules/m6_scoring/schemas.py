@@ -45,13 +45,19 @@ class CandidateScore(BaseModel):
     candidate_id: UUID
     sub_scores: dict[str, float]
     review_priority_index: float = Field(..., ge=0.0, le=1.0)
+    score_status: str = ""
     recommendation_status: str
+    decision_summary: str = ""
     confidence: float = Field(..., ge=0.0, le=1.0)
     confidence_band: str = "MEDIUM"
+    manual_review_required: bool = False
     uncertainty_flag: bool = False
     shortlist_eligible: bool = False
     review_recommendation: str = "STANDARD_REVIEW"
     review_reasons: list[str] = Field(default_factory=list)
+    top_strengths: list[str] = Field(default_factory=list)
+    top_risks: list[str] = Field(default_factory=list)
+    score_delta_vs_baseline: float = 0.0
     ranking_position: int | None = None
     caution_flags: list[str] = Field(default_factory=list)
     score_breakdown: dict[str, float] = Field(default_factory=dict)

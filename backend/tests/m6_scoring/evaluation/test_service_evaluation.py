@@ -34,8 +34,14 @@ class ScoringEvaluationTests(unittest.TestCase):
             "macro_f1",
             "spearman_rank_correlation",
             "top_k_overlap",
+            "manual_review_rate",
+            "uncertainty_rate",
             "high_confidence_rate",
             "fast_track_rate",
+            "strong_recommend_rate",
+            "recommend_rate",
+            "waitlist_rate",
+            "declined_rate",
             "test_profile_mix",
         }:
             self.assertIn(key, metrics)

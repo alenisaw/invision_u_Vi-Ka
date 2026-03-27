@@ -11,78 +11,16 @@ from __future__ import annotations
 
 from typing import Iterable
 
+from .m6_scoring_config import (
+    CRITICAL_DATA_FLAGS,
+    MODIFIER_SIGNAL_NAMES,
+    SCORING_VERSION,
+    SCORING_WEIGHTS,
+    SOFT_CAUTION_FLAGS,
+    STATUS_THRESHOLDS,
+    SUBSCORE_SIGNAL_WEIGHTS,
+)
 from .schemas import SignalEnvelope
-
-SCORING_VERSION = "m6-v1"
-
-SUBSCORE_SIGNAL_WEIGHTS: dict[str, dict[str, float]] = {
-    "leadership_potential": {
-        "leadership_indicators": 0.6,
-        "team_leadership": 0.4,
-    },
-    "growth_trajectory": {
-        "growth_trajectory": 0.6,
-        "challenges_overcome": 0.4,
-    },
-    "motivation_clarity": {
-        "motivation_clarity": 0.6,
-        "goal_specificity": 0.4,
-    },
-    "initiative_agency": {
-        "agency_signals": 0.4,
-        "self_started_projects": 0.3,
-        "proactivity_examples": 0.3,
-    },
-    "learning_agility": {
-        "learning_agility": 1.0,
-    },
-    "communication_clarity": {
-        "clarity_score": 0.4,
-        "structure_score": 0.3,
-        "idea_articulation": 0.3,
-    },
-    "ethical_reasoning": {
-        "ethical_reasoning": 0.7,
-        "civic_orientation": 0.3,
-    },
-    "program_fit": {
-        "program_alignment": 1.0,
-    },
-}
-
-SCORING_WEIGHTS: dict[str, float] = {
-    "leadership_potential": 0.20,
-    "growth_trajectory": 0.18,
-    "motivation_clarity": 0.15,
-    "initiative_agency": 0.15,
-    "learning_agility": 0.12,
-    "communication_clarity": 0.10,
-    "ethical_reasoning": 0.05,
-    "program_fit": 0.05,
-}
-
-MODIFIER_SIGNAL_NAMES = {
-    "essay_transcript_consistency",
-    "claims_evidence_match",
-    "ai_writing_risk",
-    "voice_consistency",
-    "specificity_score",
-}
-
-CRITICAL_DATA_FLAGS = {
-    "requires_human_review",
-    "low_asr_confidence",
-    "unclear_segments_high",
-    "no_speech_detected",
-}
-
-SOFT_CAUTION_FLAGS = {
-    "possible_ai_use",
-    "low_cross_source_consistency",
-    "weak_claim_support",
-    "voice_inconsistency",
-    "generic_evidence",
-}
 
 
 def clamp_score(value: float) -> float:
@@ -182,17 +120,18 @@ def has_critical_data_flags(data_flags: Iterable[str]) -> bool:
 
 
 def map_recommendation_status(score: float, completeness: float, uncertainty_flag: bool = False) -> str:
-    """Map the score into a base recommendation bucket before calibration."""
+    """Map the score into one of the four primary score categories."""
 
-    if uncertainty_flag:
-        return "MANUAL_REVIEW"
-    if completeness < 0.50 or score < 0.45:
-        return "LOW_SIGNAL"
-    if score >= 0.75:
+    _ = uncertainty_flag
+    if completeness < STATUS_THRESHOLDS["declined_completeness_max"]:
+        return "DECLINED"
+    if score >= STATUS_THRESHOLDS["strong_recommend_min"]:
         return "STRONG_RECOMMEND"
-    if score >= 0.60:
+    if score >= STATUS_THRESHOLDS["recommend_min"]:
         return "RECOMMEND"
-    return "REVIEW_NEEDED"
+    if score >= STATUS_THRESHOLDS["waitlist_min"]:
+        return "WAITLIST"
+    return "DECLINED"
 
 
 # File summary: rules.py

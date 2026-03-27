@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from backend.app.modules.m6_scoring.evaluation import export_evaluation_bundle
+from backend.app.modules.m6_scoring.optimization import export_search_report
 
 
 def _load_summary(path: Path) -> dict:
@@ -51,8 +52,14 @@ def _build_reference_delta(reference_summary: dict, current_summary: dict) -> pd
         "spearman_rank_correlation",
         "top_k_overlap",
         "manual_review_rate",
+        "uncertainty_rate",
         "high_confidence_rate",
         "fast_track_rate",
+        "acceptance_rate",
+        "strong_recommend_rate",
+        "recommend_rate",
+        "waitlist_rate",
+        "declined_rate",
     ]
 
     rows: list[dict[str, float | str | None]] = []
@@ -87,6 +94,14 @@ def main() -> None:
         train_sample_count=300,
         test_sample_count=120,
         seed=42,
+    )
+    exported.update(
+        export_search_report(
+            out_dir=output_dir,
+            train_sample_count=300,
+            test_sample_count=120,
+            seed=42,
+        )
     )
 
     reference_dir = REPO_ROOT / "backend/tests/m6_scoring/results/pre_tuning_reference"
