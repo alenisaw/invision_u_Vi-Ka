@@ -13,6 +13,18 @@ import math
 
 import numpy as np
 
+from .calibration import ScoreCalibrator
+from .decision_policy import (
+    apply_decision_policy,
+)
+from .m6_scoring_config import (
+    DEFAULT_BLEND_WEIGHT_ML,
+    DEFAULT_CALIBRATION_MODE,
+    DEFAULT_MODEL_FAMILY,
+    DecisionPolicyConfig,
+    STATUS_ORDER,
+    build_policy_config,
+)
 try:
     from scipy.stats import spearmanr
     from sklearn.metrics import mean_absolute_error, mean_squared_error, precision_recall_fscore_support, r2_score
@@ -35,7 +47,6 @@ from .ranker import rank_scores
 from .rules import (
     SCORING_VERSION,
     SCORING_WEIGHTS,
-    SOFT_CAUTION_FLAGS,
     apply_missing_data_penalty,
     clamp_score,
     compute_baseline_rpi,
@@ -61,19 +72,31 @@ class ScoringService:
     def __init__(
         self,
         scoring_version: str = SCORING_VERSION,
-        blend_weight_ml: float = 0.20,
-        model_family: str = "gbr",
+        blend_weight_ml: float | None = None,
+        model_family: str | None = None,
+        calibration_mode: str | None = None,
+        policy_config: DecisionPolicyConfig | None = None,
     ) -> None:
+        self.policy_config = policy_config or build_policy_config()
         self.scoring_version = scoring_version
-        self.blend_weight_ml = blend_weight_ml
-        self.blend_weight_baseline = clamp_score(1.0 - blend_weight_ml)
-        self.model_family = model_family
-        self.ml_model = HybridScoringModel(model_family=model_family)
+        self.blend_weight_ml = blend_weight_ml if blend_weight_ml is not None else self.policy_config.blend_weight_ml
+        self.blend_weight_baseline = clamp_score(1.0 - self.blend_weight_ml)
+        self.model_family = model_family or self.policy_config.model_family or DEFAULT_MODEL_FAMILY
+        self.calibration_mode = calibration_mode or self.policy_config.calibration_mode or DEFAULT_CALIBRATION_MODE
+        self.ml_model = HybridScoringModel(model_family=self.model_family)
+        self.calibrator = ScoreCalibrator(mode=self.calibration_mode)
 
     def fit(self, labeled_samples: list[LabeledEnvelope]) -> None:
         """Train the optional ML refinement layer."""
 
         self.ml_model.fit(labeled_samples, _feature_builder)
+        raw_scores: list[float] = []
+        targets: list[float] = []
+        for labeled_sample in labeled_samples:
+            raw_context = self._build_raw_score_context(labeled_sample.envelope)
+            raw_scores.append(raw_context["final_score"])
+            targets.append(labeled_sample.target_rpi)
+        self.calibrator.fit(raw_scores, targets)
 
     def train_on_synthetic(self, sample_count: int = 300, seed: int = 42) -> list[LabeledEnvelope]:
         """Train the ML layer on generated development data."""
@@ -81,6 +104,33 @@ class ScoringService:
         labeled_samples = generate_synthetic_dataset(sample_count=sample_count, seed=seed, profile_mix="balanced")
         self.fit(labeled_samples)
         return labeled_samples
+
+    def _build_raw_score_context(self, envelope: SignalEnvelope) -> dict[str, float | dict | list]:
+        """Compute the raw score components before decision policy routing."""
+
+        sub_scores, baseline_rpi = _feature_builder(envelope)
+        caution_flags = derive_caution_flags(envelope)
+        ml_rpi = self.ml_model.predict(envelope, sub_scores, baseline_rpi)
+        blended_rpi = clamp_score(
+            baseline_rpi * self.blend_weight_baseline + ml_rpi * self.blend_weight_ml
+        )
+        final_score = apply_missing_data_penalty(blended_rpi, envelope.completeness)
+        confidence, _, confidence_components = assess_score_confidence(
+            envelope=envelope,
+            baseline_rpi=baseline_rpi,
+            ml_rpi=ml_rpi,
+            caution_flags=caution_flags,
+        )
+        return {
+            "sub_scores": sub_scores,
+            "baseline_rpi": baseline_rpi,
+            "ml_rpi": ml_rpi,
+            "blended_rpi": blended_rpi,
+            "final_score": final_score,
+            "confidence": confidence,
+            "confidence_components": confidence_components,
+            "caution_flags": caution_flags,
+        }
 
     def evaluate_on_synthetic(
         self,
@@ -124,7 +174,7 @@ class ScoringService:
                     uncertainty_flag=False,
                 )
             )
-            predicted_statuses.append(score.recommendation_status)
+            predicted_statuses.append(score.score_status)
 
         precision, recall, f1_score, _ = precision_recall_fscore_support(
             true_statuses,
@@ -138,6 +188,10 @@ class ScoringService:
         predicted_top = set(np.argsort(predicted_scores)[-top_k:].tolist())
 
         rmse = math.sqrt(mean_squared_error(true_scores, predicted_scores))
+        status_rates = {
+            f"{status_name.lower()}_rate": round(float(np.mean([status == status_name for status in predicted_statuses])), 4)
+            for status_name in STATUS_ORDER
+        }
         return {
             "train_sample_count": train_sample_count,
             "test_sample_count": test_sample_count,
@@ -151,11 +205,13 @@ class ScoringService:
             "spearman_rank_correlation": round(float(correlation if correlation == correlation else 0.0), 4),
             "top_k_overlap": round(len(true_top & predicted_top) / top_k, 4),
             "manual_review_rate": round(float(np.mean(uncertainty_flags)), 4),
+            "uncertainty_rate": round(float(np.mean(uncertainty_flags)), 4),
             "high_confidence_rate": round(float(np.mean([band == "HIGH" for band in confidence_bands])), 4),
             "fast_track_rate": round(
                 float(np.mean([review == "FAST_TRACK_REVIEW" for review in review_recommendations])),
                 4,
             ),
+            **status_rates,
         }
 
     def build_explainability_input(self, envelope: SignalEnvelope) -> ExplainabilityInput:
@@ -192,54 +248,57 @@ class ScoringService:
     def score_candidate(self, envelope: SignalEnvelope) -> CandidateScore:
         """Score one candidate from the canonical signal envelope."""
 
-        sub_scores, baseline_rpi = _feature_builder(envelope)
-        caution_flags = derive_caution_flags(envelope)
-        ml_rpi = self.ml_model.predict(envelope, sub_scores, baseline_rpi)
+        raw_context = self._build_raw_score_context(envelope)
+        sub_scores = raw_context["sub_scores"]
+        baseline_rpi = raw_context["baseline_rpi"]
+        ml_rpi = raw_context["ml_rpi"]
+        blended_rpi = raw_context["blended_rpi"]
+        raw_final_score = raw_context["final_score"]
+        confidence = raw_context["confidence"]
+        confidence_components = raw_context["confidence_components"]
+        caution_flags = raw_context["caution_flags"]
 
-        blended_rpi = clamp_score(
-            baseline_rpi * self.blend_weight_baseline + ml_rpi * self.blend_weight_ml
-        )
-        final_rpi = apply_missing_data_penalty(blended_rpi, envelope.completeness)
-
-        confidence, uncertainty_flag, confidence_components = assess_score_confidence(
-            envelope=envelope,
-            baseline_rpi=baseline_rpi,
-            ml_rpi=ml_rpi,
-            caution_flags=caution_flags,
-        )
-        recommendation_status = self._calibrate_recommendation_status(
-            score=final_rpi,
+        decision = apply_decision_policy(
+            raw_score=raw_final_score,
             confidence=confidence,
-            completeness=envelope.completeness,
-            uncertainty_flag=uncertainty_flag,
-            caution_flags=caution_flags,
-        )
-
-        shortlist_eligible = recommendation_status in {"STRONG_RECOMMEND", "RECOMMEND"}
-        confidence_band = self._build_confidence_band(confidence)
-        review_recommendation, review_reasons = self._build_review_recommendation(
-            recommendation_status=recommendation_status,
-            confidence_band=confidence_band,
-            uncertainty_flag=uncertainty_flag,
-            caution_flags=caution_flags,
             confidence_components=confidence_components,
+            caution_flags=caution_flags,
+            data_flags=envelope.data_flags,
+            completeness=envelope.completeness,
+            policy=self.policy_config,
+            calibrator=self.calibrator,
+        )
+        top_strengths = self._build_top_strengths(sub_scores)
+        top_risks = self._build_top_risks(
+            caution_flags,
+            confidence_components,
+            envelope.completeness,
+            decision.uncertainty_categories,
         )
         return CandidateScore(
             candidate_id=envelope.candidate_id,
             sub_scores=sub_scores,
-            review_priority_index=final_rpi,
-            recommendation_status=recommendation_status,
+            review_priority_index=decision.calibrated_score,
+            score_status=decision.score_status,
+            recommendation_status=decision.score_status,
+            decision_summary=decision.decision_summary,
             confidence=confidence,
-            confidence_band=confidence_band,
-            uncertainty_flag=uncertainty_flag,
-            shortlist_eligible=shortlist_eligible,
-            review_recommendation=review_recommendation,
-            review_reasons=review_reasons,
+            confidence_band=decision.confidence_band,
+            manual_review_required=decision.manual_review_required,
+            uncertainty_flag=decision.manual_review_required,
+            shortlist_eligible=decision.shortlist_eligible,
+            review_recommendation=decision.review_recommendation,
+            review_reasons=decision.review_reasons + decision.uncertainty_categories,
+            top_strengths=top_strengths,
+            top_risks=top_risks,
+            score_delta_vs_baseline=round(decision.calibrated_score - baseline_rpi, 4),
             caution_flags=caution_flags,
             score_breakdown={
                 "baseline_rpi": baseline_rpi,
                 "ml_rpi": ml_rpi,
                 "blended_rpi": blended_rpi,
+                "raw_final_score": raw_final_score,
+                "calibrated_score": decision.calibrated_score,
                 **confidence_components,
             },
             model_family=self.model_family,
@@ -282,70 +341,29 @@ class ScoringService:
             for flag in caution_flags
         ]
 
-    def _build_confidence_band(self, confidence: float) -> str:
-        """Map the confidence score into a compact UI-friendly band."""
+    def _build_top_strengths(self, sub_scores: dict[str, float]) -> list[str]:
+        """Return the strongest sub-score labels for UI display."""
 
-        if confidence >= 0.80:
-            return "HIGH"
-        if confidence >= 0.62:
-            return "MEDIUM"
-        return "LOW"
+        ranked = sorted(sub_scores.items(), key=lambda item: item[1], reverse=True)
+        return [name for name, value in ranked if value >= 0.60][:3]
 
-    def _calibrate_recommendation_status(
+    def _build_top_risks(
         self,
-        score: float,
-        confidence: float,
-        completeness: float,
-        uncertainty_flag: bool,
-        caution_flags: list[str],
-    ) -> str:
-        """Calibrate the recommendation status after score blending."""
-
-        if uncertainty_flag:
-            return "MANUAL_REVIEW"
-
-        base_status = map_recommendation_status(score=score, completeness=completeness, uncertainty_flag=False)
-        soft_cautions = sum(1 for flag in caution_flags if flag in SOFT_CAUTION_FLAGS)
-
-        if base_status == "LOW_SIGNAL":
-            return "LOW_SIGNAL"
-        if base_status == "STRONG_RECOMMEND" and confidence < 0.62:
-            return "RECOMMEND"
-        if base_status == "RECOMMEND" and score >= 0.72 and confidence >= 0.82 and soft_cautions <= 1:
-            return "STRONG_RECOMMEND"
-        if base_status == "RECOMMEND" and confidence < 0.52:
-            return "REVIEW_NEEDED"
-        if base_status == "REVIEW_NEEDED" and score >= 0.57 and confidence >= 0.78 and soft_cautions <= 1 and completeness >= 0.75:
-            return "RECOMMEND"
-        return base_status
-
-    def _build_review_recommendation(
-        self,
-        recommendation_status: str,
-        confidence_band: str,
-        uncertainty_flag: bool,
         caution_flags: list[str],
         confidence_components: dict[str, float],
-    ) -> tuple[str, list[str]]:
-        """Build compact UI-facing review guidance."""
+        completeness: float,
+        uncertainty_categories: list[str],
+    ) -> list[str]:
+        """Return the main reasons why the candidate may need extra scrutiny."""
 
-        review_reasons: list[str] = []
-        if uncertainty_flag:
-            review_reasons.append("uncertainty threshold triggered")
+        top_risks = list(uncertainty_categories[:3]) + list(caution_flags[:3])
         if confidence_components.get("signal_coverage", 1.0) < 0.60:
-            review_reasons.append("low signal coverage")
+            top_risks.append("low_signal_coverage")
         if confidence_components.get("mean_signal_confidence", 1.0) < 0.60:
-            review_reasons.append("low signal confidence")
-        if caution_flags:
-            review_reasons.append(", ".join(caution_flags[:2]))
-        if not review_reasons and confidence_band == "HIGH":
-            review_reasons.append("high model confidence")
-
-        if uncertainty_flag:
-            return "REQUIRES_MANUAL_REVIEW", review_reasons
-        if recommendation_status in {"STRONG_RECOMMEND", "RECOMMEND"} and confidence_band == "HIGH":
-            return "FAST_TRACK_REVIEW", review_reasons
-        return "STANDARD_REVIEW", review_reasons
+            top_risks.append("low_signal_confidence")
+        if completeness < 0.50:
+            top_risks.append("low_completeness")
+        return list(dict.fromkeys(top_risks))[:3]
 
 
 # File summary: service.py

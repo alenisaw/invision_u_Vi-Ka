@@ -19,9 +19,50 @@ import pandas as pd
 from scipy.stats import spearmanr
 from sklearn.metrics import mean_absolute_error, mean_squared_error, precision_recall_fscore_support, r2_score
 
+from .m6_scoring_config import STATUS_ORDER
 from .rules import map_recommendation_status
 from .service import ScoringService
 from .synthetic_data import build_reference_fixtures, generate_synthetic_dataset
+
+
+def _build_status_distribution(results: pd.DataFrame, mode: str) -> pd.DataFrame:
+    """Return status percentages for one evaluation mode."""
+
+    rows = []
+    sample_count = max(len(results), 1)
+    for status_name in STATUS_ORDER:
+        count = int((results["predicted_status"] == status_name).sum())
+        rows.append(
+            {
+                "mode": mode,
+                "status": status_name,
+                "count": count,
+                "rate": round(count / sample_count, 4),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _build_profile_type_summary(results: pd.DataFrame, mode: str) -> pd.DataFrame:
+    """Return a compact per-profile-type summary for one evaluation mode."""
+
+    rows = []
+    for profile_type, frame in results.groupby("profile_type"):
+        rows.append(
+            {
+                "mode": mode,
+                "profile_type": profile_type,
+                "sample_count": int(len(frame)),
+                "mean_predicted_rpi": round(float(frame["predicted_rpi"].mean()), 4),
+                "mean_confidence": round(float(frame["confidence"].mean()), 4),
+                "manual_review_rate": round(float(frame["uncertainty_flag"].mean()), 4),
+                "strong_recommend_rate": round(float((frame["predicted_status"] == "STRONG_RECOMMEND").mean()), 4),
+                "recommend_rate": round(float((frame["predicted_status"] == "RECOMMEND").mean()), 4),
+                "waitlist_rate": round(float((frame["predicted_status"] == "WAITLIST").mean()), 4),
+                "declined_rate": round(float((frame["predicted_status"] == "DECLINED").mean()), 4),
+            }
+        )
+    return pd.DataFrame(rows).sort_values(["mode", "profile_type"]).reset_index(drop=True)
 
 
 def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, float | int | str], pd.DataFrame]:
@@ -40,9 +81,11 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
                     completeness=labeled_sample.envelope.completeness,
                     uncertainty_flag=False,
                 ),
+                "predicted_score_status": score.score_status,
                 "predicted_status": score.recommendation_status,
                 "confidence": score.confidence,
                 "confidence_band": score.confidence_band,
+                "manual_review_required": score.manual_review_required,
                 "uncertainty_flag": score.uncertainty_flag,
                 "review_recommendation": score.review_recommendation,
                 "completeness": labeled_sample.envelope.completeness,
@@ -54,7 +97,7 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
     results = pd.DataFrame(rows)
     precision, recall, f1_score, _ = precision_recall_fscore_support(
         results["target_status"],
-        results["predicted_status"],
+        results["predicted_score_status"],
         average="macro",
         zero_division=0,
     )
@@ -74,8 +117,17 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
         "spearman_rank_correlation": round(float(correlation if correlation == correlation else 0.0), 4),
         "top_k_overlap": round(len(true_top & predicted_top) / top_k, 4),
         "manual_review_rate": round(float(results["uncertainty_flag"].mean()), 4),
+        "uncertainty_rate": round(float(results["uncertainty_flag"].mean()), 4),
         "high_confidence_rate": round(float((results["confidence_band"] == "HIGH").mean()), 4),
         "fast_track_rate": round(float((results["review_recommendation"] == "FAST_TRACK_REVIEW").mean()), 4),
+        "acceptance_rate": round(
+            float(results["predicted_status"].isin(["STRONG_RECOMMEND", "RECOMMEND"]).mean()),
+            4,
+        ),
+        "strong_recommend_rate": round(float((results["predicted_status"] == "STRONG_RECOMMEND").mean()), 4),
+        "recommend_rate": round(float((results["predicted_status"] == "RECOMMEND").mean()), 4),
+        "waitlist_rate": round(float((results["predicted_status"] == "WAITLIST").mean()), 4),
+        "declined_rate": round(float((results["predicted_status"] == "DECLINED").mean()), 4),
     }
     return metrics, results
 
@@ -173,8 +225,11 @@ def build_fixture_report() -> pd.DataFrame:
                 "status": score.recommendation_status,
                 "rpi": score.review_priority_index,
                 "confidence": score.confidence,
+                "confidence_band": score.confidence_band,
+                "manual_review_required": score.manual_review_required,
                 "uncertainty_flag": score.uncertainty_flag,
                 "shortlist_eligible": score.shortlist_eligible,
+                "decision_summary": score.decision_summary,
                 "caution_flags": ", ".join(score.caution_flags),
             }
         )
@@ -213,9 +268,54 @@ def export_evaluation_bundle(out_dir: str | Path, train_sample_count: int = 300,
         test_profile_mix="stress",
     )
     fixtures = build_fixture_report()
+    balanced_status_distribution = pd.concat(
+        [
+            _build_status_distribution(baseline["predictions"], "baseline_only"),
+            _build_status_distribution(gbr["predictions"], "gbr"),
+        ],
+        ignore_index=True,
+    )
+    stress_baseline = evaluate_baseline_only(
+        train_sample_count=train_sample_count,
+        test_sample_count=test_sample_count,
+        seed=seed,
+        test_profile_mix="stress",
+    )
+    stress_gbr = evaluate_hybrid_model(
+        train_sample_count=train_sample_count,
+        test_sample_count=test_sample_count,
+        seed=seed,
+        model_family="gbr",
+        test_profile_mix="stress",
+    )
+    stress_status_distribution = pd.concat(
+        [
+            _build_status_distribution(stress_baseline["predictions"], "baseline_only"),
+            _build_status_distribution(stress_gbr["predictions"], "gbr"),
+        ],
+        ignore_index=True,
+    )
+    balanced_profile_summary = pd.concat(
+        [
+            _build_profile_type_summary(baseline["predictions"], "baseline_only"),
+            _build_profile_type_summary(gbr["predictions"], "gbr"),
+        ],
+        ignore_index=True,
+    )
+    stress_profile_summary = pd.concat(
+        [
+            _build_profile_type_summary(stress_baseline["predictions"], "baseline_only"),
+            _build_profile_type_summary(stress_gbr["predictions"], "gbr"),
+        ],
+        ignore_index=True,
+    )
 
     balanced_metrics_path = output_dir / "balanced_model_comparison.csv"
     stress_metrics_path = output_dir / "stress_model_comparison.csv"
+    balanced_status_path = output_dir / "balanced_status_distribution.csv"
+    stress_status_path = output_dir / "stress_status_distribution.csv"
+    balanced_profile_path = output_dir / "balanced_profile_type_summary.csv"
+    stress_profile_path = output_dir / "stress_profile_type_summary.csv"
     baseline_path = output_dir / "baseline_predictions.csv"
     gbr_path = output_dir / "gbr_predictions.csv"
     fixture_path = output_dir / "fixture_report.csv"
@@ -223,6 +323,10 @@ def export_evaluation_bundle(out_dir: str | Path, train_sample_count: int = 300,
 
     balanced_comparison.to_csv(balanced_metrics_path, index=False)
     stress_comparison.to_csv(stress_metrics_path, index=False)
+    balanced_status_distribution.to_csv(balanced_status_path, index=False)
+    stress_status_distribution.to_csv(stress_status_path, index=False)
+    balanced_profile_summary.to_csv(balanced_profile_path, index=False)
+    stress_profile_summary.to_csv(stress_profile_path, index=False)
     baseline["predictions"].to_csv(baseline_path, index=False)
     gbr["predictions"].to_csv(gbr_path, index=False)
     fixtures.to_csv(fixture_path, index=False)
@@ -232,6 +336,8 @@ def export_evaluation_bundle(out_dir: str | Path, train_sample_count: int = 300,
         "gbr_metrics": gbr["metrics"],
         "balanced_comparison": balanced_comparison.to_dict(orient="records"),
         "stress_comparison": stress_comparison.to_dict(orient="records"),
+        "balanced_status_distribution": balanced_status_distribution.to_dict(orient="records"),
+        "stress_status_distribution": stress_status_distribution.to_dict(orient="records"),
         "train_sample_count": train_sample_count,
         "test_sample_count": test_sample_count,
         "seed": seed,
@@ -241,6 +347,10 @@ def export_evaluation_bundle(out_dir: str | Path, train_sample_count: int = 300,
     return {
         "balanced_model_comparison": balanced_metrics_path,
         "stress_model_comparison": stress_metrics_path,
+        "balanced_status_distribution": balanced_status_path,
+        "stress_status_distribution": stress_status_path,
+        "balanced_profile_type_summary": balanced_profile_path,
+        "stress_profile_type_summary": stress_profile_path,
         "baseline_predictions": baseline_path,
         "gbr_predictions": gbr_path,
         "fixture_report": fixture_path,

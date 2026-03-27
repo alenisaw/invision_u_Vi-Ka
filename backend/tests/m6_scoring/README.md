@@ -40,6 +40,16 @@ The exported bundle includes balanced and stress comparisons for:
 
 It also writes a `vs_pre_tuning.csv` delta file under `results/latest/`.
 
+Useful outputs to inspect first:
+- `results/latest/summary.json`
+- `results/latest/balanced_status_distribution.csv`
+- `results/latest/stress_status_distribution.csv`
+- `results/latest/balanced_profile_type_summary.csv`
+- `results/latest/stress_profile_type_summary.csv`
+
+Status CSV files now show only the four primary score buckets.
+Manual review should be inspected separately through `manual_review_rate` and `review_recommendation`.
+
 Open the notebook:
 
 ```bash
