@@ -17,6 +17,7 @@
 
 ## Main files
 
+- `m6_scoring_config.py` central weights, thresholds, and status calibration knobs
 - `schemas.py` input and output contracts
 - `rules.py` deterministic baseline scoring
 - `confidence.py` confidence and uncertainty logic
@@ -58,10 +59,34 @@ python -m backend.app.modules.m6_scoring.evaluation --train-samples 300 --test-s
 The evaluation bundle now exports:
 - `balanced_model_comparison.csv`
 - `stress_model_comparison.csv`
+- `balanced_status_distribution.csv`
+- `stress_status_distribution.csv`
+- `balanced_profile_type_summary.csv`
+- `stress_profile_type_summary.csv`
 - `baseline_predictions.csv`
 - `gbr_predictions.csv`
 - `fixture_report.csv`
 - `summary.json`
+
+## Statuses
+
+The current score scale uses four primary categories:
+- `STRONG_RECOMMEND`
+- `RECOMMEND`
+- `WAITLIST`
+- `DECLINED`
+
+Manual review is no longer a score category. It is exposed separately via:
+- `manual_review_required`
+- `uncertainty_flag`
+- `review_recommendation`
+
+`CandidateScore` now also exposes compact UI-facing helpers:
+- `score_status`
+- `decision_summary`
+- `top_strengths`
+- `top_risks`
+- `score_delta_vs_baseline`
 
 Run the local M6 bundle tests:
 

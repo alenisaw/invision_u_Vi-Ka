@@ -9,6 +9,7 @@ Notes:
 
 from __future__ import annotations
 
+from .m6_scoring_config import CONFIDENCE_RULES, CONFIDENCE_WEIGHTS
 from .rules import (
     MODIFIER_SIGNAL_NAMES,
     SOFT_CAUTION_FLAGS,
@@ -55,33 +56,45 @@ def assess_score_confidence(
     model_disagreement = clamp_score(abs(baseline_rpi - ml_rpi))
     score_strength = clamp_score((baseline_rpi + ml_rpi) / 2.0)
     soft_caution_count = sum(1 for flag in caution_flags if flag in SOFT_CAUTION_FLAGS)
-    hard_uncertainty = has_critical_data_flags(envelope.data_flags) or envelope.completeness < 0.35
+    hard_uncertainty = (
+        has_critical_data_flags(envelope.data_flags)
+        or envelope.completeness < CONFIDENCE_RULES["hard_uncertainty_completeness_max"]
+    )
 
     risk_score = 0
-    if mean_signal_confidence < 0.60:
+    if mean_signal_confidence < CONFIDENCE_RULES["mean_signal_confidence_risk_min"]:
         risk_score += 1
-    if signal_coverage < 0.60:
+    if signal_coverage < CONFIDENCE_RULES["signal_coverage_risk_min"]:
         risk_score += 1
-    if envelope.completeness < 0.45:
+    if envelope.completeness < CONFIDENCE_RULES["completeness_risk_min"]:
         risk_score += 1
-    if model_disagreement > 0.18:
+    if model_disagreement > CONFIDENCE_RULES["model_disagreement_risk_min"]:
         risk_score += 1
-    if soft_caution_count >= 2:
+    if soft_caution_count >= CONFIDENCE_RULES["soft_caution_risk_min"]:
         risk_score += 1
-    if score_strength < 0.35 and signal_coverage < 0.70:
+    if (
+        score_strength < CONFIDENCE_RULES["weak_score_strength_max"]
+        and signal_coverage < CONFIDENCE_RULES["weak_score_coverage_max"]
+    ):
         risk_score += 1
 
     confidence_score = (
-        mean_signal_confidence * 0.38
-        + signal_coverage * 0.24
-        + envelope.completeness * 0.18
-        + (1.0 - model_disagreement) * 0.10
-        + score_strength * 0.10
+        mean_signal_confidence * CONFIDENCE_WEIGHTS["mean_signal_confidence"]
+        + signal_coverage * CONFIDENCE_WEIGHTS["signal_coverage"]
+        + envelope.completeness * CONFIDENCE_WEIGHTS["completeness"]
+        + (1.0 - model_disagreement) * CONFIDENCE_WEIGHTS["agreement"]
+        + score_strength * CONFIDENCE_WEIGHTS["score_strength"]
     )
-    if signal_coverage >= 0.85 and mean_signal_confidence >= 0.80:
-        confidence_score += 0.05
+    if (
+        signal_coverage >= CONFIDENCE_RULES["high_confidence_bonus_coverage_min"]
+        and mean_signal_confidence >= CONFIDENCE_RULES["high_confidence_bonus_signal_confidence_min"]
+    ):
+        confidence_score += CONFIDENCE_RULES["high_confidence_bonus_value"]
     if soft_caution_count:
-        confidence_score -= min(0.06, soft_caution_count * 0.02)
+        confidence_score -= min(
+            CONFIDENCE_RULES["soft_caution_penalty_max"],
+            soft_caution_count * CONFIDENCE_RULES["soft_caution_penalty_step"],
+        )
 
     components = {
         "mean_signal_confidence": mean_signal_confidence,
@@ -93,7 +106,11 @@ def assess_score_confidence(
         "risk_score": float(risk_score),
         "hard_uncertainty": 1.0 if hard_uncertainty else 0.0,
     }
-    return clamp_score(confidence_score), hard_uncertainty or risk_score >= 3, components
+    return (
+        clamp_score(confidence_score),
+        hard_uncertainty or risk_score >= CONFIDENCE_RULES["manual_review_risk_score_min"],
+        components,
+    )
 
 
 # File summary: confidence.py
