@@ -51,6 +51,135 @@
 
 ## Pipeline
 
+### `POST /api/v1/pipeline/score-signals`
+Score one candidate directly from the canonical `SignalEnvelope v1` contract.
+
+Use this endpoint while `M5` is still under implementation.
+It is the stable integration point between NLP output and `M6`.
+
+**Request Body:**
+```json
+{
+  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
+  "signal_schema_version": "v1",
+  "m5_model_version": "mock-v0",
+  "completeness": 0.91,
+  "data_flags": [],
+  "signals": {
+    "leadership_indicators": {
+      "value": 0.82,
+      "confidence": 0.88,
+      "source": ["video_transcript", "essay"],
+      "evidence": ["candidate led a school team project"],
+      "reasoning": "leadership behavior is explicit and concrete"
+    },
+    "motivation_clarity": {
+      "value": 0.76,
+      "confidence": 0.83,
+      "source": ["essay"],
+      "evidence": ["clear motivation statement"],
+      "reasoning": "goals are specific and credible"
+    }
+  }
+}
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
+    "sub_scores": {
+      "leadership_potential": 0.82,
+      "growth_trajectory": 0.0,
+      "motivation_clarity": 0.76,
+      "initiative_agency": 0.0,
+      "learning_agility": 0.0,
+      "communication_clarity": 0.0,
+      "ethical_reasoning": 0.0,
+      "program_fit": 0.0
+    },
+    "review_priority_index": 0.278,
+    "recommendation_status": "LOW_SIGNAL",
+    "confidence": 0.62,
+    "uncertainty_flag": false,
+    "shortlist_eligible": false,
+    "ranking_position": null,
+    "caution_flags": [],
+    "score_breakdown": {
+      "baseline_rpi": 0.278,
+      "ml_rpi": 0.278,
+      "blended_rpi": 0.278,
+      "mean_signal_confidence": 0.855,
+      "signal_coverage": 0.125,
+      "completeness": 0.91,
+      "model_disagreement": 0.0
+    },
+    "scoring_version": "m6-v1"
+  }
+}
+```
+
+---
+
+### `POST /api/v1/pipeline/score-signals/batch`
+Score and rank multiple signal envelopes directly.
+
+**Request Body:** array of `SignalEnvelope v1`
+
+---
+
+### `POST /api/v1/pipeline/score-signals/train-synthetic`
+Train the optional `M6` refinement model on synthetic development data.
+
+**Query params:**
+- `sample_count` default `300`
+- `seed` default `42`
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "status": "trained",
+    "sample_count": 300,
+    "seed": 42
+  }
+}
+```
+
+---
+
+### `POST /api/v1/pipeline/score-signals/evaluate-synthetic`
+Run a compact synthetic holdout evaluation for the scoring module.
+
+**Query params:**
+- `train_sample_count` default `300`
+- `test_sample_count` default `120`
+- `seed` default `42`
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "train_sample_count": 300,
+    "test_sample_count": 120,
+    "mae": 0.0341,
+    "rmse": 0.0438,
+    "r2": 0.9142,
+    "macro_precision": 0.8125,
+    "macro_recall": 0.8012,
+    "macro_f1": 0.8059,
+    "spearman_rank_correlation": 0.9214,
+    "top_k_overlap": 0.8
+  }
+}
+```
+
+---
+
 ### `POST /api/v1/pipeline/submit`
 Отправить одного кандидата и запустить полный pipeline (sync).
 
