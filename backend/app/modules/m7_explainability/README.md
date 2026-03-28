@@ -2,8 +2,13 @@
 
 ## Current status
 
-`M7` is not implemented yet.
-The integration contract is prepared in advance so this module can be built without changing `M6`.
+`M7` now provides a basic working explainability layer on top of `M6`.
+It still does not change any numeric decisions, but it already formats:
+- summary
+- positive factor blocks
+- caution blocks
+- reviewer guidance
+- evidence-backed explanation output
 
 ## What M7 will receive
 
@@ -21,7 +26,7 @@ See:
 - `docs/contracts/m6_m7_explainability_input_v1.example.json`
 - `backend/app/modules/m7_explainability/schemas.py`
 
-## What M7 should do
+## What M7 does now
 
 1. Build a short summary for the candidate.
 2. Turn `positive_factors` into reviewer-facing explanation blocks.
@@ -35,7 +40,7 @@ See:
 - do not invent evidence
 - do not use raw PII
 
-## Suggested future files
+## Main files
 
 - `schemas.py`
 - `evidence.py`

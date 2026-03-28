@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 from backend.app.modules.m6_scoring.schemas import SignalEnvelope, SignalPayload
+from backend.app.modules.m6_scoring.program_policy import normalize_program_id
 
 from .ai_detector import (
     ai_writing_risk_score,
@@ -307,9 +308,13 @@ class OpenRouterSignalClient:
         if not isinstance(content, str):
             raise ValueError("OpenRouter response content is not JSON.")
         normalized = content.strip()
-        if normalized.startswith("```"):
-            normalized = normalized.strip("`")
-            normalized = normalized.replace("json", "", 1).strip()
+        if normalized.startswith("```") and normalized.endswith("```"):
+            lines = normalized.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            normalized = "\n".join(lines).strip()
         return json.loads(normalized)
 
     def _coerce_signal_payload(self, *, raw_payload: Any, source_fallback: list[str]) -> SignalPayload:
@@ -415,6 +420,8 @@ class GroupedNLPSignalExtractionService:
             candidate_id=request.candidate_id,
             signal_schema_version=request.signal_schema_version,
             m5_model_version=model_version,
+            selected_program=request.selected_program,
+            program_id=normalize_program_id(request.selected_program),
             completeness=clamp(request.completeness),
             data_flags=list(dict.fromkeys(data_flags)),
             signals=merged_signals,

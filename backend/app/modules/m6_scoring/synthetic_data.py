@@ -12,6 +12,8 @@ from __future__ import annotations
 import random
 from uuid import uuid4
 
+from .m6_scoring_config import PROGRAM_CATALOG
+from .program_policy import normalize_program_id
 from .rules import apply_missing_data_penalty, compute_baseline_rpi, compute_sub_scores, get_signal_value
 from .schemas import LabeledEnvelope, SignalEnvelope, SignalPayload
 
@@ -119,6 +121,9 @@ def _generate_envelope(profile_type: str, randomizer: random.Random) -> SignalEn
 
     preset = PROFILE_PRESETS[profile_type]
     signals: dict[str, SignalPayload] = {}
+    selected_program = randomizer.choice(
+        [str(payload.get("display_name", program_id)) for program_id, payload in PROGRAM_CATALOG.items()]
+    )
 
     for signal_name in SCORING_SIGNALS:
         if randomizer.random() < preset["missing_probability"]:
@@ -146,6 +151,8 @@ def _generate_envelope(profile_type: str, randomizer: random.Random) -> SignalEn
         candidate_id=uuid4(),
         signal_schema_version="v1",
         m5_model_version=f"synthetic-{profile_type}",
+        selected_program=selected_program,
+        program_id=normalize_program_id(selected_program),
         completeness=_clip(randomizer.uniform(*preset["completeness_range"])),
         data_flags=data_flags,
         signals=signals,
@@ -156,7 +163,7 @@ def _label_envelope(envelope: SignalEnvelope, randomizer: random.Random) -> floa
     """Create a target label that stays close to the baseline with a few refinements."""
 
     sub_scores = compute_sub_scores(envelope)
-    baseline_rpi = compute_baseline_rpi(sub_scores)
+    baseline_rpi = compute_baseline_rpi(sub_scores, program_id=envelope.program_id or envelope.selected_program)
 
     leadership_boost = 0.04 if sub_scores.get("leadership_potential", 0.0) >= 0.80 else 0.0
     growth_boost = 0.03 if sub_scores.get("growth_trajectory", 0.0) >= 0.75 else 0.0

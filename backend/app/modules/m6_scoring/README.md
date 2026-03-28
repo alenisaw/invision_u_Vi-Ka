@@ -17,7 +17,9 @@
 
 ## Main files
 
-- `m6_scoring_config.py` central weights, thresholds, and status calibration knobs
+- `m6_scoring_config.yaml` central weights, thresholds, program profiles, and status policy
+- `m6_scoring_config.py` typed loader for the YAML config
+- `program_policy.py` canonical program normalization and per-program weight profiles
 - `schemas.py` input and output contracts
 - `rules.py` deterministic baseline scoring
 - `confidence.py` confidence and uncertainty logic
@@ -36,6 +38,7 @@
 ## Integration rule
 
 `M5` must emit `SignalEnvelope v1`.
+`selected_program` and canonical `program_id` are now part of the safe contract so `M6` can apply program-aware weighting without touching sensitive attributes.
 
 Share these files with NLP for integration:
 - `docs/contracts/M5_M6_SIGNAL_ENVELOPE.md`
@@ -78,6 +81,7 @@ The current score scale uses four primary categories:
 
 Manual review is no longer a score category. It is exposed separately via:
 - `manual_review_required`
+- `human_in_loop_required`
 - `uncertainty_flag`
 - `review_recommendation`
 

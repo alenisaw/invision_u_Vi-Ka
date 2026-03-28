@@ -15,11 +15,11 @@ from .m6_scoring_config import (
     CRITICAL_DATA_FLAGS,
     MODIFIER_SIGNAL_NAMES,
     SCORING_VERSION,
-    SCORING_WEIGHTS,
     SOFT_CAUTION_FLAGS,
     STATUS_THRESHOLDS,
     SUBSCORE_SIGNAL_WEIGHTS,
 )
+from .program_policy import get_program_weight_profile
 from .schemas import SignalEnvelope
 
 
@@ -73,11 +73,12 @@ def compute_sub_scores(envelope: SignalEnvelope) -> dict[str, float]:
     return sub_scores
 
 
-def compute_baseline_rpi(sub_scores: dict[str, float]) -> float:
+def compute_baseline_rpi(sub_scores: dict[str, float], program_id: str | None = None) -> float:
     """Compute the deterministic review priority index."""
 
+    scoring_weights = get_program_weight_profile(program_id)
     review_priority_index = 0.0
-    for sub_score_name, weight in SCORING_WEIGHTS.items():
+    for sub_score_name, weight in scoring_weights.items():
         review_priority_index += sub_scores.get(sub_score_name, 0.0) * weight
     return clamp_score(review_priority_index)
 
@@ -119,10 +120,9 @@ def has_critical_data_flags(data_flags: Iterable[str]) -> bool:
     return any(flag in CRITICAL_DATA_FLAGS for flag in data_flags)
 
 
-def map_recommendation_status(score: float, completeness: float, uncertainty_flag: bool = False) -> str:
+def map_recommendation_status(score: float, completeness: float) -> str:
     """Map the score into one of the four primary score categories."""
 
-    _ = uncertainty_flag
     if completeness < STATUS_THRESHOLDS["declined_completeness_max"]:
         return "DECLINED"
     if score >= STATUS_THRESHOLDS["strong_recommend_min"]:

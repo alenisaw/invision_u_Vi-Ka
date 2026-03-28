@@ -140,17 +140,28 @@ class PipelineOrchestrator:
     ) -> SignalEnvelope:
         """Call M5 for signal extraction. Falls back to empty signals if M5 is not ready."""
         try:
-            from app.modules.m5_nlp.service import NLPService
+            from app.modules.m5_nlp.schemas import M5ExtractionRequest
+            from app.modules.m5_nlp.service import nlp_signal_extraction_service
 
-            nlp_service = NLPService(self.session)
-            envelope = await nlp_service.extract(candidate_id, profile)
-            return envelope
-        except (ImportError, AttributeError, NotImplementedError):
+            request = M5ExtractionRequest(
+                candidate_id=candidate_id,
+                completeness=profile.completeness,
+                data_flags=profile.data_flags,
+                selected_program=profile.selected_program or "",
+                essay_text=profile.model_input.essay_text or "",
+                video_transcript=profile.model_input.video_transcript or "",
+                experience_summary=profile.model_input.experience_summary or "",
+                project_descriptions=list(profile.model_input.project_descriptions),
+                internal_test_answers=list(profile.model_input.internal_test_answers),
+            )
+            return nlp_signal_extraction_service.extract_signals(request)
+        except (ImportError, AttributeError, NotImplementedError, ValueError):
             logger.info("M5 NLP not ready, using empty signals for candidate %s", candidate_id)
             return SignalEnvelope(
                 candidate_id=candidate_id,
                 signal_schema_version="v1",
                 m5_model_version="stub",
+                selected_program=profile.selected_program or "",
                 completeness=profile.completeness,
                 data_flags=profile.data_flags,
                 signals={},
@@ -163,14 +174,14 @@ class PipelineOrchestrator:
         candidate_id: UUID,
         envelope: SignalEnvelope,
         score: CandidateScore,
-    ) -> None:
+        ) -> None:
         """Call M7 for explanation generation. Skips gracefully if M7 is not ready."""
         try:
             from app.modules.m7_explainability.service import ExplainabilityService
 
             explain_service = ExplainabilityService(self.session)
             await explain_service.generate(candidate_id, envelope, score)
-        except (ImportError, AttributeError, NotImplementedError):
+        except (ImportError, AttributeError, NotImplementedError, ValueError):
             logger.info("M7 Explainability not ready, skipping for candidate %s", candidate_id)
 
     # --- Persist score to DB ---

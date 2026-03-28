@@ -27,8 +27,8 @@ class DecisionContext:
     signal_coverage: float
     model_disagreement: float
     soft_caution_count: int
-    caution_flags: list[str]
-    data_flags: list[str]
+    caution_flags: tuple[str, ...]
+    data_flags: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -228,8 +228,8 @@ def apply_decision_policy(
         signal_coverage=confidence_components.get("signal_coverage", 0.0),
         model_disagreement=confidence_components.get("model_disagreement", 0.0),
         soft_caution_count=int(confidence_components.get("soft_caution_count", 0.0)),
-        caution_flags=caution_flags,
-        data_flags=data_flags,
+        caution_flags=tuple(caution_flags),
+        data_flags=tuple(data_flags),
     )
     score_status = classify_score(context, policy)
     uncertainty_categories = derive_uncertainty_categories(context, policy)

@@ -10,6 +10,8 @@ Notes:
 from __future__ import annotations
 
 import math
+import logging
+from time import perf_counter
 
 import numpy as np
 
@@ -22,6 +24,7 @@ from .m6_scoring_config import (
     DEFAULT_CALIBRATION_MODE,
     DEFAULT_MODEL_FAMILY,
     DecisionPolicyConfig,
+    SUPPORTED_SIGNAL_SCHEMA_VERSIONS,
     STATUS_ORDER,
     build_policy_config,
 )
@@ -37,6 +40,7 @@ except ImportError:  # pragma: no cover
 
 from .confidence import assess_score_confidence
 from .ml_model import HybridScoringModel
+from .program_policy import get_program_weight_profile, normalize_program_id
 from ..m7_explainability.schemas import (
     ExplainabilityCautionFlag,
     ExplainabilityFactor,
@@ -46,7 +50,6 @@ from ..m7_explainability.schemas import (
 from .ranker import rank_scores
 from .rules import (
     SCORING_VERSION,
-    SCORING_WEIGHTS,
     apply_missing_data_penalty,
     clamp_score,
     compute_baseline_rpi,
@@ -57,12 +60,14 @@ from .rules import (
 from .schemas import CandidateScore, LabeledEnvelope, SignalEnvelope
 from .synthetic_data import generate_synthetic_dataset
 
+logger = logging.getLogger(__name__)
+
 
 def _feature_builder(envelope: SignalEnvelope) -> tuple[dict[str, float], float]:
     """Build the shared feature primitives used by both rules and ML."""
 
     sub_scores = compute_sub_scores(envelope)
-    baseline_rpi = compute_baseline_rpi(sub_scores)
+    baseline_rpi = compute_baseline_rpi(sub_scores, program_id=envelope.program_id or envelope.selected_program)
     return sub_scores, baseline_rpi
 
 
@@ -98,6 +103,17 @@ class ScoringService:
             targets.append(labeled_sample.target_rpi)
         self.calibrator.fit(raw_scores, targets)
 
+    def _validate_envelope(self, envelope: SignalEnvelope) -> None:
+        """Enforce supported schema versions and minimal envelope sanity."""
+
+        if envelope.signal_schema_version not in SUPPORTED_SIGNAL_SCHEMA_VERSIONS:
+            raise ValueError(
+                f"unsupported signal_schema_version: {envelope.signal_schema_version}; "
+                f"supported={SUPPORTED_SIGNAL_SCHEMA_VERSIONS}"
+            )
+        if not isinstance(envelope.signals, dict):
+            raise ValueError("signals must be a mapping of signal_name -> SignalPayload")
+
     def train_on_synthetic(self, sample_count: int = 300, seed: int = 42) -> list[LabeledEnvelope]:
         """Train the ML layer on generated development data."""
 
@@ -108,14 +124,17 @@ class ScoringService:
     def _build_raw_score_context(self, envelope: SignalEnvelope) -> dict[str, float | dict | list]:
         """Compute the raw score components before decision policy routing."""
 
+        self._validate_envelope(envelope)
         sub_scores, baseline_rpi = _feature_builder(envelope)
         caution_flags = derive_caution_flags(envelope)
+        if not envelope.signals:
+            caution_flags.append("no_structured_signals")
         ml_rpi = self.ml_model.predict(envelope, sub_scores, baseline_rpi)
         blended_rpi = clamp_score(
             baseline_rpi * self.blend_weight_baseline + ml_rpi * self.blend_weight_ml
         )
         final_score = apply_missing_data_penalty(blended_rpi, envelope.completeness)
-        confidence, _, confidence_components = assess_score_confidence(
+        confidence, uncertainty_flag, confidence_components = assess_score_confidence(
             envelope=envelope,
             baseline_rpi=baseline_rpi,
             ml_rpi=ml_rpi,
@@ -128,6 +147,7 @@ class ScoringService:
             "blended_rpi": blended_rpi,
             "final_score": final_score,
             "confidence": confidence,
+            "uncertainty_flag": uncertainty_flag,
             "confidence_components": confidence_components,
             "caution_flags": caution_flags,
         }
@@ -159,19 +179,23 @@ class ScoringService:
         confidence_bands: list[str] = []
         review_recommendations: list[str] = []
         uncertainty_flags: list[bool] = []
+        manual_review_flags: list[bool] = []
+        latencies_ms: list[float] = []
 
         for labeled_sample in test_samples:
+            started_at = perf_counter()
             score = self.score_candidate(labeled_sample.envelope)
+            latencies_ms.append((perf_counter() - started_at) * 1000.0)
             true_scores.append(labeled_sample.target_rpi)
             predicted_scores.append(score.review_priority_index)
             confidence_bands.append(score.confidence_band)
             review_recommendations.append(score.review_recommendation)
             uncertainty_flags.append(score.uncertainty_flag)
+            manual_review_flags.append(score.manual_review_required)
             true_statuses.append(
                 map_recommendation_status(
                     score=labeled_sample.target_rpi,
                     completeness=labeled_sample.envelope.completeness,
-                    uncertainty_flag=False,
                 )
             )
             predicted_statuses.append(score.score_status)
@@ -186,6 +210,7 @@ class ScoringService:
         top_k = min(10, len(test_samples))
         true_top = set(np.argsort(true_scores)[-top_k:].tolist())
         predicted_top = set(np.argsort(predicted_scores)[-top_k:].tolist())
+        safe_correlation = float(correlation) if correlation is not None and not math.isnan(float(correlation)) else 0.0
 
         rmse = math.sqrt(mean_squared_error(true_scores, predicted_scores))
         status_rates = {
@@ -202,13 +227,19 @@ class ScoringService:
             "macro_precision": round(float(precision), 4),
             "macro_recall": round(float(recall), 4),
             "macro_f1": round(float(f1_score), 4),
-            "spearman_rank_correlation": round(float(correlation if correlation == correlation else 0.0), 4),
-            "top_k_overlap": round(len(true_top & predicted_top) / top_k, 4),
-            "manual_review_rate": round(float(np.mean(uncertainty_flags)), 4),
+            "spearman_rank_correlation": round(safe_correlation, 4),
+            "top_k_overlap": round(len(true_top & predicted_top) / max(top_k, 1), 4),
+            "manual_review_rate": round(float(np.mean(manual_review_flags)), 4),
             "uncertainty_rate": round(float(np.mean(uncertainty_flags)), 4),
             "high_confidence_rate": round(float(np.mean([band == "HIGH" for band in confidence_bands])), 4),
             "fast_track_rate": round(
                 float(np.mean([review == "FAST_TRACK_REVIEW" for review in review_recommendations])),
+                4,
+            ),
+            "avg_latency_ms": round(float(np.mean(latencies_ms)) if latencies_ms else 0.0, 4),
+            "p95_latency_ms": round(float(np.percentile(latencies_ms, 95)) if latencies_ms else 0.0, 4),
+            "throughput_candidates_per_sec": round(
+                float(1000.0 / np.mean(latencies_ms)) if latencies_ms and np.mean(latencies_ms) > 0 else 0.0,
                 4,
             ),
             **status_rates,
@@ -233,10 +264,16 @@ class ScoringService:
         return ExplainabilityInput(
             candidate_id=score.candidate_id,
             scoring_version=score.scoring_version,
+            selected_program=score.selected_program,
+            program_id=score.program_id,
             recommendation_status=score.recommendation_status,
             review_priority_index=score.review_priority_index,
             confidence=score.confidence,
             uncertainty_flag=score.uncertainty_flag,
+            manual_review_required=score.manual_review_required,
+            human_in_loop_required=score.human_in_loop_required,
+            review_recommendation=score.review_recommendation,
+            review_reasons=score.review_reasons,
             sub_scores=score.sub_scores,
             score_breakdown=score.score_breakdown,
             positive_factors=positive_factors,
@@ -249,12 +286,14 @@ class ScoringService:
         """Score one candidate from the canonical signal envelope."""
 
         raw_context = self._build_raw_score_context(envelope)
+        resolved_program_id = normalize_program_id(envelope.program_id or envelope.selected_program)
         sub_scores = raw_context["sub_scores"]
         baseline_rpi = raw_context["baseline_rpi"]
         ml_rpi = raw_context["ml_rpi"]
         blended_rpi = raw_context["blended_rpi"]
         raw_final_score = raw_context["final_score"]
         confidence = raw_context["confidence"]
+        uncertainty_flag = bool(raw_context["uncertainty_flag"])
         confidence_components = raw_context["confidence_components"]
         caution_flags = raw_context["caution_flags"]
 
@@ -275,9 +314,19 @@ class ScoringService:
             envelope.completeness,
             decision.uncertainty_categories,
         )
+        if not envelope.signals:
+            logger.warning("M6 scored envelope with empty signals for candidate %s", envelope.candidate_id)
+        final_uncertainty_flag = (
+            uncertainty_flag
+            or decision.manual_review_required
+            or len(decision.uncertainty_categories) >= self.policy_config.uncertainty_policy.uncertainty_flag_trigger_count
+        )
         return CandidateScore(
             candidate_id=envelope.candidate_id,
+            selected_program=envelope.selected_program,
+            program_id=resolved_program_id,
             sub_scores=sub_scores,
+            program_weight_profile=get_program_weight_profile(resolved_program_id),
             review_priority_index=decision.calibrated_score,
             score_status=decision.score_status,
             recommendation_status=decision.score_status,
@@ -285,7 +334,8 @@ class ScoringService:
             confidence=confidence,
             confidence_band=decision.confidence_band,
             manual_review_required=decision.manual_review_required,
-            uncertainty_flag=decision.manual_review_required,
+            human_in_loop_required=decision.manual_review_required,
+            uncertainty_flag=final_uncertainty_flag,
             shortlist_eligible=decision.shortlist_eligible,
             review_recommendation=decision.review_recommendation,
             review_reasons=decision.review_reasons + decision.uncertainty_categories,
@@ -315,8 +365,9 @@ class ScoringService:
         """Prepare the top score contributors for the future explainability layer."""
 
         factors = []
+        program_weights = get_program_weight_profile(score.program_id or score.selected_program)
         for sub_score_name, sub_score_value in score.sub_scores.items():
-            contribution = clamp_score(sub_score_value * SCORING_WEIGHTS.get(sub_score_name, 0.0))
+            contribution = clamp_score(sub_score_value * program_weights.get(sub_score_name, 0.0))
             factors.append(
                 ExplainabilityFactor(
                     factor=sub_score_name,
@@ -332,10 +383,19 @@ class ScoringService:
     def _build_caution_items(self, caution_flags: list[str]) -> list[ExplainabilityCautionFlag]:
         """Normalize caution flags for the future explainability layer."""
 
+        severity_map = {
+            "low_completeness": "critical",
+            "no_structured_signals": "critical",
+            "possible_ai_use": "warning",
+            "low_cross_source_consistency": "warning",
+            "weak_claim_support": "warning",
+            "voice_inconsistency": "warning",
+            "generic_evidence": "advisory",
+        }
         return [
             ExplainabilityCautionFlag(
                 flag=flag,
-                severity="advisory",
+                severity=severity_map.get(flag, "advisory"),
                 reason="derived from modifier signals or data flags",
             )
             for flag in caution_flags

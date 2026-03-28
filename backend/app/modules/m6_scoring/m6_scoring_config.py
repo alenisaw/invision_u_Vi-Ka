@@ -51,6 +51,7 @@ class UncertaintyPolicy:
     instability_disagreement_weight: float
     instability_low_quality_weight: float
     manual_review_trigger_count: int
+    uncertainty_flag_trigger_count: int
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,10 @@ class DecisionPolicyConfig:
     blend_weight_ml: float
     model_family: str
     calibration_mode: str
+    supported_signal_schema_versions: tuple[str, ...]
+    default_program_id: str
+    trusted_model_artifact_dirs: tuple[str, ...]
+    trusted_report_dirs: tuple[str, ...]
     status_order: tuple[str, ...]
     thresholds: DecisionThresholds
     confidence_bands: ConfidenceBands
@@ -73,6 +78,8 @@ class DecisionPolicyConfig:
     soft_caution_flags: set[str] = field(default_factory=set)
     subscore_signal_weights: dict[str, dict[str, float]] = field(default_factory=dict)
     scoring_weights: dict[str, float] = field(default_factory=dict)
+    program_catalog: dict[str, dict[str, str | list[str]]] = field(default_factory=dict)
+    program_weight_profiles: dict[str, dict[str, float]] = field(default_factory=dict)
     status_summary_templates: dict[str, str] = field(default_factory=dict)
 
 
@@ -80,7 +87,16 @@ def _load_yaml() -> dict:
     """Load the colocated YAML config file."""
 
     config_path = Path(__file__).with_name("m6_scoring_config.yaml")
-    return yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    try:
+        payload = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:  # pragma: no cover
+        raise RuntimeError(f"M6 config file is missing: {config_path}") from exc
+    except yaml.YAMLError as exc:  # pragma: no cover
+        raise RuntimeError(f"M6 config file is invalid YAML: {config_path}") from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"M6 config file must contain a mapping object: {config_path}")
+    return payload
 
 
 def _merge(base: dict, overrides: dict) -> dict:
@@ -109,6 +125,10 @@ def build_policy_config(overrides: dict | None = None) -> DecisionPolicyConfig:
         blend_weight_ml=raw["default_blend_weight_ml"],
         model_family=raw["default_model_family"],
         calibration_mode=raw["default_calibration_mode"],
+        supported_signal_schema_versions=tuple(raw.get("supported_signal_schema_versions", ["v1"])),
+        default_program_id=raw.get("default_program_id", "digital_products_and_services"),
+        trusted_model_artifact_dirs=tuple(raw.get("trusted_model_artifact_dirs", ())),
+        trusted_report_dirs=tuple(raw.get("trusted_report_dirs", ())),
         status_order=tuple(raw["status_order"]),
         thresholds=DecisionThresholds(**raw["status_thresholds"]),
         confidence_bands=ConfidenceBands(**raw["confidence_band_thresholds"]),
@@ -127,6 +147,10 @@ def build_policy_config(overrides: dict | None = None) -> DecisionPolicyConfig:
             instability_disagreement_weight=raw["uncertainty_policy"]["instability_disagreement_weight"],
             instability_low_quality_weight=raw["uncertainty_policy"]["instability_low_quality_weight"],
             manual_review_trigger_count=raw["uncertainty_policy"]["manual_review_trigger_count"],
+            uncertainty_flag_trigger_count=raw["uncertainty_policy"].get(
+                "uncertainty_flag_trigger_count",
+                raw["uncertainty_policy"]["manual_review_trigger_count"],
+            ),
         ),
         confidence_rules=dict(raw["confidence_rules"]),
         confidence_weights=dict(raw["confidence_weights"]),
@@ -136,6 +160,8 @@ def build_policy_config(overrides: dict | None = None) -> DecisionPolicyConfig:
         soft_caution_flags=set(raw["soft_caution_flags"]),
         subscore_signal_weights=dict(raw["subscore_signal_weights"]),
         scoring_weights=dict(raw["scoring_weights"]),
+        program_catalog=dict(raw.get("program_catalog", {})),
+        program_weight_profiles=dict(raw.get("program_weight_profiles", {})),
         status_summary_templates=dict(raw["status_summary_templates"]),
     )
 
@@ -146,8 +172,14 @@ SCORING_VERSION = DEFAULT_POLICY_CONFIG.scoring_version
 DEFAULT_BLEND_WEIGHT_ML = DEFAULT_POLICY_CONFIG.blend_weight_ml
 DEFAULT_MODEL_FAMILY = DEFAULT_POLICY_CONFIG.model_family
 DEFAULT_CALIBRATION_MODE = DEFAULT_POLICY_CONFIG.calibration_mode
+SUPPORTED_SIGNAL_SCHEMA_VERSIONS = DEFAULT_POLICY_CONFIG.supported_signal_schema_versions
+DEFAULT_PROGRAM_ID = DEFAULT_POLICY_CONFIG.default_program_id
+TRUSTED_MODEL_ARTIFACT_DIRS = DEFAULT_POLICY_CONFIG.trusted_model_artifact_dirs
+TRUSTED_REPORT_DIRS = DEFAULT_POLICY_CONFIG.trusted_report_dirs
 SUBSCORE_SIGNAL_WEIGHTS = DEFAULT_POLICY_CONFIG.subscore_signal_weights
 SCORING_WEIGHTS = DEFAULT_POLICY_CONFIG.scoring_weights
+PROGRAM_CATALOG = DEFAULT_POLICY_CONFIG.program_catalog
+PROGRAM_WEIGHT_PROFILES = DEFAULT_POLICY_CONFIG.program_weight_profiles
 STATUS_ORDER = DEFAULT_POLICY_CONFIG.status_order
 STATUS_THRESHOLDS = {
     "strong_recommend_min": DEFAULT_POLICY_CONFIG.thresholds.strong_recommend_min,
