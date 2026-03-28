@@ -1,27 +1,27 @@
-# inVision U Candidate Selection System
+# Система отбора кандидатов inVision U
 
-AI-assisted decision-support platform for the inVision U admissions process.
-The system ingests candidate applications, isolates sensitive data, extracts structured signals, computes explainable scores, and prepares reviewer-facing ranking outputs.
+Платформа поддержки принятия решений с использованием ИИ для процесса поступления в inVision U.
+Система принимает заявки кандидатов, отделяет чувствительные данные, извлекает структурированные сигналы, рассчитывает интерпретируемые оценки и формирует результаты ранжирования для проверяющих.
 
-## Core Principles
+## Основные принципы
 
-- Privacy by design: PII is separated before AI or scoring modules see candidate data.
-- Explainability first: every recommendation should be traceable to signals and evidence.
-- Human in the loop: the system supports reviewers and does not replace final human judgment.
-- Modular architecture: each stage of the pipeline is isolated as a dedicated service module.
+- Конфиденциальность, заложенная в архитектуру: персонально идентифицирующая информация (PII) отделяется до того, как данные кандидата попадут в модули ИИ или скоринга.
+- Объяснимость прежде всего: каждая рекомендация должна быть прослеживаема до сигналов и подтверждающих данных.
+- Человек в контуре принятия решения: система помогает проверяющим, а не заменяет окончательное человеческое суждение.
+- Модульная архитектура: каждый этап конвейера изолирован как отдельный сервисный модуль.
 
-## Architecture Overview
+## Обзор архитектуры
 
 ```mermaid
 flowchart LR
-    Candidate["Candidate Input"]
-    Frontend["Next.js Frontend"]
+    Candidate["Ввод данных кандидата"]
+    Frontend["Фронтенд Next.js"]
     M1["M1 API Gateway"]
     M2["M2 Intake"]
     M3["M3 Privacy and Normalization"]
-    L1["Layer 1: PII Vault"]
-    L2["Layer 2: Operational Metadata"]
-    L3["Layer 3: Model Input"]
+    L1["Слой 1: Хранилище PII"]
+    L2["Слой 2: Операционные метаданные"]
+    L3["Слой 3: Входные данные модели"]
     M4["M4 Candidate Profile"]
     M5["M5 NLP Signal Extraction"]
     M13["M13 ASR Transcription"]
@@ -29,7 +29,7 @@ flowchart LR
     M7["M7 Explainability"]
     M8["M8 Reviewer Dashboard API"]
     M10["M10 Audit Service"]
-    Reviewer["Reviewer"]
+    Reviewer["Проверяющий"]
 
     Candidate --> Frontend
     Frontend --> M1
@@ -52,34 +52,34 @@ flowchart LR
     M8 --> M10
 ```
 
-## Current Repository Focus
+## Текущий фокус репозитория
 
-- `backend/` contains the FastAPI backend, scoring logic, privacy layer, profile assembly, and storage models.
-- `frontend/` is the planned dashboard workspace for upload, ranking, and reviewer detail flows.
-- `docs/ARCHITECTURE.md` contains the full architecture definition and module responsibilities.
-- `docs/API.md` describes the current and planned API surface.
+- `backend/` содержит бэкенд на FastAPI, логику скоринга, слой конфиденциальности, сборку профиля и модели хранения.
+- `frontend/` это планируемое рабочее пространство панели для загрузки данных, ранжирования и сценариев просмотра деталей кандидатуры.
+- `docs/ARCHITECTURE.md` содержит полное описание архитектуры и ответственности модулей.
+- `docs/API.md` описывает текущие и планируемые API-интерфейсы.
 
-## Key Backend Modules
+## Ключевые модули бэкенда
 
-- `M1 Gateway`: request entry point and pipeline orchestration.
-- `M2 Intake`: candidate intake validation and record creation.
-- `M3 Privacy`: three-layer data separation and redaction.
-- `M4 Profile`: unified candidate profile assembly.
-- `M5 NLP`: signal extraction contract and heuristic extraction path.
-- `M6 Scoring`: rule-based and ML-assisted candidate scoring.
-- `M7 Explainability`: explanation handoff and reviewer-facing reasoning layer.
-- `M8 Dashboard API`: ranking, shortlist, and candidate detail endpoints.
-- `M10 Audit`: governance and traceability support.
+- `M1 Gateway`: точка входа для запросов и оркестрация конвейера.
+- `M2 Intake`: валидация входящих данных кандидата и создание записи.
+- `M3 Privacy`: трёхслойное разделение данных и маскирование чувствительной информации.
+- `M4 Profile`: сборка единого профиля кандидата.
+- `M5 NLP`: контракт извлечения сигналов и эвристический сценарий извлечения.
+- `M6 Scoring`: скоринг кандидатов на основе правил и с поддержкой ML.
+- `M7 Explainability`: передача объяснений и слой обоснований для проверяющих.
+- `M8 Dashboard API`: эндпоинты ранжирования, шорт-листа и деталей кандидата.
+- `M10 Audit`: поддержка контроля, управления и прослеживаемости.
 
-## Minimal Working Element
+## Минимально рабочий элемент
 
-The repository already includes a minimally working backend scoring element for Stage 1:
+В репозитории уже есть минимально рабочий элемент бэкенд-скоринга для этапа 1:
 
-- canonical signal scoring endpoint: `POST /api/v1/pipeline/score-signals`
-- intake endpoint: `POST /api/v1/candidates/intake`
-- scoring engine and synthetic evaluation tests under `backend/tests/m6_scoring/`
+- основной эндпоинт скоринга сигналов: `POST /api/v1/pipeline/score-signals`
+- эндпоинт приёма данных: `POST /api/v1/candidates/intake`
+- движок скоринга и тесты синтетической оценки в `backend/tests/m6_scoring/`
 
-## Documentation
+## Документация
 
-- Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- API reference: [docs/API.md](docs/API.md)
+- Архитектура: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Справочник API: [docs/API.md](docs/API.md)
