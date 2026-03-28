@@ -172,13 +172,10 @@ M3. Privacy & Normalization Service
 M4. Candidate Profile Service
    └── Assembles unified CandidateProfile
         ↓
-    ┌───┴───┐
-    ↓       ↓
-M5. NLP   M13. ASR (if video provided)
-Signal     Transcription
-Extract    Service
-    ↓       ↓
-    └───┬───┘
+M13. ASR / Transcription Service (if video provided)
+   └── Produces transcript + quality flags
+        ↓
+M5. NLP Signal Extraction
         ↓
 M6. Scoring & Ranking Engine
    ├── Rule-based layer
