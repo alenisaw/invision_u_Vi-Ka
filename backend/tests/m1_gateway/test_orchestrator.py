@@ -127,6 +127,38 @@ class TestPipelineIntegrations:
     """Test that the M5/M7 integration hooks remain callable."""
 
     @pytest.mark.asyncio
+    async def test_asr_failure_forces_human_review_flags(self) -> None:
+        session = MagicMock()
+        orch = PipelineOrchestrator(session)
+        cid = uuid4()
+        payload = CandidateIntakeRequest(
+            personal=PersonalInfo(
+                first_name="Test",
+                last_name="User",
+                date_of_birth=date(2005, 1, 1),
+            ),
+            academic=AcademicInfo(selected_program="CS"),
+            content=ContentInfo(
+                essay_text="A test essay with enough words " * 5,
+                video_url="https://youtube.com/watch?v=abc123",
+            ),
+            internal_test=InternalTestInfo(
+                answers=[InternalTestAnswer(question_id="q1", answer="answer")]
+            ),
+        )
+
+        with patch(
+            "app.modules.m13_asr.service.asr_service.transcribe",
+            side_effect=RuntimeError("boom"),
+        ):
+            transcript, confidence, flags = await orch._run_asr_transcription(cid, payload)
+
+        assert transcript is None
+        assert confidence == 0.0
+        assert "requires_human_review" in flags
+        assert "asr_processing_failed" in flags
+
+    @pytest.mark.asyncio
     async def test_nlp_extraction_returns_signal_envelope(self) -> None:
         session = MagicMock()
         orch = PipelineOrchestrator(session)
