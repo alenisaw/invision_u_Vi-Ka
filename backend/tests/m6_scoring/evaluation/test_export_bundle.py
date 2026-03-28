@@ -11,7 +11,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from backend.app.modules.m6_scoring.evaluation import (
+from app.modules.m6_scoring.evaluation import (
     build_fixture_report,
     compare_models,
     export_evaluation_bundle,

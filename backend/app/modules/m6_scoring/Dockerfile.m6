@@ -12,9 +12,10 @@ COPY backend/app/modules/m6_scoring/requirements-m6.txt /tmp/requirements-m6.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-m6.txt
 
 COPY backend /workspace/backend
+COPY app /workspace/app
 COPY docs /workspace/docs
 
-CMD ["python", "-m", "backend.app.modules.m6_scoring.evaluation", "--train-samples", "300", "--test-samples", "120"]
+CMD ["python", "-m", "app.modules.m6_scoring.evaluation", "--train-samples", "300", "--test-samples", "120"]
 
 # File summary: Dockerfile.m6
 # Builds a compact Python 3.10.11 image for M6-only verification workflows.

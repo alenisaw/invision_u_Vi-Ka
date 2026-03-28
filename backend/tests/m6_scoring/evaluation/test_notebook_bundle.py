@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.app.modules.m6_scoring.evaluation import compare_models
+from app.modules.m6_scoring.evaluation import compare_models
 
 
 class NotebookBundleTests(unittest.TestCase):

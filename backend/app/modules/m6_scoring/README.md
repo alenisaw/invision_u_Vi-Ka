@@ -56,7 +56,7 @@ pip install -r backend/app/modules/m6_scoring/requirements-m6.txt
 Run synthetic evaluation:
 
 ```bash
-python -m backend.app.modules.m6_scoring.evaluation --train-samples 300 --test-samples 120 --out-dir backend/tests/m6_scoring/results/manual
+python -m app.modules.m6_scoring.evaluation --train-samples 300 --test-samples 120 --out-dir backend/tests/m6_scoring/results/manual
 ```
 
 The evaluation bundle now exports:

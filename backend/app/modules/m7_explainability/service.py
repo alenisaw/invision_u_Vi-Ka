@@ -9,11 +9,14 @@ from typing import Any
 
 try:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
+    HAS_ASYNC_SESSION = True
 except ImportError:  # pragma: no cover
     AsyncSession = Any  # type: ignore[misc,assignment]
+    HAS_ASYNC_SESSION = False
 
 from ..m6_scoring.service import ScoringService
 from ..m6_scoring.schemas import CandidateScore, SignalEnvelope
+from ..m9_storage import StorageRepository
 from .evidence import collect_factor_evidence
 from .factors import caution_block, factor_summary, factor_title
 from .schemas import ExplainabilityInput, ExplainabilityReport, FactorBlock
@@ -24,6 +27,11 @@ class ExplainabilityService:
 
     def __init__(self, session: AsyncSession | None = None) -> None:
         self.session = session
+        self.repository = (
+            StorageRepository(session)
+            if HAS_ASYNC_SESSION and isinstance(session, AsyncSession)
+            else None
+        )
         self.scoring_service = ScoringService()
 
     def build_report(self, handoff: ExplainabilityInput) -> ExplainabilityReport:
@@ -62,11 +70,48 @@ class ExplainabilityService:
             data_quality_notes=handoff.data_quality_notes,
         )
 
-    async def generate(self, candidate_id, envelope: SignalEnvelope, score: CandidateScore) -> ExplainabilityReport:
-        """Build explainability output from M6 data without altering numeric decisions."""
+    async def generate(
+        self,
+        candidate_id,
+        envelope: SignalEnvelope,
+        score: CandidateScore,
+    ) -> ExplainabilityReport:
+        """Build and optionally persist explainability output from the supplied M6 score."""
 
-        handoff = self.scoring_service.build_explainability_input(envelope)
-        return self.build_report(handoff)
+        handoff = self.scoring_service.build_explainability_input(
+            envelope,
+            score=score,
+        )
+        report = self.build_report(handoff)
+        await self._persist_report(candidate_id, report)
+        return report
+
+    async def _persist_report(self, candidate_id, report: ExplainabilityReport) -> None:
+        """Persist the explanation bundle when a real async DB session is available."""
+
+        if self.repository is None:
+            return
+
+        report_payload = report.model_dump(mode="json")
+        await self.repository.upsert_candidate_explanation(
+            candidate_id=candidate_id,
+            summary=report.summary,
+            positive_factors=report_payload["positive_factors"],
+            caution_flags=report_payload["caution_blocks"],
+            data_quality_notes=report.data_quality_notes,
+            reviewer_guidance=report.reviewer_guidance,
+        )
+        await self.repository.create_audit_log(
+            entity_type="candidate",
+            entity_id=candidate_id,
+            action="explainability_generated",
+            actor="system",
+            details={
+                "recommendation_status": report.recommendation_status,
+                "review_recommendation": report.review_recommendation,
+                "manual_review_required": report.manual_review_required,
+            },
+        )
 
     def _build_summary(self, handoff: ExplainabilityInput, factor_blocks, caution_blocks) -> str:
         """Create one compact summary sentence for dashboard use."""

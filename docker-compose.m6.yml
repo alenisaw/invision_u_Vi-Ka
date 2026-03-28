@@ -10,7 +10,7 @@ services:
       [
         "python",
         "-m",
-        "backend.app.modules.m6_scoring.evaluation",
+        "app.modules.m6_scoring.evaluation",
         "--train-samples",
         "300",
         "--test-samples",

@@ -9,9 +9,9 @@ import sys
 import unittest
 from uuid import uuid4
 
-from backend.app.modules.m5_nlp.schemas import M5ExtractionRequest
-from backend.app.modules.m5_nlp.service import NLPSignalExtractionService
-from backend.app.modules.m6_scoring.service import ScoringService
+from app.modules.m5_nlp.schemas import M5ExtractionRequest
+from app.modules.m5_nlp.service import NLPSignalExtractionService
+from app.modules.m6_scoring.service import ScoringService
 
 REPORT_SIGNAL_ORDER = (
     "leadership_indicators",

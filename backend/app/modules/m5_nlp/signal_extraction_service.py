@@ -13,8 +13,8 @@ from typing import Any
 
 import httpx
 
-from backend.app.modules.m6_scoring.schemas import SignalEnvelope, SignalPayload
-from backend.app.modules.m6_scoring.program_policy import normalize_program_id
+from app.modules.m6_scoring.schemas import SignalEnvelope, SignalPayload
+from app.modules.m6_scoring.program_policy import normalize_program_id
 
 from .ai_detector import (
     ai_writing_risk_score,

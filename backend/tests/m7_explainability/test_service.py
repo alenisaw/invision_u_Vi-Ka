@@ -6,10 +6,11 @@ Purpose: Content-level tests for the M7 explainability service.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import AsyncMock, MagicMock
 
-from backend.app.modules.m6_scoring.service import ScoringService
-from backend.app.modules.m6_scoring.synthetic_data import build_reference_fixtures
-from backend.app.modules.m7_explainability.service import ExplainabilityService
+from app.modules.m6_scoring.service import ScoringService
+from app.modules.m6_scoring.synthetic_data import build_reference_fixtures
+from app.modules.m7_explainability.service import ExplainabilityService
 
 
 class ExplainabilityServiceTests(unittest.TestCase):
@@ -38,6 +39,37 @@ class ExplainabilityServiceTests(unittest.TestCase):
 
         self.assertTrue(report.caution_blocks or report.data_quality_notes)
         self.assertTrue(report.reviewer_guidance)
+
+
+class ExplainabilityServiceGenerateTests(unittest.IsolatedAsyncioTestCase):
+    """Validate the async generation path used by the pipeline."""
+
+    async def test_generate_reuses_provided_score_and_persists_report(self) -> None:
+        scoring = ScoringService()
+        envelope = build_reference_fixtures()["balanced"]
+        score = scoring.score_candidate(envelope)
+        explainability = ExplainabilityService(session=MagicMock())
+        explainability.repository = AsyncMock()
+        explainability.scoring_service.score_candidate = MagicMock(
+            side_effect=AssertionError("generate() must not rescore the envelope")
+        )
+
+        report = await explainability.generate(envelope.candidate_id, envelope, score)
+
+        self.assertEqual(report.candidate_id, envelope.candidate_id)
+        self.assertEqual(report.review_priority_index, score.review_priority_index)
+        self.assertEqual(report.recommendation_status, score.recommendation_status)
+
+        explainability.repository.upsert_candidate_explanation.assert_awaited_once()
+        persisted = explainability.repository.upsert_candidate_explanation.await_args.kwargs
+        persisted_report = report.model_dump(mode="json")
+        self.assertEqual(persisted["candidate_id"], envelope.candidate_id)
+        self.assertEqual(persisted["summary"], report.summary)
+        self.assertEqual(persisted["positive_factors"], persisted_report["positive_factors"])
+        self.assertEqual(persisted["caution_flags"], persisted_report["caution_blocks"])
+        self.assertEqual(persisted["data_quality_notes"], report.data_quality_notes)
+        self.assertEqual(persisted["reviewer_guidance"], report.reviewer_guidance)
+        explainability.repository.create_audit_log.assert_awaited_once()
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from statistics import mean
 
-from backend.app.modules.m6_scoring.schemas import SignalPayload
+from app.modules.m6_scoring.schemas import SignalPayload
 
 from .ai_detector import (
     ai_writing_risk_score,
