@@ -52,6 +52,7 @@ def assemble(
 
     data_flags = list(profile_metadata.data_flags)
     data_flags.extend(_extra_flags(layer3))
+    data_flags = list(dict.fromkeys(data_flags))
 
     return CandidateProfile(
         candidate_id=candidate.id,
@@ -66,7 +67,7 @@ def assemble(
 
 def _extra_flags(model_input: ModelInput) -> list[str]:
     """Compute additional data-quality flags from Layer 3 content."""
-    flags: list[str] = []
+    flags: list[str] = list(model_input.asr_flags)
 
     if model_input.asr_confidence is not None and model_input.asr_confidence < 0.6:
         flags.append("low_asr_confidence")
@@ -74,4 +75,4 @@ def _extra_flags(model_input: ModelInput) -> list[str]:
     if model_input.essay_text and len(model_input.essay_text.split()) < 30:
         flags.append("short_essay")
 
-    return flags
+    return list(dict.fromkeys(flags))

@@ -12,8 +12,8 @@ import unittest
 
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
-from backend.app.modules.m6_scoring.synthetic_data import build_reference_fixtures
+from app.main import app
+from app.modules.m6_scoring.synthetic_data import build_reference_fixtures
 
 
 class GatewayApiTests(unittest.TestCase):

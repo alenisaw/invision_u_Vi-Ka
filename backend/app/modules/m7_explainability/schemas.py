@@ -22,7 +22,7 @@ ReviewRecommendation = Literal["FAST_TRACK_REVIEW", "STANDARD_REVIEW", "REQUIRES
 class ExplainabilitySignalContext(BaseModel):
     """Normalized signal context passed from M5 through M6 into M7."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
     value: float = Field(..., ge=0.0, le=1.0)
     confidence: float = Field(..., ge=0.0, le=1.0)
@@ -34,14 +34,18 @@ class ExplainabilitySignalContext(BaseModel):
 class ExplainabilityFactor(BaseModel):
     """Positive factor derived from M6 score contributions."""
 
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
     factor: str
     sub_score: str
     score: float = Field(..., ge=0.0, le=1.0)
-    score_contribution: float = Field(..., ge=0.0, le=0.30)
+    score_contribution: float = Field(..., ge=0.0, le=0.25)
 
 
 class ExplainabilityCautionFlag(BaseModel):
     """Normalized caution item for M7 formatting."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
     flag: str
     severity: ExplainabilitySeverity = "advisory"
@@ -50,6 +54,8 @@ class ExplainabilityCautionFlag(BaseModel):
 
 class ExplainabilityInput(BaseModel):
     """Canonical handoff payload from M6 to M7."""
+
+    model_config = ConfigDict(extra="ignore")
 
     candidate_id: UUID
     scoring_version: str
@@ -74,6 +80,8 @@ class ExplainabilityInput(BaseModel):
 class EvidenceItem(BaseModel):
     """One reviewer-facing evidence item."""
 
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
     source: str
     quote: str
 
@@ -81,16 +89,20 @@ class EvidenceItem(BaseModel):
 class FactorBlock(BaseModel):
     """UI-facing positive factor block."""
 
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
     factor: str
     title: str
     summary: str
     score: float = Field(..., ge=0.0, le=1.0)
-    score_contribution: float = Field(..., ge=0.0, le=0.30)
+    score_contribution: float = Field(..., ge=0.0, le=0.25)
     evidence: list[EvidenceItem] = Field(default_factory=list)
 
 
 class CautionBlock(BaseModel):
     """UI-facing caution block."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
     flag: str
     severity: ExplainabilitySeverity
@@ -101,6 +113,8 @@ class CautionBlock(BaseModel):
 
 class ExplainabilityReport(BaseModel):
     """Final reviewer-facing M7 output."""
+
+    model_config = ConfigDict(extra="ignore")
 
     candidate_id: UUID
     scoring_version: str

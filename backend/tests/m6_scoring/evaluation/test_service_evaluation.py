@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.app.modules.m6_scoring.service import ScoringService
+from app.modules.m6_scoring.service import ScoringService
 
 
 class ScoringEvaluationTests(unittest.TestCase):

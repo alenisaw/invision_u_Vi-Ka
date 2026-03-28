@@ -158,6 +158,16 @@ class TestAssemble:
         )
         assert "low_asr_confidence" not in profile.data_flags
 
+    def test_asr_flags_propagated_into_profile_data_flags(self) -> None:
+        profile = assemble(
+            _mock_candidate(),
+            _mock_metadata(data_flags=["missing_video"]),
+            _mock_model_input(asr_flags=["requires_human_review", "asr_processing_failed"]),
+        )
+        assert "missing_video" in profile.data_flags
+        assert "requires_human_review" in profile.data_flags
+        assert "asr_processing_failed" in profile.data_flags
+
     def test_created_at_propagated(self) -> None:
         ts = datetime(2026, 3, 27, 12, 0, 0, tzinfo=timezone.utc)
         profile = assemble(

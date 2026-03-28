@@ -19,8 +19,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from backend.app.modules.m6_scoring.evaluation import export_evaluation_bundle
-from backend.app.modules.m6_scoring.optimization import export_search_report
+from app.modules.m6_scoring.evaluation import export_evaluation_bundle
+from app.modules.m6_scoring.optimization import export_search_report
 
 
 def _load_summary(path: Path) -> dict:

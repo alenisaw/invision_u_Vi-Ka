@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.app.modules.m5_nlp.client import GroqTranscriptionClient
+from app.modules.m5_nlp.client import GroqTranscriptionClient
 
 
 class GroqTranscriptionClientSafetyTests(unittest.TestCase):

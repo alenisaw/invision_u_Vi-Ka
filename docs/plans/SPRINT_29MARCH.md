@@ -71,14 +71,14 @@ We need to demonstrate that the project has started and is architecturally sound
 | Task | Priority | Est. |
 |------|----------|------|
 | Define signal extraction schema (all signal types as Pydantic models) | MUST | 1.5h |
-| Write `m5_nlp/client.py` — OpenRouter async HTTP client | MUST | 1.5h |
+| Write `m5_nlp/client.py` — Gemini API client | MUST | 1.5h |
 | Write system prompt + user prompt for Leadership signal group | MUST | 2h |
 | Test leadership prompt against 2-3 mock transcripts manually | MUST | 1h |
-| Write `m13_asr/transcriber.py` — faster-whisper integration stub | SHOULD | 1h |
+| Write `m13_asr/transcriber.py` — Groq Whisper Large V3 Turbo integration stub | SHOULD | 1h |
 | Define output JSON format (matches M6 input schema) | MUST | 30m |
 
 **End of Day 1 NLP output:**
-- OpenRouter client works, can call Qwen2.5-72B
+- Gemini client works, can call `gemini-2.5-flash`
 - Leadership signals can be extracted from a sample transcript
 - Signal output schema agreed and documented
 
@@ -270,8 +270,8 @@ This demonstrates: data intake → privacy handling → NLP analysis → scoring
 
 | Risk | Probability | Mitigation |
 |------|-------------|-----------|
-| OpenRouter API latency / errors | Medium | Pre-cache results for demo candidates; use Groq fallback |
-| BAAI/bge-m3 GPU memory issues | Low | Fall back to `paraphrase-multilingual-mpnet-base-v2` (smaller) |
+| Gemini API latency / errors | Medium | Pre-cache results for demo candidates; keep heuristic fallback in `M5` |
+| Jina embeddings API quota / errors | Low | Fall back to local `BAAI/bge-m3` |
 | M5→M6 JSON format mismatch | High | NLP + ML engineers agree schema on Day 1 EOD |
 | Docker networking issues | Medium | Test docker-compose Day 1, fix before Day 2 |
 | Frontend-backend CORS | Low | Set CORS in FastAPI from Day 1 |

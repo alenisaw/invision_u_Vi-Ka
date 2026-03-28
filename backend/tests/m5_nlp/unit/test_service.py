@@ -5,82 +5,12 @@ Purpose: Unit tests for the M5 NLP signal extraction service.
 
 from __future__ import annotations
 
-import sys
 import unittest
 from uuid import uuid4
 
-from backend.app.modules.m5_nlp.schemas import M5ExtractionRequest
-from backend.app.modules.m5_nlp.service import NLPSignalExtractionService
-from backend.app.modules.m6_scoring.service import ScoringService
-
-REPORT_SIGNAL_ORDER = (
-    "leadership_indicators",
-    "growth_trajectory",
-    "motivation_clarity",
-    "agency_signals",
-    "learning_agility",
-    "clarity_score",
-    "ethical_reasoning",
-    "program_alignment",
-    "goal_specificity",
-    "future_goals_alignment",
-    "challenges_overcome",
-    "resilience_evidence",
-    "leadership_reflection",
-    "teamwork_problem_solving",
-    "support_network",
-    "english_growth",
-)
-
-REPORT_SUB_SCORE_ORDER = (
-    "leadership_potential",
-    "growth_trajectory",
-    "motivation_clarity",
-    "initiative_agency",
-    "learning_agility",
-    "communication_clarity",
-    "ethical_reasoning",
-    "program_fit",
-)
-
-
-def _ordered_signal_names(signal_names: list[str]) -> list[str]:
-    """Keep the terminal report stable across runs."""
-
-    prioritized = [signal_name for signal_name in REPORT_SIGNAL_ORDER if signal_name in signal_names]
-    remaining = sorted(signal_name for signal_name in signal_names if signal_name not in REPORT_SIGNAL_ORDER)
-    return prioritized + remaining
-
-
-def _format_probability_line(name: str, value: float) -> str:
-    """Render one score line in the requested terminal-friendly format."""
-
-    return f"{name}: {value:.3f}"
-
-
-def _build_terminal_report(envelope, score) -> str:
-    """Build a compact synthetic payload report for stdout."""
-
-    lines = [
-        "",
-        "[M5 synthetic payload]",
-        f"signal_count: {len(envelope.signals)}",
-        "signals:",
-    ]
-
-    for signal_name in _ordered_signal_names(list(envelope.signals)):
-        lines.append(_format_probability_line(signal_name, envelope.signals[signal_name].value))
-
-    lines.append(f"data_flags: {envelope.data_flags}")
-    lines.append(f"m5_model_version: {envelope.m5_model_version}")
-    lines.append("sub_scores:")
-    lines.append(_format_probability_line("review_priority_index", score.review_priority_index))
-
-    for sub_score_name in REPORT_SUB_SCORE_ORDER:
-        lines.append(_format_probability_line(sub_score_name, score.sub_scores[sub_score_name]))
-
-    return "\n".join(lines)
-
+from app.modules.m5_nlp.schemas import M5ExtractionRequest
+from app.modules.m5_nlp.service import NLPSignalExtractionService
+from app.modules.m6_scoring.service import ScoringService
 
 class FakeTranscriptionClient:
     """Simple test double for media transcription."""
@@ -155,7 +85,7 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         envelope = self.service.extract_signals(request)
 
         self.assertEqual(envelope.signal_schema_version, "v1")
-        self.assertEqual(envelope.m5_model_version, "heuristic-groq-v1")
+        self.assertEqual(envelope.m5_model_version, "heuristic-gemini-v1")
         self.assertEqual(envelope.selected_program, "Foundation Year")
         self.assertTrue(envelope.program_id)
         self.assertGreater(len(envelope.signals), 12)
@@ -187,7 +117,6 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertGreater(score.sub_scores["leadership_potential"], 0.50)
         self.assertGreater(score.sub_scores["motivation_clarity"], 0.50)
         self.assertGreater(score.sub_scores["learning_agility"], 0.50)
-        print(_build_terminal_report(envelope, score), file=sys.stderr, flush=True)
 
     def test_extract_signals_uses_transcription_fallback_when_needed(self) -> None:
         """M5 should use the transcription client and still recover interview criteria."""

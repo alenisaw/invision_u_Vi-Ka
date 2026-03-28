@@ -9,14 +9,23 @@ from typing import Any
 
 try:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
+    HAS_ASYNC_SESSION = True
 except ImportError:  # pragma: no cover
     AsyncSession = Any  # type: ignore[misc,assignment]
+    HAS_ASYNC_SESSION = False
 
-from ..m6_scoring.service import ScoringService
 from ..m6_scoring.schemas import CandidateScore, SignalEnvelope
+from ..m9_storage import StorageRepository
 from .evidence import collect_factor_evidence
 from .factors import caution_block, factor_summary, factor_title
-from .schemas import ExplainabilityInput, ExplainabilityReport, FactorBlock
+from .schemas import (
+    ExplainabilityCautionFlag,
+    ExplainabilityFactor,
+    ExplainabilityInput,
+    ExplainabilityReport,
+    ExplainabilitySignalContext,
+    FactorBlock,
+)
 
 
 class ExplainabilityService:
@@ -24,11 +33,13 @@ class ExplainabilityService:
 
     def __init__(self, session: AsyncSession | None = None) -> None:
         self.session = session
-        self.scoring_service = ScoringService()
+        self.repository = (
+            StorageRepository(session)
+            if HAS_ASYNC_SESSION and isinstance(session, AsyncSession)
+            else None
+        )
 
     def build_report(self, handoff: ExplainabilityInput) -> ExplainabilityReport:
-        """Convert the M6 handoff payload into reviewer-facing explanation output."""
-
         factor_blocks = [
             FactorBlock(
                 factor=factor.factor,
@@ -41,9 +52,6 @@ class ExplainabilityService:
             for factor in handoff.positive_factors[:3]
         ]
         caution_blocks = [caution_block(flag) for flag in handoff.caution_flags]
-        summary = self._build_summary(handoff, factor_blocks, caution_blocks)
-        reviewer_guidance = self._build_reviewer_guidance(handoff, caution_blocks)
-
         return ExplainabilityReport(
             candidate_id=handoff.candidate_id,
             scoring_version=handoff.scoring_version,
@@ -55,40 +63,126 @@ class ExplainabilityService:
             manual_review_required=handoff.manual_review_required,
             human_in_loop_required=handoff.human_in_loop_required,
             review_recommendation=handoff.review_recommendation,
-            summary=summary,
+            summary=self._build_summary(handoff, factor_blocks, caution_blocks),
             positive_factors=factor_blocks,
             caution_blocks=caution_blocks,
-            reviewer_guidance=reviewer_guidance,
+            reviewer_guidance=self._build_reviewer_guidance(handoff, caution_blocks),
             data_quality_notes=handoff.data_quality_notes,
         )
 
-    async def generate(self, candidate_id, envelope: SignalEnvelope, score: CandidateScore) -> ExplainabilityReport:
-        """Build explainability output from M6 data without altering numeric decisions."""
+    async def generate(
+        self,
+        candidate_id,
+        envelope: SignalEnvelope,
+        score: CandidateScore,
+    ) -> ExplainabilityReport:
+        """Build and persist explainability output from the supplied M6 score."""
 
-        handoff = self.scoring_service.build_explainability_input(envelope)
-        return self.build_report(handoff)
+        handoff = self._build_handoff_from_score(envelope, score)
+        report = self.build_report(handoff)
+        await self._persist_report(candidate_id, report)
+        return report
 
-    def _build_summary(self, handoff: ExplainabilityInput, factor_blocks, caution_blocks) -> str:
-        """Create one compact summary sentence for dashboard use."""
+    async def _persist_report(self, candidate_id, report: ExplainabilityReport) -> None:
+        """Persist the explanation bundle when a real async DB session is available."""
 
-        strengths = ", ".join(block.title for block in factor_blocks[:2]) or "умеренные сигналы"
+        if self.repository is None:
+            return
+
+        report_payload = report.model_dump(mode="json")
+        await self.repository.upsert_candidate_explanation(
+            candidate_id=candidate_id,
+            summary=report.summary,
+            positive_factors=report_payload["positive_factors"],
+            caution_flags=report_payload["caution_blocks"],
+            data_quality_notes=report.data_quality_notes,
+            reviewer_guidance=report.reviewer_guidance,
+        )
+        await self.repository.create_audit_log(
+            entity_type="candidate",
+            entity_id=candidate_id,
+            action="explainability_generated",
+            actor="system",
+            details={
+                "recommendation_status": report.recommendation_status,
+                "review_recommendation": report.review_recommendation,
+                "manual_review_required": report.manual_review_required,
+            },
+        )
+
+    def _build_handoff_from_score(self, envelope: SignalEnvelope, score: CandidateScore) -> ExplainabilityInput:
+        positive_factors = [
+            ExplainabilityFactor(
+                factor=sub_score_name,
+                sub_score=sub_score_name,
+                score=sub_score_value,
+                score_contribution=min(score.program_weight_profile.get(sub_score_name, 0.0) * sub_score_value, 0.25),
+            )
+            for sub_score_name, sub_score_value in sorted(
+                score.sub_scores.items(),
+                key=lambda item: item[1] * score.program_weight_profile.get(item[0], 0.0),
+                reverse=True,
+            )[:3]
+        ]
+        caution_flags = [
+            ExplainabilityCautionFlag(
+                flag=flag,
+                severity="critical" if flag in {"low_completeness", "no_structured_signals", "requires_human_review"} else "warning",
+                reason=flag.replace("_", " "),
+            )
+            for flag in score.caution_flags
+        ]
+        signal_context = {
+            signal_name: ExplainabilitySignalContext(**signal.model_dump())
+            for signal_name, signal in envelope.signals.items()
+        }
+        return ExplainabilityInput(
+            candidate_id=score.candidate_id,
+            scoring_version=score.scoring_version,
+            selected_program=score.selected_program,
+            program_id=score.program_id,
+            recommendation_status=score.recommendation_status,
+            review_priority_index=score.review_priority_index,
+            confidence=score.confidence,
+            uncertainty_flag=score.uncertainty_flag,
+            manual_review_required=score.manual_review_required,
+            human_in_loop_required=score.human_in_loop_required,
+            review_recommendation=score.review_recommendation,
+            review_reasons=list(score.review_reasons),
+            sub_scores=dict(score.sub_scores),
+            score_breakdown=dict(score.score_breakdown),
+            positive_factors=positive_factors,
+            caution_flags=caution_flags,
+            signal_context=signal_context,
+            data_quality_notes=[
+                f"confidence_band={score.confidence_band}",
+                f"score_status={score.score_status}",
+                f"shortlist_eligible={score.shortlist_eligible}",
+            ],
+        )
+
+    def _build_summary(
+        self,
+        handoff: ExplainabilityInput,
+        factor_blocks: list[FactorBlock],
+        caution_blocks: list,
+    ) -> str:
+        strengths = ", ".join(block.title for block in factor_blocks[:2]) or "moderate signal support"
         if handoff.manual_review_required:
-            return f"Кандидат показывает {strengths}, но требует ручной проверки из-за качества или конфликтности сигналов."
+            return f"The candidate shows {strengths}, but the case still requires manual review because of uncertainty or data quality limits."
         if caution_blocks:
-            return f"Кандидат показывает {strengths}; решение можно принимать с учетом отмеченных caution-флагов."
-        return f"Кандидат показывает {strengths}; сигналы выглядят достаточно стабильными для текущего решения."
+            return f"The candidate shows {strengths}, with caution flags that should be reviewed alongside the score."
+        return f"The candidate shows {strengths}, and the current evidence looks stable enough for standard committee review."
 
-    def _build_reviewer_guidance(self, handoff: ExplainabilityInput, caution_blocks) -> str:
-        """Create one short reviewer instruction based on routing and caution policy."""
-
+    def _build_reviewer_guidance(self, handoff: ExplainabilityInput, caution_blocks: list) -> str:
         if handoff.manual_review_required:
-            return "Провести ручную проверку доказательств, качества источников и согласованности между ответами."
+            return "Review evidence consistency, input quality, and caution flags before making a final committee decision."
         if caution_blocks:
-            return "Проверить caution-блоки, но основной score можно использовать как рабочий ориентир комиссии."
+            return "Use the score as a working signal, but inspect the caution blocks before final routing."
         if handoff.review_recommendation == "FAST_TRACK_REVIEW":
-            return "Кейс можно рассматривать в ускоренном порядке без снижения внимания к evidence."
-        return "Использовать explanation как support-слой, не заменяя финальное решение комиссии."
+            return "The case is suitable for faster committee review, while still checking the supporting evidence."
+        return "Use the explanation bundle as decision support; the final outcome remains with the committee."
 
 
 # File summary: service.py
-# Builds summary, evidence-backed strengths, caution blocks, and reviewer guidance from M6 handoff.
+# Builds summary, evidence-backed strengths, caution blocks, and reviewer guidance from M6 output.

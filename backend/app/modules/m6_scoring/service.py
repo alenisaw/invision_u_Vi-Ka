@@ -245,10 +245,14 @@ class ScoringService:
             **status_rates,
         }
 
-    def build_explainability_input(self, envelope: SignalEnvelope) -> ExplainabilityInput:
-        """Prepare the future M6 -> M7 handoff payload."""
+    def build_explainability_input(
+        self,
+        envelope: SignalEnvelope,
+        score: CandidateScore | None = None,
+    ) -> ExplainabilityInput:
+        """Prepare the M6 -> M7 handoff payload without forcing a re-score."""
 
-        score = self.score_candidate(envelope)
+        score = score or self.score_candidate(envelope)
         positive_factors = self._build_positive_factors(score)
         caution_flags = self._build_caution_items(score.caution_flags)
         signal_context = {

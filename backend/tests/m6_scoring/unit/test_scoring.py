@@ -11,9 +11,9 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from backend.app.modules.m6_scoring.ml_model import HybridScoringModel
-from backend.app.modules.m6_scoring.service import ScoringService
-from backend.app.modules.m6_scoring.synthetic_data import build_reference_fixtures
+from app.modules.m6_scoring.ml_model import HybridScoringModel
+from app.modules.m6_scoring.service import ScoringService
+from app.modules.m6_scoring.synthetic_data import build_reference_fixtures
 
 
 class ScoringServiceTests(unittest.TestCase):
