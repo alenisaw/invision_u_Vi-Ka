@@ -61,6 +61,12 @@ class M6EvaluationBundleTests(unittest.TestCase):
                     child.unlink()
                 output_dir.rmdir()
 
+    def test_export_bundle_rejects_untrusted_output_dir(self) -> None:
+        """Export should fail for paths outside the trusted report roots."""
+
+        with self.assertRaises(ValueError):
+            export_evaluation_bundle(Path("backend/tests/outside_bundle"), train_sample_count=20, test_sample_count=10, seed=6)
+
 
 if __name__ == "__main__":
     unittest.main()

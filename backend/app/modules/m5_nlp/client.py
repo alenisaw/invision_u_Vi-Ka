@@ -24,6 +24,11 @@ except ImportError:  # pragma: no cover
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".mpeg", ".mpga"}
 MEDIA_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
+REPO_ROOT = Path(__file__).resolve().parents[4]
+DEFAULT_ALLOWED_MEDIA_ROOTS = (
+    REPO_ROOT / "backend" / "tests",
+    REPO_ROOT / "data",
+)
 
 
 def ensure_groq_api_key() -> None:
@@ -58,6 +63,25 @@ class GroqTranscriptionClient:
 
     def __init__(self, model: str = "whisper-large-v3-turbo") -> None:
         self.model = model
+
+    def _resolve_media_path(self, media_path: str | Path) -> Path:
+        """Resolve media path and enforce trusted repository-local roots."""
+
+        path = Path(media_path).expanduser()
+        resolved = path.resolve() if path.is_absolute() else (Path.cwd() / path).resolve()
+        allowed_roots = []
+        raw_roots = os.getenv("M5_ALLOWED_MEDIA_ROOTS", "").split(os.pathsep)
+        for raw_root in raw_roots:
+            raw_root = raw_root.strip()
+            if raw_root:
+                allowed_roots.append(Path(raw_root).expanduser().resolve())
+        if not allowed_roots:
+            allowed_roots = [root.resolve() for root in DEFAULT_ALLOWED_MEDIA_ROOTS]
+
+        for root in allowed_roots:
+            if resolved == root or root in resolved.parents:
+                return resolved
+        raise RuntimeError(f"Interview media path is outside trusted roots: {resolved}")
 
     def extract_audio(self, video_path: Path) -> Path:
         """Extract mono 16k WAV audio from a video file via ffmpeg."""
@@ -110,7 +134,7 @@ class GroqTranscriptionClient:
     def transcribe_media(self, media_path: str | Path, language: str = "auto") -> dict[str, Any]:
         """Transcribe a media file, extracting audio first for videos."""
 
-        path = Path(media_path).expanduser().resolve()
+        path = self._resolve_media_path(media_path)
         if not path.exists():
             raise FileNotFoundError(f"Interview media file not found: {path}")
         if path.suffix.lower() not in MEDIA_EXTENSIONS:

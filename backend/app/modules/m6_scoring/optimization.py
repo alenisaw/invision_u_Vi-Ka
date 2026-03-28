@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 from dataclasses import asdict, dataclass
+from itertools import product
 from pathlib import Path
 
 import pandas as pd
@@ -21,23 +22,24 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, precision_r
 
 from .calibration import ScoreCalibrator
 from .decision_policy import DecisionContext, apply_decision_policy, classify_score
+from .io_utils import ensure_trusted_report_dir
 from .m6_scoring_config import DecisionPolicyConfig, build_policy_config
 from .service import ScoringService
 from .synthetic_data import generate_synthetic_dataset
 from .schemas import LabeledEnvelope
 
 
-@dataclass
+@dataclass(frozen=True)
 class Snapshot:
     """One precomputed sample snapshot for routing optimization."""
 
     completeness: float
-    data_flags: list[str]
+    data_flags: tuple[str, ...]
     target_rpi: float
     raw_score: float
     confidence: float
     confidence_components: dict[str, float]
-    caution_flags: list[str]
+    caution_flags: tuple[str, ...]
     profile_type: str
 
 
@@ -50,12 +52,12 @@ def _prepare_snapshots(service: ScoringService, labeled_samples: list[LabeledEnv
         snapshots.append(
             Snapshot(
                 completeness=labeled_sample.envelope.completeness,
-                data_flags=list(labeled_sample.envelope.data_flags),
+                data_flags=tuple(labeled_sample.envelope.data_flags),
                 target_rpi=labeled_sample.target_rpi,
                 raw_score=float(raw_context["final_score"]),
                 confidence=float(raw_context["confidence"]),
                 confidence_components=dict(raw_context["confidence_components"]),
-                caution_flags=list(raw_context["caution_flags"]),
+                caution_flags=tuple(raw_context["caution_flags"]),
                 profile_type=labeled_sample.profile_type,
             )
         )
@@ -124,8 +126,8 @@ def _evaluate_snapshots(
                         signal_coverage=1.0,
                         model_disagreement=0.0,
                         soft_caution_count=0,
-                        caution_flags=[],
-                        data_flags=[],
+                        caution_flags=(),
+                        data_flags=(),
                     ),
                     policy,
                 ),
@@ -209,34 +211,46 @@ def _build_candidate_policies() -> list[DecisionPolicyConfig]:
     """Build a transparent grid of candidate decision-layer configs."""
 
     policies: list[DecisionPolicyConfig] = []
-    for strong_min in (0.76, 0.78, 0.80):
-        for recommend_min in (0.62, 0.64, 0.645, 0.65, 0.66):
-            for waitlist_min in (0.44, 0.46, 0.48):
-                if not (strong_min > recommend_min > waitlist_min):
-                    continue
-                for low_confidence_max in (0.42, 0.46):
-                    for narrow_margin_max in (0.01, 0.015):
-                        for trigger_count in (3, 4):
-                            for calibration_mode in ("none", "isotonic"):
-                                for declined_manual_review_score_min in (0.30, 0.32, 0.34):
-                                    overrides = {
-                                        "default_calibration_mode": calibration_mode,
-                                        "status_thresholds": {
-                                            "strong_recommend_min": strong_min,
-                                            "recommend_min": recommend_min,
-                                            "waitlist_min": waitlist_min,
-                                        },
-                                        "uncertainty_policy": {
-                                            "declined_manual_review_score_min": declined_manual_review_score_min,
-                                            "low_confidence_max": low_confidence_max,
-                                            "narrow_margin_max": narrow_margin_max,
-                                            "manual_review_trigger_count": trigger_count,
-                                            "low_coverage_max": 0.40,
-                                            "disagreement_max": 0.28,
-                                            "soft_caution_min": 4,
-                                        },
-                                    }
-                                    policies.append(build_policy_config(overrides=overrides))
+    grid = product(
+        (0.76, 0.78, 0.80),
+        (0.62, 0.64, 0.645, 0.65, 0.66),
+        (0.44, 0.46, 0.48),
+        (0.42, 0.46),
+        (0.01, 0.015),
+        (3, 4),
+        ("none", "isotonic"),
+        (0.30, 0.32, 0.34),
+    )
+    for (
+        strong_min,
+        recommend_min,
+        waitlist_min,
+        low_confidence_max,
+        narrow_margin_max,
+        trigger_count,
+        calibration_mode,
+        declined_manual_review_score_min,
+    ) in grid:
+        if not (strong_min > recommend_min > waitlist_min):
+            continue
+        overrides = {
+            "default_calibration_mode": calibration_mode,
+            "status_thresholds": {
+                "strong_recommend_min": strong_min,
+                "recommend_min": recommend_min,
+                "waitlist_min": waitlist_min,
+            },
+            "uncertainty_policy": {
+                "declined_manual_review_score_min": declined_manual_review_score_min,
+                "low_confidence_max": low_confidence_max,
+                "narrow_margin_max": narrow_margin_max,
+                "manual_review_trigger_count": trigger_count,
+                "low_coverage_max": 0.40,
+                "disagreement_max": 0.28,
+                "soft_caution_min": 4,
+            },
+        }
+        policies.append(build_policy_config(overrides=overrides))
     return policies
 
 
@@ -351,7 +365,7 @@ def select_recommendations(search_frame: pd.DataFrame, details: list[dict]) -> d
 def export_search_report(out_dir: str | Path, train_sample_count: int = 300, test_sample_count: int = 120, seed: int = 42) -> dict[str, Path]:
     """Run the search and export ranked candidates plus top recommendations."""
 
-    output_dir = Path(out_dir)
+    output_dir = ensure_trusted_report_dir(out_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     frame, details = search_decision_configs(

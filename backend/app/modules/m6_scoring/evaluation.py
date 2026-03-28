@@ -12,17 +12,22 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import logging
 from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 from sklearn.metrics import mean_absolute_error, mean_squared_error, precision_recall_fscore_support, r2_score
 
+from .io_utils import ensure_trusted_report_dir
 from .m6_scoring_config import STATUS_ORDER
 from .rules import map_recommendation_status
 from .service import ScoringService
 from .synthetic_data import build_reference_fixtures, generate_synthetic_dataset
+
+logger = logging.getLogger(__name__)
 
 
 def _build_status_distribution(results: pd.DataFrame, mode: str) -> pd.DataFrame:
@@ -55,7 +60,8 @@ def _build_profile_type_summary(results: pd.DataFrame, mode: str) -> pd.DataFram
                 "sample_count": int(len(frame)),
                 "mean_predicted_rpi": round(float(frame["predicted_rpi"].mean()), 4),
                 "mean_confidence": round(float(frame["confidence"].mean()), 4),
-                "manual_review_rate": round(float(frame["uncertainty_flag"].mean()), 4),
+                "manual_review_rate": round(float(frame["manual_review_required"].mean()), 4),
+                "uncertainty_rate": round(float(frame["uncertainty_flag"].mean()), 4),
                 "strong_recommend_rate": round(float((frame["predicted_status"] == "STRONG_RECOMMEND").mean()), 4),
                 "recommend_rate": round(float((frame["predicted_status"] == "RECOMMEND").mean()), 4),
                 "waitlist_rate": round(float((frame["predicted_status"] == "WAITLIST").mean()), 4),
@@ -69,8 +75,11 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
     """Evaluate one scoring service against a synthetic holdout split."""
 
     rows: list[dict[str, float | str | bool]] = []
+    latencies_ms: list[float] = []
     for labeled_sample in test_samples:
+        started_at = perf_counter()
         score = service.score_candidate(labeled_sample.envelope)
+        latencies_ms.append((perf_counter() - started_at) * 1000.0)
         rows.append(
             {
                 "candidate_id": str(labeled_sample.envelope.candidate_id),
@@ -79,7 +88,6 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
                 "target_status": map_recommendation_status(
                     score=labeled_sample.target_rpi,
                     completeness=labeled_sample.envelope.completeness,
-                    uncertainty_flag=False,
                 ),
                 "predicted_score_status": score.score_status,
                 "predicted_status": score.recommendation_status,
@@ -105,6 +113,7 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
     top_k = min(10, len(results))
     true_top = set(results.nlargest(top_k, "target_rpi").index.tolist())
     predicted_top = set(results.nlargest(top_k, "predicted_rpi").index.tolist())
+    safe_correlation = float(correlation) if correlation is not None and not math.isnan(float(correlation)) else 0.0
 
     metrics = {
         "sample_count": int(len(results)),
@@ -114,12 +123,15 @@ def _evaluate_samples(service: ScoringService, test_samples) -> tuple[dict[str, 
         "macro_precision": round(float(precision), 4),
         "macro_recall": round(float(recall), 4),
         "macro_f1": round(float(f1_score), 4),
-        "spearman_rank_correlation": round(float(correlation if correlation == correlation else 0.0), 4),
-        "top_k_overlap": round(len(true_top & predicted_top) / top_k, 4),
-        "manual_review_rate": round(float(results["uncertainty_flag"].mean()), 4),
+        "spearman_rank_correlation": round(safe_correlation, 4),
+        "top_k_overlap": round(len(true_top & predicted_top) / max(top_k, 1), 4),
+        "manual_review_rate": round(float(results["manual_review_required"].mean()), 4),
         "uncertainty_rate": round(float(results["uncertainty_flag"].mean()), 4),
         "high_confidence_rate": round(float((results["confidence_band"] == "HIGH").mean()), 4),
         "fast_track_rate": round(float((results["review_recommendation"] == "FAST_TRACK_REVIEW").mean()), 4),
+        "avg_latency_ms": round(float(np.mean(latencies_ms)) if latencies_ms else 0.0, 4),
+        "p95_latency_ms": round(float(np.percentile(latencies_ms, 95)) if latencies_ms else 0.0, 4),
+        "throughput_candidates_per_sec": round(float(1000.0 / np.mean(latencies_ms)) if latencies_ms and np.mean(latencies_ms) > 0 else 0.0, 4),
         "acceptance_rate": round(
             float(results["predicted_status"].isin(["STRONG_RECOMMEND", "RECOMMEND"]).mean()),
             4,
@@ -206,7 +218,8 @@ def compare_models(
                     test_profile_mix=test_profile_mix,
                 )
             )
-        except RuntimeError:
+        except RuntimeError as exc:
+            logger.warning("M6 compare_models skipped %s due to runtime error: %s", model_family, exc)
             continue
 
     return pd.DataFrame([{"mode": item["mode"], **item["metrics"]} for item in comparisons])
@@ -239,7 +252,7 @@ def build_fixture_report() -> pd.DataFrame:
 def export_evaluation_bundle(out_dir: str | Path, train_sample_count: int = 300, test_sample_count: int = 120, seed: int = 42) -> dict[str, Path]:
     """Export comparison metrics and prediction tables for notebook or review use."""
 
-    output_dir = Path(out_dir)
+    output_dir = ensure_trusted_report_dir(out_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     baseline = evaluate_baseline_only(

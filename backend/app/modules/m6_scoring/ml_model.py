@@ -9,14 +9,18 @@ Notes:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 
 from .confidence import calculate_mean_signal_confidence, calculate_signal_coverage
+from .io_utils import ensure_trusted_artifact_path
+from .program_policy import normalize_program_id
 from .rules import MODIFIER_SIGNAL_NAMES, get_scoring_signal_names, get_signal_confidence, get_signal_value
 from .schemas import LabeledEnvelope, SignalEnvelope
+from .m6_scoring_config import PROGRAM_CATALOG
 
 try:
     import joblib
@@ -47,6 +51,8 @@ def build_feature_names() -> list[str]:
             "program_fit",
         ]
     )
+    for program_id in sorted(PROGRAM_CATALOG):
+        feature_names.append(f"program__{program_id}")
 
     for signal_name in sorted(get_scoring_signal_names() | MODIFIER_SIGNAL_NAMES):
         feature_names.append(f"{signal_name}__value")
@@ -65,6 +71,9 @@ def build_feature_vector(envelope: SignalEnvelope, sub_scores: dict[str, float],
         "signal_coverage": calculate_signal_coverage(envelope),
     }
     feature_values.update(sub_scores)
+    active_program_id = normalize_program_id(envelope.program_id or envelope.selected_program)
+    for program_id in sorted(PROGRAM_CATALOG):
+        feature_values[f"program__{program_id}"] = 1.0 if active_program_id == program_id else 0.0
 
     for signal_name in sorted(get_scoring_signal_names() | MODIFIER_SIGNAL_NAMES):
         feature_values[f"{signal_name}__value"] = get_signal_value(envelope, signal_name, 0.0) or 0.0
@@ -127,6 +136,9 @@ class HybridScoringModel:
             raise RuntimeError("joblib is not available in the current environment")
         if not self.is_trained:
             raise RuntimeError("cannot save an untrained model")
+        artifact_path = ensure_trusted_artifact_path(path)
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        metadata_path = artifact_path.with_suffix(f"{artifact_path.suffix}.meta.json")
 
         joblib.dump(
             {
@@ -134,7 +146,18 @@ class HybridScoringModel:
                 "feature_names": self.feature_names,
                 "model_family": self.model_family,
             },
-            path,
+            artifact_path,
+        )
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "artifact_type": "m6_scoring_model",
+                    "model_family": self.model_family,
+                    "feature_count": len(self.feature_names),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
         )
 
     @classmethod
@@ -143,12 +166,27 @@ class HybridScoringModel:
 
         if joblib is None:
             raise RuntimeError("joblib is not available in the current environment")
+        artifact_path = ensure_trusted_artifact_path(path)
+        if artifact_path.suffix != ".joblib":
+            raise ValueError("model artifact must use the .joblib suffix")
+        metadata_path = artifact_path.with_suffix(f"{artifact_path.suffix}.meta.json")
+        if not metadata_path.exists():
+            raise RuntimeError(f"model metadata is missing for artifact: {artifact_path}")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata.get("artifact_type") != "m6_scoring_model":
+            raise RuntimeError(f"invalid model artifact metadata: {metadata_path}")
 
-        payload = joblib.load(path)
+        payload = joblib.load(artifact_path)
+        if not isinstance(payload, dict) or "model" not in payload or "feature_names" not in payload:
+            raise RuntimeError(f"invalid M6 model artifact payload: {artifact_path}")
         model_family = payload.get("model_family", "gbr")
+        if metadata.get("model_family") != model_family:
+            raise RuntimeError(f"model metadata mismatch for artifact: {artifact_path}")
         loaded = cls(model_family=model_family)
         loaded.model = payload["model"]
-        loaded.feature_names = payload["feature_names"]
+        loaded.feature_names = list(payload["feature_names"])
+        if metadata.get("feature_count") != len(loaded.feature_names):
+            raise RuntimeError(f"feature layout metadata mismatch for artifact: {artifact_path}")
         loaded.is_trained = True
         return loaded
 
