@@ -50,28 +50,27 @@ An AI-driven decision-support system for the inVision U admissions committee. Th
 #### LLM — Signal Extraction & Explanation
 | Model | Provider | Use Case | Tier |
 |-------|----------|----------|------|
-| `Qwen3.5-72B-Instruct` | OpenRouter | Deep signal extraction, explanation generation | Primary |
-| `Qwen3.5-7B-Instruct` | OpenRouter | Fast field-level classification, consistency checks | Secondary / High-volume |
-| `Llama-3.3-70B` | Groq (free) | Fallback / validation cross-check | Fallback |
+| `gemini-2.5-flash` | Gemini API | Primary model for `M5` signal extraction and structured JSON output | Primary |
+| `gemini-3.1-flash-lite-preview` | Gemini API | Primary model for `M7` explanation generation and reviewer guidance | Secondary / Fast |
 
-**Why Qwen family:**
-- Truly open-source (Apache 2.0)
-- Best-in-class multilingual quality (English + Russian)
-- 128k context window (fits full application + transcript)
-- Available via OpenRouter pay-per-use (no subscription lock)
-- Strong structured output (JSON mode)
+
+**Why Gemini stack:**
+- Strong multilingual performance for English + Russian admissions content
+- Practical API access for MVP integration
+- Good balance of speed, cost, and output quality
+- Suitable for structured extraction in `M5`
+- Fast enough for explanation generation in `M7`
 
 #### Embeddings — Semantic Similarity & Program Fit
 | Model | Runtime | Use Case |
 |-------|---------|----------|
-| `BAAI/bge-m3` | Local (GPU) via HuggingFace | Essay ↔ transcript consistency, program fit matching |
-| `paraphrase-multilingual-mpnet-base-v2` | Local (CPU fallback) | Lighter alternative if VRAM constrained |
+| `jina-embeddings-v5` | API | Primary embeddings for essay ? transcript consistency and program fit matching |
+| `BAAI/bge-m3` | Local (GPU) via HuggingFace | Fallback embeddings if API is unavailable |
 
 #### ASR — Video Transcription
 | Model | Runtime | Use Case |
 |-------|---------|----------|
-| `faster-whisper large-v3` | Local (GPU, ~3GB VRAM) | Primary: RU+EN transcription |
-| Groq Whisper API | API | Fallback if local fails / faster processing |
+| `whisper-large-v3-turbo` | Groq API | Primary: RU+EN transcription for `M13` |
 
 **ASR Pipeline Rules:**
 - Extract audio only — video frame data never enters the pipeline
@@ -79,8 +78,8 @@ An AI-driven decision-support system for the inVision U admissions committee. Th
 - Flag for human review if: confidence < 0.75 on >30% of segments, duration < 60s, [unclear] segments > 20%
 
 #### AI Writing Detection
-- Heuristic layer: perplexity estimation via Qwen API (high perplexity = more human-like)
-- Consistency check: cosine similarity (BAAI/bge-m3) between essay embeddings ↔ transcript embeddings
+- Heuristic layer: LLM-assisted authenticity review over essay ? transcript consistency
+- Consistency check: cosine similarity (`jina-embeddings-v5`, fallback `BAAI/bge-m3`) between essay embeddings ? transcript embeddings
 - Output: `authenticity_flag` (0.0–1.0 advisory score) + reasoning text
 - **Never auto-reject. Advisory only.**
 
@@ -329,7 +328,7 @@ class CandidateProfile:
 **This module never receives Layer 1 data. Input is Layer 3 only.**
 
 Responsibilities:
-- Call Qwen3.5-72B-Instruct via OpenRouter with structured prompts
+- Call `gemini-2.5-flash` via API with structured prompts
 - Extract signals from: video transcript, essay, test answers, project descriptions
 - Return standardized signal JSON for M6
 
@@ -359,7 +358,7 @@ Each signal:
 ```
 
 LLM prompt strategy:
-- Use **structured output mode** (JSON schema) for all Qwen calls
+- Use **structured output mode** (JSON schema) for all `M5` extraction calls
 - One call per signal group (batch related signals)
 - Temperature: 0.1 (deterministic extraction)
 - System prompt includes explicit bias prohibition rules
@@ -367,7 +366,7 @@ LLM prompt strategy:
 AI Writing Detection:
 ```python
 def detect_ai_writing(essay: str, transcript: str) -> AuthenticitySignal:
-    # 1. Perplexity estimation via LLM logprobs (Qwen API)
+    # 1. LLM-assisted authenticity review
     # 2. Embedding cosine similarity: essay vs transcript
     # 3. Specificity check: concrete examples vs generic statements
     # 4. Voice consistency: vocabulary overlap, sentence patterns
@@ -670,7 +669,7 @@ Download audio (yt-dlp or requests)
     ↓
 Extract audio track (ffmpeg)
     ↓
-faster-whisper large-v3 (GPU)
+whisper-large-v3-turbo (Groq API)
     ↓
 Confidence scoring per segment
     ↓
@@ -722,7 +721,7 @@ invisionu/
 │   │   │   │   ├── schemas.py
 │   │   │   │   └── service.py
 │   │   │   ├── m5_nlp/
-│   │   │   │   ├── client.py          # OpenRouter API client
+│   │   │   │   ├── client.py          # Gemini API client
 │   │   │   │   ├── prompts/
 │   │   │   │   │   ├── leadership.py
 │   │   │   │   │   ├── growth.py
@@ -732,7 +731,7 @@ invisionu/
 │   │   │   │   │   └── authenticity.py
 │   │   │   │   ├── extractor.py       # Main signal extraction orchestrator
 │   │   │   │   ├── ai_detector.py     # AI writing detection
-│   │   │   │   ├── embeddings.py      # BAAI/bge-m3 local embeddings
+│   │   │   │   ├── embeddings.py      # Jina API embeddings + local BAAI/bge-m3 fallback
 │   │   │   │   └── service.py
 │   │   │   ├── m6_scoring/
 │   │   │   │   ├── rules.py           # Rule-based scoring engine
@@ -757,7 +756,7 @@ invisionu/
 │   │   │   │   ├── logger.py          # Audit trail writer
 │   │   │   │   └── service.py
 │   │   │   └── m13_asr/
-│   │   │       ├── transcriber.py     # faster-whisper integration
+│   │   │       ├── transcriber.py     # Groq Whisper Large V3 Turbo integration
 │   │   │       ├── downloader.py      # Video/audio download
 │   │   │       ├── quality_checker.py # ASR quality flags
 │   │   │       └── service.py
@@ -874,23 +873,24 @@ Error response:
 DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/invisionu
 
 # LLM API
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-LLM_PRIMARY_MODEL=qwen/qwen-3.5-72b-instruct
-LLM_FAST_MODEL=qwen/qwen-3.5-7b-instruct
-LLM_FALLBACK_MODEL=meta-llama/llama-3.3-70b-instruct
+GEMINI_API_KEY=...
+M5_LLM_MODEL=gemini-2.5-flash
+M7_LLM_MODEL=gemini-3.1-flash-lite-preview
 
-# Groq (ASR + LLM fallback)
+# Groq (ASR)
 GROQ_API_KEY=gsk_...
+M13_ASR_MODEL=whisper-large-v3-turbo
+
+# Embeddings
+JINA_API_KEY=...
 
 # Security
 PII_ENCRYPTION_KEY=...  # 32-byte key for AES-256
 API_SECRET_KEY=...       # For API auth
 
 # Model settings
-ASR_MODEL=large-v3
-ASR_DEVICE=cuda          # or cpu
-EMBEDDING_MODEL=BAAI/bge-m3
+EMBEDDING_MODEL=jina-embeddings-v5
+EMBEDDING_FALLBACK_MODEL=BAAI/bge-m3
 
 # App settings
 ENVIRONMENT=development

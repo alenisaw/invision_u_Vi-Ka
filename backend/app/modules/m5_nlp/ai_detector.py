@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from .embeddings import clamp, cosine_similarity, normalize_text, tokenize
+from .embeddings import clamp, normalize_text, semantic_similarity, tokenize
 
 GENERIC_PHRASES = [
     "i am passionate",
@@ -53,7 +53,7 @@ def voice_consistency_score(essay_text: str, transcript_text: str) -> float:
     if not essay_text or not transcript_text:
         return 0.50
 
-    similarity = cosine_similarity(essay_text, transcript_text)
+    similarity = semantic_similarity(essay_text, transcript_text)
     return clamp(0.35 + similarity * 0.65)
 
 

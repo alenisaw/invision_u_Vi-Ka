@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class InternalTestAnswer(BaseModel):
@@ -17,7 +17,7 @@ class InternalTestAnswer(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     question_id: str = Field(default="unknown")
-    answer_text: str = ""
+    answer_text: str = Field(default="", max_length=4000)
 
     @model_validator(mode="before")
     @classmethod
@@ -40,7 +40,7 @@ class M5ExtractionRequest(BaseModel):
 
     candidate_id: UUID = Field(default_factory=uuid4)
     signal_schema_version: str = Field(default="v1", min_length=1)
-    m5_model_version: str = Field(default="heuristic-groq-v1", min_length=1)
+    m5_model_version: str = Field(default="heuristic-gemini-v1", min_length=1)
     completeness: float = Field(default=1.0, ge=0.0, le=1.0)
     data_flags: list[str] = Field(default_factory=list)
     selected_program: str = Field(default="", max_length=200)
@@ -51,6 +51,34 @@ class M5ExtractionRequest(BaseModel):
     project_descriptions: list[str] = Field(default_factory=list)
     internal_test_answers: list[InternalTestAnswer] = Field(default_factory=list)
     language: Literal["auto", "en", "ru"] = Field(default="auto")
+
+    @field_validator("interview_media_path")
+    @classmethod
+    def validate_interview_media_path(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if "\x00" in normalized:
+            raise ValueError("interview_media_path must not contain null bytes")
+        if normalized.startswith(("..", "~")):
+            raise ValueError("interview_media_path must not use relative traversal shortcuts")
+        return normalized
+
+    @field_validator("project_descriptions", mode="before")
+    @classmethod
+    def validate_project_descriptions(cls, value: object) -> object:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("project_descriptions must be a list of strings")
+        normalized: list[str] = []
+        for item in value:
+            text = str(item or "").strip()
+            if text:
+                normalized.append(text[:3000])
+        return normalized[:20]
 
 
 # File summary: schemas.py

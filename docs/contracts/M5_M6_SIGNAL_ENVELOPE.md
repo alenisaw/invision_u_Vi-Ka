@@ -25,7 +25,7 @@ This document defines the canonical contract between:
 {
   "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
   "signal_schema_version": "v1",
-  "m5_model_version": "qwen-promptset-1",
+  "m5_model_version": "gemini-2.5-flash:grouped-v1",
   "selected_program": "Инновационные цифровые продукты и сервисы",
   "program_id": "digital_products_and_services",
   "completeness": 0.91,

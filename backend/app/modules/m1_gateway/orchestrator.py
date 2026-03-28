@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,6 +74,9 @@ class PipelineOrchestrator:
         intake_response = await intake_result
         candidate_id = UUID(intake_response.candidate_id)
 
+        # Step 1.5: M13 ASR
+        asr_transcript, asr_confidence, asr_flags = await self._run_asr_transcription(candidate_id, payload)
+
         # Step 2: M3 Privacy
         privacy_service = PrivacyService(self.session)
         intake_svc = CandidateIntakeService(self.session)
@@ -86,6 +90,9 @@ class PipelineOrchestrator:
             ),
             data_completeness=intake_svc._compute_completeness(payload),
             data_flags=intake_svc._build_data_flags(payload),
+            video_transcript=asr_transcript,
+            asr_confidence=asr_confidence,
+            asr_flags=asr_flags,
         )
 
         # Step 3: M4 Profile
@@ -135,6 +142,34 @@ class PipelineOrchestrator:
 
     # --- M5 integration (stub until teammates deliver) ---
 
+    async def _run_asr_transcription(
+        self,
+        candidate_id: UUID,
+        payload: CandidateIntakeRequest,
+    ) -> tuple[str | None, float | None, list[str]]:
+        """Call M13 before privacy separation so transcript enters Layer 3 safely."""
+
+        video_reference = (payload.content.video_url or "").strip()
+        if not video_reference:
+            return None, None, []
+
+        try:
+            from app.modules.m13_asr.schemas import ASRRequest
+            from app.modules.m13_asr.service import asr_service
+
+            parsed = urlparse(video_reference)
+            request = ASRRequest(
+                candidate_id=candidate_id,
+                video_url=video_reference if parsed.scheme in {"http", "https"} else None,
+                media_path=video_reference if parsed.scheme not in {"http", "https"} else None,
+                selected_program=payload.academic.selected_program,
+            )
+            result = asr_service.transcribe(request)
+            return result.transcript, result.mean_confidence, result.flags
+        except (ImportError, AttributeError, NotImplementedError, ValueError, RuntimeError, FileNotFoundError):
+            logger.info("M13 ASR not ready or failed for candidate %s", candidate_id)
+            return None, None, []
+
     async def _run_nlp_extraction(
         self, candidate_id: UUID, profile: CandidateProfile
     ) -> SignalEnvelope:
@@ -155,8 +190,12 @@ class PipelineOrchestrator:
                 internal_test_answers=list(profile.model_input.internal_test_answers),
             )
             return nlp_signal_extraction_service.extract_signals(request)
-        except (ImportError, AttributeError, NotImplementedError, ValueError):
-            logger.info("M5 NLP not ready, using empty signals for candidate %s", candidate_id)
+        except Exception as exc:
+            logger.warning(
+                "M5 NLP failed for candidate %s, using empty signals fallback: %s",
+                candidate_id,
+                exc.__class__.__name__,
+            )
             return SignalEnvelope(
                 candidate_id=candidate_id,
                 signal_schema_version="v1",
@@ -181,8 +220,12 @@ class PipelineOrchestrator:
 
             explain_service = ExplainabilityService(self.session)
             await explain_service.generate(candidate_id, envelope, score)
-        except (ImportError, AttributeError, NotImplementedError, ValueError):
-            logger.info("M7 Explainability not ready, skipping for candidate %s", candidate_id)
+        except Exception as exc:
+            logger.warning(
+                "M7 Explainability failed for candidate %s, skipping: %s",
+                candidate_id,
+                exc.__class__.__name__,
+            )
 
     # --- Persist score to DB ---
 
