@@ -29,6 +29,7 @@ from .embeddings import (
     tokenize,
 )
 from .schemas import M5ExtractionRequest
+from ..m6_scoring.program_policy import get_program_definition, normalize_program_id
 
 SOURCE_ORDER = [
     "video_transcript",
@@ -400,27 +401,40 @@ class HeuristicSignalExtractor:
         if not candidate_text:
             return None
 
-        overlap = token_overlap_ratio(sources.selected_program, candidate_text)
+        program_id = normalize_program_id(sources.selected_program)
+        program_definition = get_program_definition(program_id)
+        display_name = str(program_definition.get("display_name", sources.selected_program))
+        fit_keywords = [str(keyword).lower() for keyword in program_definition.get("fit_keywords", [])]
+        overlap = token_overlap_ratio(display_name, candidate_text)
         foundation_bonus = 0.0
-        selected_program_lower = sources.selected_program.lower()
+        selected_program_lower = display_name.lower()
         candidate_text_lower = candidate_text.lower()
         if any(marker in selected_program_lower for marker in FOUNDATION_PROGRAM_MARKERS):
             foundation_hits = sum(1 for keyword in FOUNDATION_ALIGNMENT_KEYWORDS if keyword in candidate_text_lower)
             foundation_bonus = min(0.18, foundation_hits * 0.03 + specificity_score(candidate_text) * 0.04)
-        program_tokens = tokenize(sources.selected_program)
+        program_tokens = tokenize(display_name)
         overlap_tokens = sorted(set(program_tokens) & set(tokenize(candidate_text)))
+        keyword_hits = sum(1 for keyword in fit_keywords if keyword in candidate_text_lower)
         evidence = split_sentences(candidate_text)[:2]
         if overlap_tokens:
             evidence = [f"Program overlap keywords: {', '.join(overlap_tokens[:6])}"] + evidence[:1]
+        elif keyword_hits:
+            evidence = [f"Program-fit cues: {', '.join(fit_keywords[:6])}"] + evidence[:1]
 
-        value = clamp(0.28 + overlap * 0.57 + min(0.15, specificity_score(candidate_text) * 0.15) + foundation_bonus)
-        confidence = clamp(0.45 + overlap * 0.35 + min(0.10, foundation_bonus * 0.5))
+        value = clamp(
+            0.24
+            + overlap * 0.50
+            + min(0.18, keyword_hits * 0.04)
+            + min(0.15, specificity_score(candidate_text) * 0.15)
+            + foundation_bonus
+        )
+        confidence = clamp(0.45 + overlap * 0.28 + min(0.14, keyword_hits * 0.025) + min(0.10, foundation_bonus * 0.5))
         return SignalPayload(
             value=value,
             confidence=confidence,
             source=[name for name in ["essay", "project_descriptions", "experience_summary", "video_transcript"] if sources.get(name)] + ["selected_program"],
             evidence=evidence[:2],
-            reasoning="selected program shares meaningful topical overlap with the candidate narrative.",
+            reasoning="selected program shares topical overlap and program-specific competency cues with the candidate narrative.",
         )
 
     def _essay_transcript_consistency_signal(self, sources: SourceBundle) -> SignalPayload | None:

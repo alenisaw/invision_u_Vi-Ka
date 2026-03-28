@@ -43,11 +43,11 @@ class M5ExtractionRequest(BaseModel):
     m5_model_version: str = Field(default="heuristic-groq-v1", min_length=1)
     completeness: float = Field(default=1.0, ge=0.0, le=1.0)
     data_flags: list[str] = Field(default_factory=list)
-    selected_program: str = ""
-    essay_text: str = ""
-    video_transcript: str = ""
-    interview_media_path: str | None = None
-    experience_summary: str = ""
+    selected_program: str = Field(default="", max_length=200)
+    essay_text: str = Field(default="", max_length=12000)
+    video_transcript: str = Field(default="", max_length=24000)
+    interview_media_path: str | None = Field(default=None, max_length=500)
+    experience_summary: str = Field(default="", max_length=6000)
     project_descriptions: list[str] = Field(default_factory=list)
     internal_test_answers: list[InternalTestAnswer] = Field(default_factory=list)
     language: Literal["auto", "en", "ru"] = Field(default="auto")

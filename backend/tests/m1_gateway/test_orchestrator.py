@@ -123,11 +123,11 @@ class TestPipelineOrchestratorDirect:
         assert "mae" in metrics or "MAE" in str(metrics)
 
 
-class TestNLPFallback:
-    """Test that M5 gracefully falls back when not implemented."""
+class TestPipelineIntegrations:
+    """Test that the M5/M7 integration hooks remain callable."""
 
     @pytest.mark.asyncio
-    async def test_nlp_fallback_returns_empty_signals(self) -> None:
+    async def test_nlp_extraction_returns_signal_envelope(self) -> None:
         session = MagicMock()
         orch = PipelineOrchestrator(session)
         cid = uuid4()
@@ -145,11 +145,12 @@ class TestNLPFallback:
 
         assert isinstance(envelope, SignalEnvelope)
         assert envelope.candidate_id == cid
-        assert envelope.m5_model_version == "stub"
-        assert envelope.signals == {}
+        assert envelope.selected_program == "CS"
+        assert envelope.program_id
+        assert envelope.signal_schema_version == "v1"
 
     @pytest.mark.asyncio
-    async def test_explainability_fallback_does_not_raise(self) -> None:
+    async def test_explainability_generation_does_not_raise(self) -> None:
         session = MagicMock()
         orch = PipelineOrchestrator(session)
         cid = uuid4()
@@ -161,5 +162,4 @@ class TestNLPFallback:
         )
         score = _make_fake_score(cid)
 
-        # Should not raise even though M7 is not implemented
         await orch._run_explainability(cid, envelope, score)

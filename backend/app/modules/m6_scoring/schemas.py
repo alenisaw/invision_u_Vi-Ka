@@ -34,6 +34,8 @@ class SignalEnvelope(BaseModel):
     candidate_id: UUID
     signal_schema_version: str = Field(..., min_length=1)
     m5_model_version: str = Field(default="unknown", min_length=1)
+    selected_program: str = Field(default="", max_length=200)
+    program_id: str = Field(default="", min_length=0, max_length=120)
     completeness: float = Field(..., ge=0.0, le=1.0)
     data_flags: list[str] = Field(default_factory=list)
     signals: dict[str, SignalPayload] = Field(default_factory=dict)
@@ -43,7 +45,10 @@ class CandidateScore(BaseModel):
     """Final M6 output for one candidate."""
 
     candidate_id: UUID
+    selected_program: str = ""
+    program_id: str = ""
     sub_scores: dict[str, float]
+    program_weight_profile: dict[str, float] = Field(default_factory=dict)
     review_priority_index: float = Field(..., ge=0.0, le=1.0)
     score_status: str = ""
     recommendation_status: str
@@ -51,6 +56,7 @@ class CandidateScore(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     confidence_band: str = "MEDIUM"
     manual_review_required: bool = False
+    human_in_loop_required: bool = False
     uncertainty_flag: bool = False
     shortlist_eligible: bool = False
     review_recommendation: str = "STANDARD_REVIEW"

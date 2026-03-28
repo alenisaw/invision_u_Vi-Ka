@@ -29,6 +29,7 @@ class ScoringServiceTests(unittest.TestCase):
         score = self.service.score_candidate(self.fixtures["strong"])
 
         self.assertEqual(score.scoring_version, "m6-v1")
+        self.assertTrue(score.program_id)
         self.assertEqual(len(score.sub_scores), 8)
         self.assertGreaterEqual(score.review_priority_index, 0.0)
         self.assertLessEqual(score.review_priority_index, 1.0)
@@ -92,21 +93,31 @@ class ScoringServiceTests(unittest.TestCase):
     def test_model_can_be_saved_and_loaded(self) -> None:
         """The optional ML artifact path should remain usable."""
 
-        model = HybridScoringModel()
         try:
             self.service.train_on_synthetic(sample_count=40, seed=19)
         except RuntimeError as error:
             self.skipTest(str(error))
 
-        artifact_path = Path("backend/tests/tmp_scoring_model.joblib")
+        artifact_path = Path("backend/app/modules/m6_scoring/artifacts/test_scoring_model.joblib")
         try:
             self.service.ml_model.save(artifact_path)
             loaded_model = HybridScoringModel.load(artifact_path)
         finally:
             if artifact_path.exists():
                 artifact_path.unlink()
+            metadata_path = artifact_path.with_suffix(f"{artifact_path.suffix}.meta.json")
+            if metadata_path.exists():
+                metadata_path.unlink()
 
         self.assertTrue(loaded_model.is_trained)
+
+    def test_unsupported_signal_schema_version_is_rejected(self) -> None:
+        """M6 should reject envelopes with unsupported signal schema versions."""
+
+        envelope = self.fixtures["balanced"].model_copy(update={"signal_schema_version": "v99"})
+
+        with self.assertRaises(ValueError):
+            self.service.score_candidate(envelope)
 
 
 if __name__ == "__main__":

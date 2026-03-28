@@ -1,17 +1,22 @@
 """
 File: schemas.py
-Purpose: Shared handoff models for the future M7 explainability module.
+Purpose: Shared handoff and output models for the M7 explainability module.
 
 Notes:
-- These models define the M6 -> M7 boundary before M7 logic exists.
-- M7 should explain scores, not recompute them.
+- M7 formats and explains M6 outputs; it does not recompute scores.
+- Contracts stay narrow so reviewer-facing output remains auditable.
 """
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+ExplainabilitySeverity = Literal["advisory", "warning", "critical"]
+RecommendationStatus = Literal["STRONG_RECOMMEND", "RECOMMEND", "WAITLIST", "DECLINED"]
+ReviewRecommendation = Literal["FAST_TRACK_REVIEW", "STANDARD_REVIEW", "REQUIRES_MANUAL_REVIEW"]
 
 
 class ExplainabilitySignalContext(BaseModel):
@@ -32,14 +37,14 @@ class ExplainabilityFactor(BaseModel):
     factor: str
     sub_score: str
     score: float = Field(..., ge=0.0, le=1.0)
-    score_contribution: float = Field(..., ge=0.0, le=1.0)
+    score_contribution: float = Field(..., ge=0.0, le=0.30)
 
 
 class ExplainabilityCautionFlag(BaseModel):
     """Normalized caution item for M7 formatting."""
 
     flag: str
-    severity: str = "advisory"
+    severity: ExplainabilitySeverity = "advisory"
     reason: str
 
 
@@ -48,10 +53,16 @@ class ExplainabilityInput(BaseModel):
 
     candidate_id: UUID
     scoring_version: str
-    recommendation_status: str
+    selected_program: str = ""
+    program_id: str = ""
+    recommendation_status: RecommendationStatus
     review_priority_index: float = Field(..., ge=0.0, le=1.0)
     confidence: float = Field(..., ge=0.0, le=1.0)
     uncertainty_flag: bool = False
+    manual_review_required: bool = False
+    human_in_loop_required: bool = False
+    review_recommendation: ReviewRecommendation = "STANDARD_REVIEW"
+    review_reasons: list[str] = Field(default_factory=list)
     sub_scores: dict[str, float]
     score_breakdown: dict[str, float]
     positive_factors: list[ExplainabilityFactor] = Field(default_factory=list)
@@ -60,5 +71,53 @@ class ExplainabilityInput(BaseModel):
     data_quality_notes: list[str] = Field(default_factory=list)
 
 
+class EvidenceItem(BaseModel):
+    """One reviewer-facing evidence item."""
+
+    source: str
+    quote: str
+
+
+class FactorBlock(BaseModel):
+    """UI-facing positive factor block."""
+
+    factor: str
+    title: str
+    summary: str
+    score: float = Field(..., ge=0.0, le=1.0)
+    score_contribution: float = Field(..., ge=0.0, le=0.30)
+    evidence: list[EvidenceItem] = Field(default_factory=list)
+
+
+class CautionBlock(BaseModel):
+    """UI-facing caution block."""
+
+    flag: str
+    severity: ExplainabilitySeverity
+    title: str
+    summary: str
+    suggested_action: str
+
+
+class ExplainabilityReport(BaseModel):
+    """Final reviewer-facing M7 output."""
+
+    candidate_id: UUID
+    scoring_version: str
+    selected_program: str = ""
+    program_id: str = ""
+    recommendation_status: RecommendationStatus
+    review_priority_index: float = Field(..., ge=0.0, le=1.0)
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    manual_review_required: bool = False
+    human_in_loop_required: bool = False
+    review_recommendation: ReviewRecommendation = "STANDARD_REVIEW"
+    summary: str
+    positive_factors: list[FactorBlock] = Field(default_factory=list)
+    caution_blocks: list[CautionBlock] = Field(default_factory=list)
+    reviewer_guidance: str = ""
+    data_quality_notes: list[str] = Field(default_factory=list)
+
+
 # File summary: schemas.py
-# Declares the future M6 -> M7 handoff contract as Pydantic models.
+# Declares both the M6 -> M7 handoff models and final reviewer-facing explainability output.

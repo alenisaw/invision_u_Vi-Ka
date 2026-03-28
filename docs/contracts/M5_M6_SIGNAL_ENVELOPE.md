@@ -26,6 +26,8 @@ This document defines the canonical contract between:
   "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
   "signal_schema_version": "v1",
   "m5_model_version": "qwen-promptset-1",
+  "selected_program": "Инновационные цифровые продукты и сервисы",
+  "program_id": "digital_products_and_services",
   "completeness": 0.91,
   "data_flags": [],
   "signals": {
@@ -47,6 +49,8 @@ This document defines the canonical contract between:
 | `candidate_id` | `uuid string` | yes | stable anonymized candidate id |
 | `signal_schema_version` | `string` | yes | currently `v1` |
 | `m5_model_version` | `string` | yes | model or prompt bundle version |
+| `selected_program` | `string` | yes | raw safe program label |
+| `program_id` | `string` | yes | canonical normalized program id for `M6` policy |
 | `completeness` | `float` | yes | safe profile completeness score |
 | `data_flags` | `string[]` | yes | data quality flags from upstream |
 | `signals` | `object` | yes | map of signal name -> signal payload |

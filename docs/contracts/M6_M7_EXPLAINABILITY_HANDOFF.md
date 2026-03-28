@@ -32,10 +32,16 @@ This contract lets the future `M7` module start without changing `M6` scoring in
 {
   "candidate_id": "uuid",
   "scoring_version": "m6-v1",
+  "selected_program": "Инновационные цифровые продукты и сервисы",
+  "program_id": "digital_products_and_services",
   "recommendation_status": "RECOMMEND",
   "review_priority_index": 0.71,
   "confidence": 0.79,
   "uncertainty_flag": false,
+  "manual_review_required": false,
+  "human_in_loop_required": false,
+  "review_recommendation": "STANDARD_REVIEW",
+  "review_reasons": [],
   "sub_scores": {
     "leadership_potential": 0.74,
     "growth_trajectory": 0.77,
@@ -93,10 +99,16 @@ This contract lets the future `M7` module start without changing `M6` scoring in
 |---|---|---|---|
 | `candidate_id` | yes | M6 | stable candidate id |
 | `scoring_version` | yes | M6 | scoring contract version |
+| `selected_program` | yes | M6 | raw safe program label |
+| `program_id` | yes | M6 | canonical program id |
 | `recommendation_status` | yes | M6 | final score bucket |
 | `review_priority_index` | yes | M6 | final post-penalty score |
 | `confidence` | yes | M6 | compact confidence signal |
 | `uncertainty_flag` | yes | M6 | manual review trigger |
+| `manual_review_required` | yes | M6 | operational escalation flag |
+| `human_in_loop_required` | yes | M6 | explicit HITL flag for downstream modules/UI |
+| `review_recommendation` | yes | M6 | fast-track / standard / manual-review routing |
+| `review_reasons` | yes | M6 | compact reviewer reasons |
 | `sub_scores` | yes | M6 | eight explainable dimensions |
 | `score_breakdown` | yes | M6 | score internals |
 | `positive_factors` | yes | M6 | top score contributors |

@@ -26,6 +26,7 @@ class ScoringExplainabilityHandoffTests(unittest.TestCase):
         explainability_input = service.build_explainability_input(envelope)
 
         self.assertEqual(explainability_input.scoring_version, "m6-v1")
+        self.assertTrue(explainability_input.program_id)
         self.assertEqual(len(explainability_input.sub_scores), 8)
         self.assertLessEqual(len(explainability_input.positive_factors), 3)
         self.assertGreater(len(explainability_input.signal_context), 0)
