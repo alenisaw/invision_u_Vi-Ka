@@ -8,6 +8,7 @@ catboost_info/
 *.tmp
 Thumbs.db
 .DS_Store
+.codex-preview/
 backend/tests/m6_scoring/results/*
 !backend/tests/m6_scoring/results/.gitkeep
 backend/tests/m6_scoring/notebooks/.ipynb_checkpoints/
