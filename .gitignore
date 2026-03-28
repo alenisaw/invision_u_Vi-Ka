@@ -11,3 +11,15 @@ Thumbs.db
 backend/tests/m6_scoring/results/*
 !backend/tests/m6_scoring/results/.gitkeep
 backend/tests/m6_scoring/notebooks/.ipynb_checkpoints/
+.pytest_cache/
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl           
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
