@@ -1,10 +1,6 @@
 """
 File: program_policy.py
 Purpose: Canonical program normalization and program-aware weight helpers for M6.
-
-Notes:
-- Program context is safe operational context, not a demographic signal.
-- The policy adjusts relevance weighting only across approved sub-scores.
 """
 
 from __future__ import annotations

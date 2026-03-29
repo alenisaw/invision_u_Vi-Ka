@@ -1,10 +1,6 @@
 """
 File: ranker.py
 Purpose: Batch ranking helpers for M6 candidate scores.
-
-Notes:
-- Ranking should be stable and deterministic.
-- Tie-breaks prefer higher confidence before candidate id order.
 """
 
 from __future__ import annotations

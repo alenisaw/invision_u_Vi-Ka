@@ -1,10 +1,6 @@
 """
 File: decision_policy.py
 Purpose: Explicit score routing and manual-review logic for M6.
-
-Notes:
-- Keep class assignment and manual review as separate layers.
-- Uncertainty categories should be auditable and operationally useful.
 """
 
 from __future__ import annotations

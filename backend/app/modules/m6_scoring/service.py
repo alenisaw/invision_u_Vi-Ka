@@ -1,10 +1,6 @@
 """
 File: service.py
 Purpose: Main orchestration entry point for the M6 scoring module.
-
-Notes:
-- The service keeps the public API small and explicit.
-- The module should work before the ML layer is trained.
 """
 
 from __future__ import annotations

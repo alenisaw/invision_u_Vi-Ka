@@ -1,10 +1,6 @@
 """
 File: rules.py
 Purpose: Deterministic baseline scoring logic for the M6 module.
-
-Notes:
-- Core scores come from structured values, not raw text.
-- Confidence and caution handling are delegated to dedicated helpers.
 """
 
 from __future__ import annotations

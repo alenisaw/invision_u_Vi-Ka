@@ -1,10 +1,6 @@
 """
 File: ml_model.py
 Purpose: Compact ML refinement layer for M6 scoring.
-
-Notes:
-- The ML layer refines the baseline instead of replacing it.
-- The module should still work if training dependencies are unavailable.
 """
 
 from __future__ import annotations
