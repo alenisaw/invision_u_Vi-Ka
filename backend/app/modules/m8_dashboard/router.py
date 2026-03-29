@@ -5,12 +5,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_db, require_reviewer_api_key
 from app.modules.m8_dashboard.service import DashboardService
 from app.schemas.common import success_response
 
 
-router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+router = APIRouter(
+    prefix="/api/v1/dashboard",
+    tags=["dashboard"],
+    dependencies=[Depends(require_reviewer_api_key)],
+)
 
 
 @router.get("/stats")

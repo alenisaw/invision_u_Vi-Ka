@@ -166,6 +166,19 @@ async def test_list_candidates_decrypts_safe_display_name() -> None:
     assert items[0].selected_program == candidate.selected_program
     assert items[0].ranking_position == 4
     assert items[0].recommendation_status == "RECOMMEND"
+    assert set(items[0].model_dump().keys()) == {
+        "candidate_id",
+        "name",
+        "selected_program",
+        "review_priority_index",
+        "recommendation_status",
+        "confidence",
+        "shortlist_eligible",
+        "ranking_position",
+        "top_strengths",
+        "caution_flags",
+        "created_at",
+    }
 
 
 @pytest.mark.asyncio
@@ -198,13 +211,15 @@ async def test_get_candidate_detail_falls_back_to_scalar_columns_when_payloads_m
 
     detail = await service.get_candidate_detail(candidate.id)
 
-    assert detail.candidate_name == "Dana Sarsen"
+    assert detail.candidate_id == candidate.id
+    assert detail.name == "Dana Sarsen"
     assert detail.score.selected_program == candidate.selected_program
     assert detail.score.decision_summary == "Solid overall profile."
     assert detail.score.recommendation_status == "RECOMMEND"
     assert detail.explanation.summary.startswith("The candidate is promising")
     assert detail.explanation.selected_program == candidate.selected_program
     assert detail.explanation.caution_blocks[0].flag == "essay_mismatch"
+    assert set(detail.model_dump().keys()) == {"candidate_id", "name", "score", "explanation"}
 
 
 @pytest.mark.asyncio

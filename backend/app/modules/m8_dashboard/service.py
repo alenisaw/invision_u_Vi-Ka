@@ -13,6 +13,7 @@ from app.modules.m8_dashboard.schemas import (
     DashboardCandidateDetailResponse,
     DashboardCandidateListItem,
     DashboardStatsResponse,
+    ReviewerCandidateIdentity,
 )
 from app.modules.m9_storage import Candidate, CandidateExplanation, CandidateScore, StorageRepository
 
@@ -77,10 +78,7 @@ class DashboardService:
 
     async def list_candidates(self) -> list[DashboardCandidateListItem]:
         ranked_scores = await self.repository.list_ranked_scores()
-        return [
-            self._build_candidate_list_item(score, index)
-            for index, score in enumerate(ranked_scores, start=1)
-        ]
+        return [self._project_candidate_list_item(score) for score in ranked_scores]
 
     async def get_candidate_detail(
         self,
@@ -96,22 +94,7 @@ class DashboardService:
         if candidate.explanation_record is None:
             raise ValueError(f"Candidate {candidate_id} has no explanation record")
 
-        score = CandidateScorePayload.model_validate(
-            self._build_score_payload(candidate, candidate.score_record)
-        )
-        explanation = ExplainabilityReport.model_validate(
-            self._build_explanation_payload(
-                candidate,
-                candidate.explanation_record,
-                score.model_dump(mode="python"),
-            )
-        )
-
-        return DashboardCandidateDetailResponse(
-            candidate_name=self._extract_candidate_name(candidate),
-            score=score,
-            explanation=explanation,
-        )
+        return self._project_candidate_detail(candidate)
 
     async def list_shortlist(self) -> list[DashboardCandidateListItem]:
         shortlisted = [
@@ -128,7 +111,7 @@ class DashboardService:
         )
         return shortlisted
 
-    def _extract_candidate_name(self, candidate: Candidate | None) -> str:
+    def _build_candidate_display_name(self, candidate: Candidate | None) -> str:
         if candidate is None or candidate.pii_record is None:
             return "Unknown Candidate"
 
@@ -147,24 +130,58 @@ class DashboardService:
         display_name = " ".join(part for part in (first_name, last_name) if part)
         return display_name or "Unknown Candidate"
 
-    def _build_candidate_list_item(
+    def _load_candidate_identity(self, candidate: Candidate) -> ReviewerCandidateIdentity:
+        return ReviewerCandidateIdentity(
+            candidate_id=candidate.id,
+            name=self._build_candidate_display_name(candidate),
+        )
+
+    def _project_candidate_list_item(
         self,
         score: CandidateScore,
-        index: int,
     ) -> DashboardCandidateListItem:
         candidate = score.candidate
+        identity = self._load_candidate_identity(candidate)
         return DashboardCandidateListItem(
-            candidate_id=score.candidate_id,
-            name=self._extract_candidate_name(candidate),
+            candidate_id=identity.candidate_id,
+            name=identity.name,
             selected_program=self._selected_program(candidate, score),
             review_priority_index=float(score.review_priority_index or 0.0),
             recommendation_status=self._recommendation_status(score.recommendation_status),
             confidence=float(score.confidence or 0.0),
             shortlist_eligible=bool(score.shortlist_eligible),
-            ranking_position=score.ranking_position or index,
+            ranking_position=score.ranking_position,
             top_strengths=self._coerce_string_list(score.top_strengths),
             caution_flags=self._coerce_string_list(score.caution_flags),
             created_at=self._candidate_created_at(candidate, score),
+        )
+
+    def _project_candidate_detail(
+        self,
+        candidate: Candidate,
+    ) -> DashboardCandidateDetailResponse:
+        if candidate.score_record is None:
+            raise ValueError(f"Candidate {candidate.id} has no score record")
+
+        if candidate.explanation_record is None:
+            raise ValueError(f"Candidate {candidate.id} has no explanation record")
+
+        identity = self._load_candidate_identity(candidate)
+        score = CandidateScorePayload.model_validate(
+            self._build_score_payload(candidate, candidate.score_record)
+        )
+        explanation = ExplainabilityReport.model_validate(
+            self._build_explanation_payload(
+                candidate,
+                candidate.explanation_record,
+                score.model_dump(mode="python"),
+            )
+        )
+        return DashboardCandidateDetailResponse(
+            candidate_id=identity.candidate_id,
+            name=identity.name,
+            score=score,
+            explanation=explanation,
         )
 
     def _build_score_payload(

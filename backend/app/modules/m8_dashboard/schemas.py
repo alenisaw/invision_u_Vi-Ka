@@ -32,11 +32,16 @@ class DashboardStatsResponse(BaseModel):
     by_status: dict[RecommendationStatus, int] = Field(default_factory=_default_status_counts)
 
 
-class DashboardCandidateListItem(BaseModel):
+class ReviewerCandidateIdentity(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     candidate_id: UUID
     name: str
+
+
+class DashboardCandidateListItem(ReviewerCandidateIdentity):
+    model_config = ConfigDict(extra="ignore")
+
     selected_program: str = ""
     review_priority_index: float = 0.0
     recommendation_status: RecommendationStatus
@@ -51,7 +56,8 @@ class DashboardCandidateListItem(BaseModel):
 class DashboardCandidateDetailResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    candidate_name: str
+    candidate_id: UUID
+    name: str
     score: CandidateScorePayload
     explanation: ExplainabilityReport
 

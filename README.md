@@ -40,9 +40,10 @@ The system ingests candidate submissions, isolates sensitive data, prepares safe
 - `M5 NLP`: structured signal extraction from safe candidate content.
 - `M6 Scoring`: program-aware scoring, ranking, confidence, and review routing.
 - `M7 Explainability`: reviewer-facing summaries, factor blocks, cautions, and evidence.
+- `M8 Dashboard`: reviewer-facing dashboard API with safe candidate identity projection.
 - `M13 ASR`: interview transcription and transcript quality analysis.
 
-`M8 Dashboard` and `M10 Audit` remain placeholders in this branch.
+`M10 Audit` remains a placeholder in this branch.
 
 ---
 
@@ -83,6 +84,15 @@ Run backend tests:
 ```bash
 python -m unittest discover -s backend/tests -p "test_*.py"
 ```
+
+Reviewer dashboard access:
+
+```bash
+curl -H "X-API-Key: $API_KEY" http://localhost:8000/api/v1/dashboard/stats
+```
+
+`M8` dashboard endpoints require the `X-API-Key` header.
+Candidate names are returned only through a reviewer projection layer that derives a safe `name` from encrypted PII. Raw snapshots, contacts, documents, addresses, and family data are never exposed by reviewer routes.
 
 Run the M6 evaluation bundle:
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -30,7 +31,19 @@ def client():
     app.dependency_overrides.clear()
 
 
-def test_stats_route_wraps_success_response(client: TestClient) -> None:
+@pytest.fixture
+def reviewer_settings():
+    with patch(
+        "app.core.dependencies.get_settings",
+        return_value=SimpleNamespace(api_key="test-reviewer-key"),
+    ):
+        yield
+
+
+def test_stats_route_wraps_success_response(
+    client: TestClient,
+    reviewer_settings,
+) -> None:
     stats = DashboardStatsResponse(
         total_candidates=8,
         processed=6,
@@ -49,7 +62,10 @@ def test_stats_route_wraps_success_response(client: TestClient) -> None:
         "app.modules.m8_dashboard.router.DashboardService.get_stats",
         new=AsyncMock(return_value=stats),
     ):
-        response = client.get("/api/v1/dashboard/stats")
+        response = client.get(
+            "/api/v1/dashboard/stats",
+            headers={"X-API-Key": "test-reviewer-key"},
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -58,7 +74,10 @@ def test_stats_route_wraps_success_response(client: TestClient) -> None:
     assert body["data"]["by_status"]["STRONG_RECOMMEND"] == 2
 
 
-def test_candidates_route_returns_list_payload(client: TestClient) -> None:
+def test_candidates_route_returns_list_payload(
+    client: TestClient,
+    reviewer_settings,
+) -> None:
     candidate = DashboardCandidateListItem(
         candidate_id=uuid4(),
         name="Aida Kim",
@@ -77,7 +96,10 @@ def test_candidates_route_returns_list_payload(client: TestClient) -> None:
         "app.modules.m8_dashboard.router.DashboardService.list_candidates",
         new=AsyncMock(return_value=[candidate]),
     ):
-        response = client.get("/api/v1/dashboard/candidates")
+        response = client.get(
+            "/api/v1/dashboard/candidates",
+            headers={"X-API-Key": "test-reviewer-key"},
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -86,10 +108,14 @@ def test_candidates_route_returns_list_payload(client: TestClient) -> None:
     assert body["data"][0]["name"] == "Aida Kim"
 
 
-def test_candidate_detail_route_returns_detail_payload(client: TestClient) -> None:
+def test_candidate_detail_route_returns_detail_payload(
+    client: TestClient,
+    reviewer_settings,
+) -> None:
     candidate_id = uuid4()
     detail = DashboardCandidateDetailResponse(
-        candidate_name="Dana Sarsen",
+        candidate_id=candidate_id,
+        name="Dana Sarsen",
         score=CandidateScorePayload(
             candidate_id=candidate_id,
             selected_program="Innovative IT Product Design and Development",
@@ -122,29 +148,42 @@ def test_candidate_detail_route_returns_detail_payload(client: TestClient) -> No
         "app.modules.m8_dashboard.router.DashboardService.get_candidate_detail",
         new=AsyncMock(return_value=detail),
     ):
-        response = client.get(f"/api/v1/dashboard/candidates/{candidate_id}")
+        response = client.get(
+            f"/api/v1/dashboard/candidates/{candidate_id}",
+            headers={"X-API-Key": "test-reviewer-key"},
+        )
 
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
-    assert body["data"]["candidate_name"] == "Dana Sarsen"
+    assert body["data"]["name"] == "Dana Sarsen"
+    assert body["data"]["candidate_id"] == str(candidate_id)
     assert body["data"]["score"]["candidate_id"] == str(candidate_id)
 
 
-def test_candidate_detail_route_returns_404_when_service_raises(client: TestClient) -> None:
+def test_candidate_detail_route_returns_404_when_service_raises(
+    client: TestClient,
+    reviewer_settings,
+) -> None:
     candidate_id = uuid4()
 
     with patch(
         "app.modules.m8_dashboard.router.DashboardService.get_candidate_detail",
         new=AsyncMock(side_effect=ValueError("Candidate not found")),
     ):
-        response = client.get(f"/api/v1/dashboard/candidates/{candidate_id}")
+        response = client.get(
+            f"/api/v1/dashboard/candidates/{candidate_id}",
+            headers={"X-API-Key": "test-reviewer-key"},
+        )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Candidate not found"
 
 
-def test_shortlist_route_returns_list_payload(client: TestClient) -> None:
+def test_shortlist_route_returns_list_payload(
+    client: TestClient,
+    reviewer_settings,
+) -> None:
     shortlist = [
         DashboardCandidateListItem(
             candidate_id=uuid4(),
@@ -165,9 +204,46 @@ def test_shortlist_route_returns_list_payload(client: TestClient) -> None:
         "app.modules.m8_dashboard.router.DashboardService.list_shortlist",
         new=AsyncMock(return_value=shortlist),
     ):
-        response = client.get("/api/v1/dashboard/shortlist")
+        response = client.get(
+            "/api/v1/dashboard/shortlist",
+            headers={"X-API-Key": "test-reviewer-key"},
+        )
 
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
     assert body["data"][0]["ranking_position"] == 1
+
+
+def test_dashboard_routes_require_api_key_header(client: TestClient, reviewer_settings) -> None:
+    response = client.get("/api/v1/dashboard/stats")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Missing X-API-Key header"
+
+
+def test_dashboard_routes_reject_invalid_api_key(
+    client: TestClient,
+    reviewer_settings,
+) -> None:
+    response = client.get(
+        "/api/v1/dashboard/stats",
+        headers={"X-API-Key": "wrong-key"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Invalid API key"
+
+
+def test_dashboard_routes_fail_closed_when_server_key_missing(client: TestClient) -> None:
+    with patch(
+        "app.core.dependencies.get_settings",
+        return_value=SimpleNamespace(api_key=None),
+    ):
+        response = client.get(
+            "/api/v1/dashboard/stats",
+            headers={"X-API-Key": "any-key"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Reviewer API key is not configured"
