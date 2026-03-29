@@ -141,7 +141,12 @@ class StorageRepository(Generic[ModelT]):
     async def list_ranked_scores(self) -> list[CandidateScore]:
         stmt = (
             select(CandidateScore)
-            .options(selectinload(CandidateScore.candidate))
+            .options(
+                selectinload(CandidateScore.candidate).selectinload(Candidate.pii_record),
+                selectinload(CandidateScore.candidate).selectinload(
+                    Candidate.explanation_record
+                ),
+            )
             .order_by(
                 CandidateScore.ranking_position.asc().nullslast(),
                 CandidateScore.review_priority_index.desc().nullslast(),
