@@ -52,9 +52,15 @@ Error response:
     "code": "VALIDATION_ERROR",
     "message": "Invalid payload",
     "details": {}
+  },
+  "meta": {
+    "timestamp": "2026-03-29T12:00:00Z",
+    "version": "1.0.0"
   }
 }
 ```
+
+The same envelope is returned for non-2xx API errors such as validation failures, auth failures, and not-found responses.
 
 ---
 

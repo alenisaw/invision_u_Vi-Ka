@@ -343,20 +343,21 @@ flowchart LR
 
 ### Purpose
 
-`M8` is reserved for the reviewer-facing dashboard API.
+`M8` exposes the reviewer-facing dashboard API.
 
 ### Current State
 
-- placeholder only in this branch;
-- intended to expose ranking lists, candidate detail views, and reviewer actions.
+- implemented in this branch;
+- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, and safe reviewer identity projection;
+- requires reviewer API key access before returning reviewer-facing data.
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | Future dashboard routes |
-| `backend/app/modules/m8_dashboard/service.py` | Future dashboard logic |
-| `backend/app/modules/m8_dashboard/schemas.py` | Future dashboard contracts |
+| `backend/app/modules/m8_dashboard/router.py` | Reviewer-facing read routes and override entrypoint |
+| `backend/app/modules/m8_dashboard/service.py` | Safe reviewer projection logic and dashboard aggregation |
+| `backend/app/modules/m8_dashboard/schemas.py` | Reviewer DTOs for stats, lists, detail, and shortlist |
 
 ---
 
@@ -386,20 +387,21 @@ flowchart LR
 
 ### Purpose
 
-`M10` is reserved for audit logging and reviewer action traceability.
+`M10` handles audit logging and reviewer action traceability.
 
 ### Current State
 
-- placeholder only in this branch;
-- intended to store decision overrides, reviewer actions, and pipeline audit events.
+- implemented in this branch;
+- stores decision overrides, reviewer actions, and pipeline audit events;
+- exposes candidate action endpoints and a reviewer-facing audit feed.
 
 ### Files
 
 | File | Responsibility |
 |---|---|
 | `backend/app/modules/m10_audit/logger.py` | Future audit logging helpers |
-| `backend/app/modules/m10_audit/service.py` | Future audit service |
-| `backend/app/modules/m10_audit/router.py` | Future audit routes |
+| `backend/app/modules/m10_audit/service.py` | Override workflows, reviewer action writes, and audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | Reviewer action and audit feed routes |
 
 ---
 

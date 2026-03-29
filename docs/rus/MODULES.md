@@ -343,20 +343,21 @@ flowchart LR
 
 ### Назначение
 
-`M8` зарезервирован под reviewer-facing dashboard API.
+`M8` отдает reviewer-facing dashboard API.
 
 ### Текущее состояние
 
-- placeholder в этой ветке;
-- предназначен для ranking lists, candidate detail views и reviewer actions.
+- реализован в этой ветке;
+- отдает dashboard stats, ranking lists, candidate detail views, shortlist reads и safe reviewer identity projection;
+- требует reviewer API key перед выдачей reviewer-facing данных.
 
 ### Файлы
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | Future dashboard routes |
-| `backend/app/modules/m8_dashboard/service.py` | Future dashboard logic |
-| `backend/app/modules/m8_dashboard/schemas.py` | Future dashboard contracts |
+| `backend/app/modules/m8_dashboard/router.py` | Reviewer-facing read routes и override entrypoint |
+| `backend/app/modules/m8_dashboard/service.py` | Safe reviewer projection logic и dashboard aggregation |
+| `backend/app/modules/m8_dashboard/schemas.py` | Reviewer DTO для stats, lists, detail и shortlist |
 
 ---
 
@@ -386,20 +387,21 @@ flowchart LR
 
 ### Назначение
 
-`M10` зарезервирован под audit logging и reviewer action traceability.
+`M10` отвечает за audit logging и reviewer action traceability.
 
 ### Текущее состояние
 
-- placeholder в этой ветке;
-- предназначен для decision overrides, reviewer actions и pipeline audit events.
+- реализован в этой ветке;
+- хранит decision overrides, reviewer actions и pipeline audit events;
+- отдает candidate action endpoints и reviewer-facing audit feed.
 
 ### Файлы
 
 | Файл | Ответственность |
 |---|---|
 | `backend/app/modules/m10_audit/logger.py` | Future audit logging helpers |
-| `backend/app/modules/m10_audit/service.py` | Future audit service |
-| `backend/app/modules/m10_audit/router.py` | Future audit routes |
+| `backend/app/modules/m10_audit/service.py` | Override workflows, reviewer action writes и audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | Reviewer action и audit feed routes |
 
 ---
 

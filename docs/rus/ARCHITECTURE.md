@@ -195,7 +195,7 @@ PII отделяется до любой model-facing обработки. AI и 
 
 ### `M7 Explainability`
 
-Отвечает за reviewer-facing explanation output на основе `SignalEnvelope + CandidateScore`.
+Собирает детерминированный reviewer-facing explanation output на основе `SignalEnvelope + CandidateScore`.
 
 | Файл | Ответственность |
 |---|---|
@@ -206,7 +206,7 @@ PII отделяется до любой model-facing обработки. AI и 
 
 ### `M8 Dashboard`
 
-Оставлен как placeholder для будущего reviewer dashboard API.
+Отвечает за reviewer-facing read API: stats, ranking list, candidate detail и shortlist views.
 
 ### `M9 Storage`
 
@@ -219,7 +219,7 @@ PII отделяется до любой model-facing обработки. AI и 
 
 ### `M10 Audit`
 
-Оставлен как placeholder для будущих audit workflows.
+Отвечает за reviewer write flows и traceability: overrides, reviewer actions и audit feed.
 
 ### `M13 ASR`
 
@@ -242,7 +242,7 @@ PII отделяется до любой model-facing обработки. AI и 
 | Модуль | Модель | Роль |
 |---|---|---|
 | `M5` | `gemini-2.5-flash` | Structured signal extraction |
-| `M7` | `gemini-3.1-flash-lite-preview` | Быстрый explainability layer |
+| `M7` | deterministic formatter | Сборка explainability report из persisted M6 output |
 
 ### ASR
 

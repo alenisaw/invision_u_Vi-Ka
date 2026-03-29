@@ -195,7 +195,7 @@ Computes sub-scores, recommendation categories, ranking fields, confidence, unce
 
 ### `M7 Explainability`
 
-Formats reviewer-facing explanation output from `SignalEnvelope + CandidateScore`.
+Builds deterministic reviewer-facing explanation output from `SignalEnvelope + CandidateScore`.
 
 | File | Responsibility |
 |---|---|
@@ -206,7 +206,7 @@ Formats reviewer-facing explanation output from `SignalEnvelope + CandidateScore
 
 ### `M8 Dashboard`
 
-Reserved placeholder for future reviewer dashboard API work.
+Reviewer-facing read API for stats, ranking lists, candidate detail, and shortlist views.
 
 ### `M9 Storage`
 
@@ -219,7 +219,7 @@ Repository and persistence layer used by active modules.
 
 ### `M10 Audit`
 
-Reserved placeholder for future audit workflows.
+Reviewer write and traceability layer for overrides, reviewer actions, and audit feed access.
 
 ### `M13 ASR`
 
@@ -242,7 +242,7 @@ Transcribes interview media and exposes transcript quality markers.
 | Module | Model | Role |
 |---|---|---|
 | `M5` | `gemini-2.5-flash` | Structured signal extraction |
-| `M7` | `gemini-3.1-flash-lite-preview` | Fast explainability generation |
+| `M7` | deterministic formatter | Explainability report construction from persisted M6 output |
 
 ### ASR
 
