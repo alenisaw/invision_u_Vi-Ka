@@ -1,0 +1,8 @@
+node_modules
+.next
+test-results
+playwright-report
+tsconfig.tsbuildinfo
+Dockerfile
+e2e
+README.md

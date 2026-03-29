@@ -40,6 +40,20 @@ npm run test:e2e
 npm run test:e2e:install
 ```
 
+## Docker
+
+Полный стек теперь можно поднять из корня репозитория:
+
+```bash
+cd ..
+./scripts/stack.sh up
+```
+
+После старта:
+
+- фронтенд: `http://localhost:3000`
+- backend: `http://localhost:8000`
+
 ## Примечание
 
 Reviewer-экраны используют живые backend-данные через встроенный proxy.

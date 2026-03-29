@@ -123,17 +123,39 @@ Russian:
 
 ## Docker
 
-The repository includes a whole-repository Docker template:
+The repository now includes a runnable whole-project Docker Compose setup:
 
-- [docker-compose.template.yml](docker-compose.template.yml)
+- [docker-compose.yml](docker-compose.yml)
 
-It defines placeholders for:
+Start everything:
 
-- `postgres`
-- `backend`
-- `frontend`
-- `M8 Dashboard`
-- `M10 Audit`
+```bash
+./scripts/stack.sh up
+```
+
+Run in background:
+
+```bash
+./scripts/stack.sh up -d
+```
+
+Stop containers:
+
+```bash
+./scripts/stack.sh down
+```
+
+Reset containers and database volume:
+
+```bash
+./scripts/stack.sh reset
+```
+
+The stack exposes:
+
+- `frontend` on `http://localhost:3000`
+- `backend` on `http://localhost:8000`
+- `postgres` on `localhost:5432`
 
 ---
 
