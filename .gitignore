@@ -3,6 +3,7 @@
 .env.local
 !.env.example
 __pycache__/
+*.py[cod]
 .idea/
 .vscode/
 *.iml
@@ -20,10 +21,15 @@ coverage.xml
 htmlcov/
 dist/
 build/
+node_modules/
+.next/
+.venv/
+venv/
 *.egg-info/
 *.egg
 *.whl           
 .mypy_cache/
-.pytest_cache/
 .ruff_cache/
 .coverage
+.ipynb_checkpoints/
+*.sqlite3

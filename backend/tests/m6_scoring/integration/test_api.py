@@ -1,9 +1,6 @@
 """
 File: test_m1_m6_api.py
 Purpose: API tests for the M6 gateway routes.
-
-Notes:
-- Keep coverage focused on health and direct M6 integration endpoints.
 """
 
 from __future__ import annotations

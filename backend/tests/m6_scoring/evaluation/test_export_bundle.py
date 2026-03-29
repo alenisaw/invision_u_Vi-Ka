@@ -1,9 +1,6 @@
 """
 File: test_evaluation_bundle.py
 Purpose: Local smoke tests for the M6 evaluation bundle.
-
-Notes:
-- Keep these focused on evaluation outputs used by notebooks and exports.
 """
 
 from __future__ import annotations

@@ -1,9 +1,6 @@
 """
 File: test_m6_scoring.py
 Purpose: Basic unit tests for the M6 scoring module.
-
-Notes:
-- Keep tests focused on contract, ranking, and safe training flow.
 """
 
 from __future__ import annotations

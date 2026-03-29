@@ -1,10 +1,6 @@
 """
 File: io_utils.py
 Purpose: Shared safe path helpers for M6 artifacts and report exports.
-
-Notes:
-- Restrict writes and loads to trusted project-relative directories.
-- Keep path rules explicit and auditable.
 """
 
 from __future__ import annotations

@@ -1,10 +1,6 @@
 """
 File: run_evaluation.py
 Purpose: Export a fresh M6 synthetic evaluation bundle into the local test results folder.
-
-Notes:
-- This is the easiest entry point for teammates who want quick outputs to inspect.
-- Results are written under backend/tests/m6_scoring/results/latest.
 """
 
 from __future__ import annotations

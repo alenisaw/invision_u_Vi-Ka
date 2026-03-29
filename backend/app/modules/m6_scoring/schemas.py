@@ -1,10 +1,6 @@
 """
 File: schemas.py
 Purpose: Shared Pydantic models for the M6 scoring module.
-
-Notes:
-- Keep the contract stable so M5 can integrate against it later.
-- Keep output explicit for ranking and explainability layers.
 """
 
 from __future__ import annotations

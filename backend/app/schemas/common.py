@@ -1,10 +1,6 @@
 """
 File: common.py
 Purpose: Shared API response helpers for backend routes.
-
-Notes:
-- Keep the transport envelope stable even while inner modules evolve.
-- Helpers return plain dictionaries so routes stay compact.
 """
 
 from __future__ import annotations

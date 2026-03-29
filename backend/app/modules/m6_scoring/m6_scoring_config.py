@@ -1,10 +1,6 @@
 """
 File: m6_scoring_config.py
 Purpose: Typed loader for the YAML-based M6 scoring config.
-
-Notes:
-- Keep editable decision settings in YAML.
-- Export both typed policy config and compact module-level aliases.
 """
 
 from __future__ import annotations

@@ -1,9 +1,6 @@
 """
 File: test_m6_notebook_bundle.py
 Purpose: Bundle-level tests for notebook and export helpers.
-
-Notes:
-- Keep these focused on the reproducible evaluation layer used by teammates.
 """
 
 from __future__ import annotations

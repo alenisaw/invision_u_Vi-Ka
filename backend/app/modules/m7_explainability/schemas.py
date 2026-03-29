@@ -1,10 +1,6 @@
 """
 File: schemas.py
 Purpose: Shared handoff and output models for the M7 explainability module.
-
-Notes:
-- M7 formats and explains M6 outputs; it does not recompute scores.
-- Contracts stay narrow so reviewer-facing output remains auditable.
 """
 
 from __future__ import annotations

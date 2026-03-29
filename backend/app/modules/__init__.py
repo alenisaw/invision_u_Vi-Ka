@@ -1,1 +1,1 @@
-# TODO
+"""Backend module registry namespace."""
