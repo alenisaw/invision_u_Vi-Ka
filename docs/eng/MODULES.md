@@ -266,6 +266,30 @@ flowchart LR
 - derives confidence, uncertainty, and review-routing fields;
 - prepares explainability-ready outputs for `M7`.
 
+### Why `program_fit` exists
+
+`program_fit` is the alignment dimension. It measures whether the candidate's stated goals, project examples, interests, and trajectory actually match the selected academic track.
+
+This is important because the system should distinguish:
+
+- a candidate with high general potential;
+- a candidate with high potential for this exact program.
+
+### Why the weights matter
+
+The weights are not arbitrary decoration. They are the policy layer that determines which evidence should matter most when the candidate profile is mixed. The default profile prioritizes:
+
+- leadership potential;
+- growth trajectory;
+- motivation clarity;
+- initiative and learning ability.
+
+Program-aware profiles then rebalance those priorities. For example:
+
+- media and marketing increase the weight of communication clarity;
+- public governance increases ethical reasoning and communication;
+- creative engineering increases initiative, experimentation, and fit.
+
 ### Inputs
 
 - canonical `SignalEnvelope`;

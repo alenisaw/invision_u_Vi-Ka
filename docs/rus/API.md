@@ -5,28 +5,28 @@
 ## Структура документа
 
 - [Обзор](#обзор)
-- [Response Envelope](#response-envelope)
-- [System Endpoints](#system-endpoints)
-- [Candidate Intake Endpoints](#candidate-intake-endpoints)
-- [Pipeline Endpoints](#pipeline-endpoints)
-- [Диаграмма 1. Flow полного pipeline endpoint](#диаграмма-1-flow-полного-pipeline-endpoint)
-- [Direct Scoring Endpoints](#direct-scoring-endpoints)
-- [Диаграмма 2. Reviewer workflow surface](#диаграмма-2-reviewer-workflow-surface)
+- [Формат ответа](#формат-ответа)
+- [Системные методы](#системные-методы)
+- [Методы приема заявок](#методы-приема-заявок)
+- [Методы запуска конвейера](#методы-запуска-конвейера)
+- [Диаграмма 1. Полный путь обработки заявки](#диаграмма-1-полный-путь-обработки-заявки)
+- [Методы прямого скоринга](#методы-прямого-скоринга)
+- [Диаграмма 2. Поверхность работы проверяющего](#диаграмма-2-поверхность-работы-проверяющего)
 - [Канонические контракты](#канонические-контракты)
 
 ---
 
 ## Обзор
 
-Этот документ описывает endpoints, которые реально реализованы в текущей ветке. Планируемые, но не существующие endpoints сюда не включаются.
+Этот документ описывает только те методы API, которые реально реализованы в текущей ветке. Запланированные, но не существующие методы сюда не включаются.
 
-Base URL:
+Базовый адрес:
 
 `http://localhost:8000`
 
 ---
 
-## Response Envelope
+## Формат ответа
 
 Успешный ответ:
 
@@ -58,23 +58,23 @@ Base URL:
 
 ---
 
-## System Endpoints
+## Системные методы
 
 ### `GET /`
 
-Возвращает metadata приложения.
+Возвращает общую информацию о приложении.
 
 ### `GET /health`
 
-Возвращает lightweight health response.
+Возвращает короткий ответ о состоянии сервиса.
 
 ---
 
-## Candidate Intake Endpoints
+## Методы приема заявок
 
 ### `POST /api/v1/candidates/intake`
 
-Валидирует заявку кандидата, создает запись кандидата, сохраняет encrypted PII и metadata, после чего возвращает `candidate_id`.
+Проверяет структуру заявки кандидата, создает запись кандидата, сохраняет зашифрованные персональные данные и служебные сведения, после чего возвращает `candidate_id`.
 
 Пример запроса:
 
@@ -105,11 +105,11 @@ Base URL:
 
 ---
 
-## Pipeline Endpoints
+## Методы запуска конвейера
 
 ### `POST /api/v1/pipeline/submit`
 
-Запускает реализованный backend flow:
+Запускает реализованный серверный конвейер:
 
 `M2 -> M13 -> M3 -> M4 -> M5 -> M6 -> M7`
 
@@ -123,11 +123,11 @@ Base URL:
 
 ### `POST /api/v1/pipeline/batch`
 
-Запускает тот же flow для массива заявок. Текущая batch-обработка на уровне orchestration идет последовательно.
+Запускает тот же конвейер для массива заявок. В текущей реализации пакетная обработка выполняется последовательно.
 
 ---
 
-## Диаграмма 1. Flow полного pipeline endpoint
+## Диаграмма 1. Полный путь обработки заявки
 
 ```mermaid
 sequenceDiagram
@@ -154,11 +154,11 @@ sequenceDiagram
 
 ---
 
-## Direct Scoring Endpoints
+## Методы прямого скоринга
 
 ### `POST /api/v1/pipeline/score-signals`
 
-Считает score для одного кандидата по canonical `SignalEnvelope`.
+Рассчитывает оценку для одного кандидата по каноническому `SignalEnvelope`.
 
 Пример запроса:
 
@@ -209,11 +209,11 @@ sequenceDiagram
 
 ### `POST /api/v1/pipeline/score-signals/batch`
 
-Считает score и ranking для массива `SignalEnvelope`.
+Рассчитывает оценки и ранжирование для массива объектов `SignalEnvelope`.
 
 ### `POST /api/v1/pipeline/score-signals/train-synthetic`
 
-Обучает scoring refinement layer на synthetic data.
+Обучает уточняющий слой скоринга на синтетических данных.
 
 Параметры:
 
@@ -222,7 +222,7 @@ sequenceDiagram
 
 ### `POST /api/v1/pipeline/score-signals/evaluate-synthetic`
 
-Запускает synthetic holdout evaluation для `M6`.
+Запускает контрольную оценку `M6` на синтетической выборке.
 
 Параметры:
 
@@ -232,7 +232,7 @@ sequenceDiagram
 
 ---
 
-## Диаграмма 2. Reviewer workflow surface
+## Диаграмма 2. Поверхность работы проверяющего
 
 ```mermaid
 flowchart TD
@@ -259,7 +259,7 @@ flowchart TD
 
 ### Выход `M5`
 
-`M5` отдает `SignalEnvelope` со следующими полями:
+`M5` возвращает `SignalEnvelope` со следующими полями:
 
 - `candidate_id`
 - `signal_schema_version`
@@ -280,14 +280,14 @@ flowchart TD
 
 ### Выход `M6`
 
-`M6` отдает `CandidateScore` с четырьмя основными recommendation categories:
+`M6` возвращает `CandidateScore` с четырьмя основными категориями рекомендации:
 
 - `STRONG_RECOMMEND`
 - `RECOMMEND`
 - `WAITLIST`
 - `DECLINED`
 
-Поля review routing отделены:
+Поля маршрутизации на проверку отделены:
 
 - `manual_review_required`
 - `human_in_loop_required`
@@ -296,13 +296,13 @@ flowchart TD
 
 ### Выход `M7`
 
-`M7` отдает reviewer-facing explainability output:
+`M7` возвращает материалы для проверяющего:
 
-- `summary`
-- `positive_factors`
-- `caution_blocks`
-- `evidence_items`
-- `reviewer_guidance`
+- summary
+- positive_factors
+- caution_blocks
+- evidence_items
+- reviewer_guidance
 
 ---
 

@@ -9,6 +9,8 @@
 - [Input Contract](#input-contract)
 - [Output Contract](#output-contract)
 - [Scoring Formula](#scoring-formula)
+- [What Program Fit Means](#what-program-fit-means)
+- [Why the Weights Matter](#why-the-weights-matter)
 - [File Responsibilities](#file-responsibilities)
 
 ---
@@ -105,6 +107,27 @@ baseline_rpi =
 Weights and routing thresholds are configured in:
 
 - `m6_scoring_config.yaml`
+
+---
+
+## What Program Fit Means
+
+`program_fit` measures how strongly the candidate's stated goals, interests, project examples, and direction align with the selected academic track. It does not describe personality fit, social fit, or demographic fit.
+
+At runtime, `M6` currently derives `program_fit` from the upstream `program_alignment` signal generated in `M5`.
+
+---
+
+## Why the Weights Matter
+
+The weights are the policy layer that decides which dimensions should matter most when candidate evidence is mixed. The default profile intentionally prioritizes:
+
+- leadership potential;
+- growth trajectory;
+- motivation clarity;
+- initiative and learning ability.
+
+This avoids over-rewarding candidates only for polished communication or keyword-heavy program language. Program-aware profiles then adjust those weights per track so that, for example, media programs emphasize communication more strongly, while governance programs emphasize ethical reasoning more strongly.
 
 ---
 

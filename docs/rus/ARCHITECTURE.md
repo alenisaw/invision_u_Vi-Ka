@@ -7,27 +7,27 @@
 - [Общий обзор](#общий-обзор)
 - [Диаграмма 1. Общая схема системы](#диаграмма-1-общая-схема-системы)
 - [Архитектурные принципы](#архитектурные-принципы)
-- [Реализованный backend flow](#реализованный-backend-flow)
+- [Реализованный серверный конвейер](#реализованный-серверный-конвейер)
 - [Ответственность модулей](#ответственность-модулей)
 - [Подробный каталог модулей](#подробный-каталог-модулей)
 - [Стек моделей](#стек-моделей)
-- [Модель data governance](#модель-data-governance)
-- [Диаграмма 2. Privacy-by-Design](#диаграмма-2-privacy-by-design)
-- [Диаграмма 3. Ядро данных](#диаграмма-3-ядро-данных)
+- [Модель управления данными](#модель-управления-данными)
+- [Диаграмма 2. Разделение данных по принципу privacy-by-design](#диаграмма-2-разделение-данных-по-принципу-privacy-by-design)
+- [Диаграмма 3. Основные сущности данных](#диаграмма-3-основные-сущности-данных)
 - [Структура репозитория](#структура-репозитория)
 
 ---
 
 ## Общий обзор
 
-Система отбора inVision U представляет собой модульный backend-конвейер для поддержки приемной комиссии. Она валидирует заявки, отделяет чувствительные данные, готовит безопасный модельный вход, извлекает структурированные сигналы, считает объяснимые оценки и формирует reviewer-facing explainability output.
+Система отбора inVision U представляет собой модульный серверный конвейер для поддержки приемной комиссии. Она валидирует заявки, отделяет чувствительные данные, готовит безопасный вход для моделей, извлекает структурированные сигналы, рассчитывает объяснимые оценки и формирует понятные материалы для проверяющего.
 
-Платформа принципиально остается human-in-the-loop:
+Платформа изначально строится как система с обязательным участием человека:
 
-- финальное решение принимает человек;
-- модельные модули работают только по безопасному Layer 3;
+- окончательное решение принимает комиссия;
+- модельные модули работают только с безопасным третьим слоем данных;
 - скоринг и объяснения должны оставаться проверяемыми;
-- review routing отделен от recommendation category.
+- логика направления на ручную проверку отделена от основной рекомендации.
 
 ---
 
@@ -79,33 +79,33 @@ flowchart LR
 
 ### Privacy by Design
 
-PII отделяется до любой model-facing обработки. AI и ML модули получают только безопасный Layer 3.
+Персональные данные отделяются до любой обработки моделями. AI- и ML-модули получают только безопасный третий слой.
 
 ### Explainability First
 
-Каждая рекомендация должна быть разложима на сигналы, sub-scores, caution flags и reviewer guidance.
+Каждая рекомендация должна раскладываться на сигналы, промежуточные оценки, предупреждающие флаги и пояснения для проверяющего.
 
 ### Human in the Loop
 
-Поля `manual_review_required`, `human_in_loop_required` и `review_recommendation` явно показывают, где нужен дополнительный человек.
+Поля `manual_review_required`, `human_in_loop_required` и `review_recommendation` явно показывают, где требуется дополнительная проверка человеком.
 
 ### Program-Aware, Not Demographic-Aware
 
-Система учитывает выбранную программу через policy weights, но не использует чувствительные и демографические признаки как факторы потенциала.
+Система учитывает выбранную образовательную программу через веса политики, но не использует чувствительные и демографические признаки как основание для оценки потенциала.
 
 ---
 
-## Реализованный backend flow
+## Реализованный серверный конвейер
 
-В текущей ветке реализован следующий backend flow:
+В текущей ветке реализован следующий порядок обработки:
 
-1. `M2 Intake` валидирует payload кандидата и создает запись.
-2. `M13 ASR` транскрибирует интервью и добавляет quality flags.
-3. `M3 Privacy` разделяет данные на PII, metadata и safe model input.
-4. `M4 Profile` собирает unified `CandidateProfile`.
-5. `M5 NLP` извлекает canonical `SignalEnvelope`.
-6. `M6 Scoring` считает score, recommendation category и review routing.
-7. `M7 Explainability` формирует summary, factors, evidence и cautions.
+1. `M2 Intake` валидирует данные кандидата и создает начальную запись.
+2. `M13 ASR` расшифровывает интервью и добавляет показатели качества.
+3. `M3 Privacy` разделяет данные на персональные, служебные и безопасные для модели.
+4. `M4 Profile` собирает единый профиль кандидата.
+5. `M5 NLP` извлекает канонический `SignalEnvelope`.
+6. `M6 Scoring` рассчитывает итоговый балл, рекомендацию и правила маршрутизации на проверку.
+7. `M7 Explainability` формирует краткое объяснение, факторы, доказательства и предупреждения.
 
 ---
 
@@ -119,7 +119,7 @@ PII отделяется до любой model-facing обработки. AI и 
 
 ## Подробный каталог модулей
 
-Полное описание функционала, входов, выходов и file map по модулям находится здесь:
+Полное описание функциональности, входов, выходов и назначения файлов по модулям находится здесь:
 
 - [`docs/rus/MODULES.md`](MODULES.md)
 
@@ -127,111 +127,109 @@ PII отделяется до любой model-facing обработки. AI и 
 
 ### `M1 Gateway`
 
-Отвечает за публичные backend endpoints и orchestration всего pipeline.
+Отвечает за публичные серверные конечные точки и координацию всего конвейера.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m1_gateway/router.py` | API endpoints для intake, pipeline submit и direct scoring |
-| `backend/app/modules/m1_gateway/orchestrator.py` | Пошаговая orchestration логика между M2, M13, M3, M4, M5, M6 и M7 |
+| `backend/app/modules/m1_gateway/router.py` | API-методы для приема заявок, запуска конвейера и прямого скоринга |
+| `backend/app/modules/m1_gateway/orchestrator.py` | Пошаговая координация между M2, M13, M3, M4, M5, M6 и M7 |
 
 ### `M2 Intake`
 
-Отвечает за валидацию входящих заявок, вычисление completeness и первичное сохранение кандидата.
+Отвечает за проверку входящих заявок, расчет полноты данных и начальное сохранение кандидата.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m2_intake/schemas.py` | Контракты intake request и response |
-| `backend/app/modules/m2_intake/service.py` | Проверки, completeness, eligibility и начальная запись |
-| `backend/app/modules/m2_intake/router.py` | Intake endpoint |
+| `backend/app/modules/m2_intake/schemas.py` | Контракты запросов и ответов при приеме заявки |
+| `backend/app/modules/m2_intake/service.py` | Проверки, полнота данных, базовая допустимость и первая запись |
+| `backend/app/modules/m2_intake/router.py` | Конечная точка приема заявки |
 
 ### `M3 Privacy`
 
-Отвечает за трехслойное разделение данных и редактирование чувствительной информации.
+Отвечает за трехслойное разделение данных и скрытие чувствительной информации.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m3_privacy/redactor.py` | Текстовый redaction PII |
-| `backend/app/modules/m3_privacy/separator.py` | Логика разделения на 3 слоя |
-| `backend/app/modules/m3_privacy/service.py` | Сохранение separated layers |
+| `backend/app/modules/m3_privacy/redactor.py` | Удаление и замена персональных данных в тексте |
+| `backend/app/modules/m3_privacy/separator.py` | Логика разделения на три слоя |
+| `backend/app/modules/m3_privacy/service.py` | Сохранение разделенных слоев |
 
 ### `M4 Profile`
 
-Отвечает за сборку unified `CandidateProfile`, который используют downstream-модули.
+Отвечает за сборку единого `CandidateProfile`, который используют следующие модули.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m4_profile/schemas.py` | Модели CandidateProfile |
-| `backend/app/modules/m4_profile/assembler.py` | Сборка profile fields и flags |
-| `backend/app/modules/m4_profile/service.py` | Build flow и coordination со storage |
+| `backend/app/modules/m4_profile/schemas.py` | Модели профиля кандидата |
+| `backend/app/modules/m4_profile/assembler.py` | Сборка полей профиля и технических флагов |
+| `backend/app/modules/m4_profile/service.py` | Координация получения и сборки профиля |
 
 ### `M5 NLP`
 
-Отвечает за извлечение structured decision signals из безопасного контента кандидата.
+Отвечает за извлечение структурированных сигналов из безопасного содержимого кандидата.
 
 | Файл | Ответственность |
 |---|---|
 | `backend/app/modules/m5_nlp/schemas.py` | Входной контракт `M5ExtractionRequest` |
-| `backend/app/modules/m5_nlp/source_bundle.py` | Нормализация и сбор safe text sources |
-| `backend/app/modules/m5_nlp/gemini_client.py` | Gemini extraction client |
-| `backend/app/modules/m5_nlp/extractor.py` | Heuristic fallback extractor |
-| `backend/app/modules/m5_nlp/signal_extraction_service.py` | Grouped extraction orchestration |
-| `backend/app/modules/m5_nlp/embeddings.py` | Similarity и embeddings helpers |
-| `backend/app/modules/m5_nlp/ai_detector.py` | Advisory authenticity и consistency heuristics |
+| `backend/app/modules/m5_nlp/source_bundle.py` | Нормализация и объединение безопасных текстовых источников |
+| `backend/app/modules/m5_nlp/gemini_client.py` | Клиент Gemini для извлечения сигналов |
+| `backend/app/modules/m5_nlp/extractor.py` | Резервное эвристическое извлечение |
+| `backend/app/modules/m5_nlp/signal_extraction_service.py` | Координация группового извлечения |
+| `backend/app/modules/m5_nlp/embeddings.py` | Семантическое сравнение и работа с эмбеддингами |
+| `backend/app/modules/m5_nlp/ai_detector.py` | Вспомогательные проверки на неаутентичность и несогласованность |
 
 ### `M6 Scoring`
 
-Отвечает за sub-scores, recommendation categories, ranking, confidence, uncertainty и human-in-the-loop routing.
+Отвечает за промежуточные оценки, рекомендации, ранжирование, уверенность и маршрутизацию на ручную проверку.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | Центральная policy-конфигурация |
-| `backend/app/modules/m6_scoring/rules.py` | Deterministic baseline scoring |
-| `backend/app/modules/m6_scoring/confidence.py` | Confidence и uncertainty logic |
-| `backend/app/modules/m6_scoring/decision_policy.py` | Финальный routing policy |
-| `backend/app/modules/m6_scoring/ml_model.py` | `GradientBoostingRegressor` refinement |
-| `backend/app/modules/m6_scoring/service.py` | Основная orchestration логика |
-| `backend/app/modules/m6_scoring/evaluation.py` | Synthetic evaluation |
-| `backend/app/modules/m6_scoring/optimization.py` | Threshold и policy search |
+| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | Центральная конфигурация правил, весов и порогов |
+| `backend/app/modules/m6_scoring/rules.py` | Детерминированная базовая логика скоринга |
+| `backend/app/modules/m6_scoring/confidence.py` | Расчет уверенности и неопределенности |
+| `backend/app/modules/m6_scoring/decision_policy.py` | Финальная логика рекомендаций и маршрутизации |
+| `backend/app/modules/m6_scoring/ml_model.py` | Уточняющая модель `GradientBoostingRegressor` |
+| `backend/app/modules/m6_scoring/service.py` | Основная координация скоринга |
 
 ### `M7 Explainability`
 
-Отвечает за reviewer-facing explanation output на основе `SignalEnvelope + CandidateScore`.
+Отвечает за формирование понятных объяснений на основе `SignalEnvelope + CandidateScore`.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m7_explainability/schemas.py` | Explainability contracts |
-| `backend/app/modules/m7_explainability/factors.py` | Factor titles и caution policy |
-| `backend/app/modules/m7_explainability/evidence.py` | Mapping factor -> evidence |
-| `backend/app/modules/m7_explainability/service.py` | Сборка explainability report |
+| `backend/app/modules/m7_explainability/schemas.py` | Контракты объяснений |
+| `backend/app/modules/m7_explainability/factors.py` | Названия факторов и предупреждений |
+| `backend/app/modules/m7_explainability/evidence.py` | Связь факторов с доказательствами |
+| `backend/app/modules/m7_explainability/service.py` | Сборка объяснения для проверяющего |
 
 ### `M8 Dashboard`
 
-Оставлен как placeholder для будущего reviewer dashboard API.
+Оставлен как заготовка для будущего API проверяющего интерфейса.
 
 ### `M9 Storage`
 
-Отвечает за models и repository layer.
+Отвечает за модели хранения и слой доступа к данным.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m9_storage/models.py` | SQLAlchemy модели |
-| `backend/app/modules/m9_storage/repository.py` | Repository methods |
+| `backend/app/modules/m9_storage/models.py` | SQLAlchemy-модели |
+| `backend/app/modules/m9_storage/repository.py` | Методы чтения и записи |
 
 ### `M10 Audit`
 
-Оставлен как placeholder для будущих audit workflows.
+Оставлен как заготовка для будущих журналов аудита.
 
 ### `M13 ASR`
 
-Отвечает за транскрибацию interview media и transcript quality markers.
+Отвечает за расшифровку интервью и показатели качества расшифровки.
 
 | Файл | Ответственность |
 |---|---|
-| `backend/app/modules/m13_asr/schemas.py` | ASR contracts |
-| `backend/app/modules/m13_asr/downloader.py` | Безопасный media resolution |
+| `backend/app/modules/m13_asr/schemas.py` | Контракты ASR |
+| `backend/app/modules/m13_asr/downloader.py` | Безопасная работа с медиавходом |
 | `backend/app/modules/m13_asr/transcriber.py` | Интеграция с Groq Whisper API |
-| `backend/app/modules/m13_asr/quality_checker.py` | Confidence и quality flags |
-| `backend/app/modules/m13_asr/service.py` | End-to-end ASR orchestration |
+| `backend/app/modules/m13_asr/quality_checker.py` | Оценка качества и уверенности |
+| `backend/app/modules/m13_asr/service.py` | Полная координация расшифровки |
 
 ---
 
@@ -241,48 +239,48 @@ PII отделяется до любой model-facing обработки. AI и 
 
 | Модуль | Модель | Роль |
 |---|---|---|
-| `M5` | `gemini-2.5-flash` | Structured signal extraction |
-| `M7` | `gemini-3.1-flash-lite-preview` | Быстрый explainability layer |
+| `M5` | `gemini-2.5-flash` | Извлечение структурированных сигналов |
+| `M7` | `gemini-3.1-flash-lite-preview` | Быстрый слой генерации объяснений |
 
 ### ASR
 
 | Модуль | Модель | Роль |
 |---|---|---|
-| `M13` | `whisper-large-v3-turbo` | Транскрибация интервью |
+| `M13` | `whisper-large-v3-turbo` | Расшифровка интервью |
 
 ### Embeddings
 
 | Режим | Модель | Роль |
 |---|---|---|
-| Основная | `jina-embeddings-v5` | Similarity и consistency checks |
-| Fallback | `BAAI/bge-m3` | Резервный embeddings path |
+| Основная | `jina-embeddings-v5` | Семантическое сравнение и проверка согласованности |
+| Резервная | `BAAI/bge-m3` | Запасной путь эмбеддингов |
 
 ### Scoring
 
 | Слой | Модель / метод | Роль |
 |---|---|---|
-| Baseline | rule-based scoring | прозрачный deterministic baseline |
-| Refinement | `GradientBoostingRegressor` | ML refinement |
+| Базовый | rule-based scoring | Прозрачная исходная логика оценивания |
+| Уточняющий | `GradientBoostingRegressor` | Уточнение итогового балла |
 
 ---
 
-## Модель data governance
+## Модель управления данными
 
 ### Layer 1: Secure PII Vault
 
-Содержит ФИО, контакты, адрес, документы, идентификаторы и данные родителей/опекунов.
+Содержит зашифрованные персональные и административно чувствительные данные: имена, адреса, контакты, документы, идентификаторы и сведения о родителях или опекунах.
 
 ### Layer 2: Operational Metadata
 
-Содержит age eligibility, language threshold status, selected program, completeness и data flags.
+Содержит служебные данные конвейера: возрастную допустимость, статус языкового порога, выбранную программу, полноту данных и технические флаги.
 
 ### Layer 3: Safe Model Input
 
-Содержит редактированный transcript, essay, internal test answers, project descriptions, experience summary, ASR confidence и ASR flags.
+Содержит безопасный для моделей материал: очищенную расшифровку, эссе, ответы внутреннего теста, описания проектов, краткое описание опыта, уверенность ASR и флаги качества.
 
 ---
 
-## Диаграмма 2. Privacy-by-Design
+## Диаграмма 2. Разделение данных по принципу privacy-by-design
 
 ```mermaid
 flowchart TD
@@ -325,7 +323,7 @@ flowchart TD
 
 ---
 
-## Диаграмма 3. Ядро данных
+## Диаграмма 3. Основные сущности данных
 
 ```mermaid
 erDiagram

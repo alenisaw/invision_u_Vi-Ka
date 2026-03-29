@@ -8,13 +8,13 @@
 - [Docker-артефакты репозитория](#docker-артефакты-репозитория)
 - [Шаблон всего репозитория](#шаблон-всего-репозитория)
 - [Диаграмма 1. Контейнерная топология](#диаграмма-1-контейнерная-топология)
-- [Контейнер M6 evaluation](#контейнер-m6-evaluation)
+- [Контейнер для оценки M6](#контейнер-для-оценки-m6)
 
 ---
 
 ## Назначение
 
-Этот документ описывает Docker-артефакты, которые сейчас есть в репозитории, и их назначение.
+Этот документ описывает Docker-артефакты, которые сейчас есть в репозитории, и объясняет, для чего они нужны.
 
 ---
 
@@ -22,10 +22,10 @@
 
 | Файл | Назначение |
 |---|---|
-| `backend/Dockerfile` | backend application image на базе `python:3.11-slim` |
-| `backend/app/modules/m6_scoring/Dockerfile.m6` | standalone scoring и evaluation image для M6 bundle |
-| `docker-compose.template.yml` | whole-repository Docker template with placeholders |
-| `docker-compose.m6.yml` | M6-specific compose flow для evaluation и notebook |
+| `backend/Dockerfile` | Образ серверного приложения на базе `python:3.11-slim` |
+| `backend/app/modules/m6_scoring/Dockerfile.m6` | Отдельный образ для скоринга и оценки M6 |
+| `docker-compose.template.yml` | Общий шаблон Docker Compose для всего репозитория |
+| `docker-compose.m6.yml` | Отдельный compose-файл для оценки и notebook-сценариев M6 |
 
 ---
 
@@ -43,7 +43,7 @@
 - `m8_dashboard_placeholder`
 - `m10_audit_placeholder`
 
-Этот файл является стартовым scaffold, а не production-ready deployment manifest.
+Этот файл является стартовым шаблоном, а не готовым production-манифестом.
 
 ---
 
@@ -71,18 +71,18 @@ flowchart LR
 
 ---
 
-## Контейнер M6 evaluation
+## Контейнер для оценки M6
 
-Для `M6` существует отдельный container flow:
+Для `M6` существует отдельный контейнерный сценарий:
 
 - `backend/app/modules/m6_scoring/Dockerfile.m6`
 - `docker-compose.m6.yml`
 
 Он нужен для:
 
-- synthetic evaluation
-- notebook access
-- isolated scoring experiments
+- синтетической оценки;
+- доступа к notebook;
+- изолированных экспериментов со скорингом.
 
 ---
 
