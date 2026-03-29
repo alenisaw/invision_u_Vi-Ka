@@ -142,7 +142,10 @@ class StorageRepository(Generic[ModelT]):
         stmt = (
             select(CandidateScore)
             .options(selectinload(CandidateScore.candidate))
-            .order_by(CandidateScore.review_priority_index.desc().nullslast())
+            .order_by(
+                CandidateScore.ranking_position.asc().nullslast(),
+                CandidateScore.review_priority_index.desc().nullslast(),
+            )
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
@@ -202,6 +205,19 @@ class StorageRepository(Generic[ModelT]):
         stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def refresh_score_rankings(self) -> None:
+        stmt = select(CandidateScore).order_by(
+            CandidateScore.review_priority_index.desc().nullslast(),
+            CandidateScore.created_at.asc(),
+        )
+        result = await self.session.execute(stmt)
+        ranked_scores = list(result.scalars().all())
+
+        for position, score in enumerate(ranked_scores, start=1):
+            score.ranking_position = position
+
+        await self.session.flush()
 
     async def create_program(
         self,

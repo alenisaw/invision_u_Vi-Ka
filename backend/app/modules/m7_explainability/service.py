@@ -28,11 +28,19 @@ from .schemas import (
 )
 
 
+class _CompatibilityScoringService:
+    """Test seam kept for compatibility with older M7 service expectations."""
+
+    def score_candidate(self, envelope: SignalEnvelope) -> CandidateScore:
+        raise RuntimeError("ExplainabilityService expects a precomputed CandidateScore.")
+
+
 class ExplainabilityService:
     """Formats M6 outputs into an auditable explanation bundle."""
 
     def __init__(self, session: AsyncSession | None = None) -> None:
         self.session = session
+        self.scoring_service = _CompatibilityScoringService()
         self.repository = (
             StorageRepository(session)
             if HAS_ASYNC_SESSION and isinstance(session, AsyncSession)
@@ -92,11 +100,20 @@ class ExplainabilityService:
         report_payload = report.model_dump(mode="json")
         await self.repository.upsert_candidate_explanation(
             candidate_id=candidate_id,
+            scoring_version=report.scoring_version,
+            program_id=report.program_id or None,
+            recommendation_status=report.recommendation_status,
+            review_priority_index=report.review_priority_index,
+            confidence=report.confidence,
+            manual_review_required=report.manual_review_required,
+            human_in_loop_required=report.human_in_loop_required,
+            review_recommendation=report.review_recommendation,
             summary=report.summary,
             positive_factors=report_payload["positive_factors"],
             caution_flags=report_payload["caution_blocks"],
             data_quality_notes=report.data_quality_notes,
             reviewer_guidance=report.reviewer_guidance,
+            report_payload=report_payload,
         )
         await self.repository.create_audit_log(
             entity_type="candidate",

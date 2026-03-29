@@ -235,15 +235,35 @@ class PipelineOrchestrator:
 
     async def _persist_score(self, candidate_id: UUID, score: CandidateScore) -> None:
         """Save M6 scoring result to database."""
-        await self.repository.upsert_candidate_score(
+        score_payload = score.model_dump(mode="json")
+        persisted_score = await self.repository.upsert_candidate_score(
             candidate_id=candidate_id,
             sub_scores=score.sub_scores,
+            program_id=score.program_id or None,
+            program_weight_profile=score.program_weight_profile,
             review_priority_index=score.review_priority_index,
             recommendation_status=score.recommendation_status,
+            decision_summary=score.decision_summary or None,
             confidence=score.confidence,
+            confidence_band=score.confidence_band,
+            manual_review_required=score.manual_review_required,
+            human_in_loop_required=score.human_in_loop_required,
+            uncertainty_flag=score.uncertainty_flag,
             shortlist_eligible=score.shortlist_eligible,
+            review_recommendation=score.review_recommendation,
+            review_reasons=score.review_reasons,
+            top_strengths=score.top_strengths,
+            top_risks=score.top_risks,
+            score_delta_vs_baseline=score.score_delta_vs_baseline,
+            ranking_position=score.ranking_position,
+            caution_flags=score.caution_flags,
+            score_breakdown=score.score_breakdown,
+            model_family=score.model_family,
             scoring_version=score.scoring_version,
+            score_payload=score_payload,
         )
+        await self.repository.refresh_score_rankings()
+        score.ranking_position = persisted_score.ranking_position
         await self.repository.update_pipeline_status(candidate_id, "scored")
 
     # --- Direct M6 scoring (kept for backward compatibility) ---
