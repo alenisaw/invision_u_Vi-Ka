@@ -8,11 +8,15 @@ from __future__ import annotations
 from importlib import import_module
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRouter
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import Settings, get_settings
+from app.schemas.common import error_response
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +46,7 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
+    _register_exception_handlers(app)
     _register_core_routes(app)
     _include_available_routers(app)
     return app
@@ -65,6 +70,88 @@ def _register_core_routes(app: FastAPI) -> None:
     @app.get("/health", tags=["system"])
     async def healthcheck() -> dict[str, str]:
         return {"status": "ok", "version": settings.app_version}
+
+
+def _register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(StarletteHTTPException)
+    async def handle_http_exception(
+        request: Request,
+        exc: StarletteHTTPException,
+    ) -> JSONResponse:
+        code, message, details = _http_exception_payload(exc)
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_response(code=code, message=message, details=details),
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def handle_request_validation_error(
+        request: Request,
+        exc: RequestValidationError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content=error_response(
+                code="VALIDATION_ERROR",
+                message="Invalid request payload",
+                details={"errors": exc.errors()},
+            ),
+        )
+
+    @app.exception_handler(Exception)
+    async def handle_unexpected_exception(
+        request: Request,
+        exc: Exception,
+    ) -> JSONResponse:
+        logger.exception("Unhandled exception while processing %s", request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content=error_response(
+                code="INTERNAL_SERVER_ERROR",
+                message="Internal server error",
+            ),
+        )
+
+
+def _http_exception_payload(
+    exc: StarletteHTTPException,
+) -> tuple[str, str, dict[str, object]]:
+    if exc.status_code == 401:
+        code = "UNAUTHORIZED"
+    elif exc.status_code == 403:
+        code = "FORBIDDEN"
+    elif exc.status_code == 404:
+        code = "NOT_FOUND"
+    elif exc.status_code == 409:
+        code = "CONFLICT"
+    elif exc.status_code == 422:
+        code = "VALIDATION_ERROR"
+    elif exc.status_code == 503:
+        code = "SERVICE_UNAVAILABLE"
+    else:
+        code = f"HTTP_{exc.status_code}"
+
+    if isinstance(exc.detail, dict):
+        message = str(
+            exc.detail.get("message")
+            or exc.detail.get("detail")
+            or "Request failed"
+        )
+        details = {
+            key: value
+            for key, value in exc.detail.items()
+            if key not in {"message", "detail"}
+        }
+        if "code" in exc.detail and isinstance(exc.detail["code"], str):
+            code = exc.detail["code"]
+    elif exc.detail is None:
+        message = "Request failed"
+        details = {}
+    else:
+        message = str(exc.detail)
+        details = {}
+
+    return code, message, details
 
 
 def _include_available_routers(app: FastAPI) -> None:

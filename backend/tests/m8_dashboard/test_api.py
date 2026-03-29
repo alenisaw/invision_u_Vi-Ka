@@ -177,7 +177,10 @@ def test_candidate_detail_route_returns_404_when_service_raises(
         )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Candidate not found"
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "NOT_FOUND"
+    assert body["error"]["message"] == "Candidate not found"
 
 
 def test_shortlist_route_returns_list_payload(
@@ -219,7 +222,10 @@ def test_dashboard_routes_require_api_key_header(client: TestClient, reviewer_se
     response = client.get("/api/v1/dashboard/stats")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Missing X-API-Key header"
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "UNAUTHORIZED"
+    assert body["error"]["message"] == "Missing X-API-Key header"
 
 
 def test_dashboard_routes_reject_invalid_api_key(
@@ -232,7 +238,10 @@ def test_dashboard_routes_reject_invalid_api_key(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Invalid API key"
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "FORBIDDEN"
+    assert body["error"]["message"] == "Invalid API key"
 
 
 def test_dashboard_routes_fail_closed_when_server_key_missing(client: TestClient) -> None:
@@ -243,7 +252,10 @@ def test_dashboard_routes_fail_closed_when_server_key_missing(client: TestClient
         response = client.get(
             "/api/v1/dashboard/stats",
             headers={"X-API-Key": "any-key"},
-        )
+    )
 
     assert response.status_code == 503
-    assert response.json()["detail"] == "Reviewer API key is not configured"
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "SERVICE_UNAVAILABLE"
+    assert body["error"]["message"] == "Reviewer API key is not configured"

@@ -98,7 +98,10 @@ def test_override_route_maps_workflow_errors(
         )
 
     assert response.status_code == 422
-    assert response.json()["detail"] == "Override status must differ from the current status"
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["error"]["message"] == "Override status must differ from the current status"
 
 
 def test_create_reviewer_action_route_returns_action_payload(
@@ -212,4 +215,7 @@ def test_audit_feed_route_requires_api_key(client: TestClient, reviewer_settings
     response = client.get("/api/v1/audit/feed")
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Missing X-API-Key header"
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "UNAUTHORIZED"
+    assert body["error"]["message"] == "Missing X-API-Key header"
