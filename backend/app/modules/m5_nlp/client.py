@@ -1,10 +1,6 @@
 """
 File: client.py
 Purpose: Optional Groq-backed interview transcription client for M5.
-
-Notes:
-- This adapts the logic from `transcribe_interview.py` into the backend module.
-- The client is only used when a transcript is not provided directly.
 """
 
 from __future__ import annotations

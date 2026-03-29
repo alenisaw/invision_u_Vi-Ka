@@ -1,132 +1,130 @@
 # M6 Scoring Module
 
+---
+
+## Document Structure
+
+- [Purpose](#purpose)
+- [Decision Flow](#decision-flow)
+- [Input Contract](#input-contract)
+- [Output Contract](#output-contract)
+- [Scoring Formula](#scoring-formula)
+- [File Responsibilities](#file-responsibilities)
+
+---
+
 ## Purpose
 
-`M6` converts structured NLP signals into:
-- sub-scores
-- final review priority index
-- recommendation status
-- confidence and uncertainty markers
-- ranked shortlist eligibility
+`M6` converts structured NLP signals into auditable scoring and routing output for reviewer decision support. It does not make a final admissions decision on its own.
 
-## Public contract
+---
 
-- Input model: `SignalEnvelope`
-- Output model: `CandidateScore`
-- Main entry point: `ScoringService`
+## Decision Flow
 
-## Main files
+The module:
 
-- `m6_scoring_config.yaml` central weights, thresholds, program profiles, and status policy
-- `m6_scoring_config.py` typed loader for the YAML config
-- `program_policy.py` canonical program normalization and per-program weight profiles
-- `schemas.py` input and output contracts
-- `rules.py` deterministic baseline scoring
-- `confidence.py` confidence and uncertainty logic
-- `ml_model.py` `GradientBoostingRegressor` refinement layer
-- `synthetic_data.py` fixtures and synthetic labeled samples
-- `evaluation.py` reproducible synthetic evaluation helpers
-- `ranker.py` batch ranking
-- `service.py` main orchestration
+1. computes deterministic sub-scores from structured signals;
+2. builds a rule-based baseline score;
+3. refines the baseline with `GradientBoostingRegressor`;
+4. applies calibrated decision policy and routing rules;
+5. emits recommendation categories and review-routing output;
+6. prepares explainability-ready fields for `M7`.
 
-## Bundle structure
+### Diagram 1. M6 Internal Decision Flow
 
-- module code stays in `backend/app/modules/m6_scoring/`
-- test and notebook bundle now lives in `backend/tests/m6_scoring/`
-- exported outputs should be inspected under `backend/tests/m6_scoring/results/`
+```mermaid
+flowchart LR
+    Envelope["SignalEnvelope"]
+    Rules["Rule-Based Baseline"]
+    Features["Feature Assembly"]
+    GBR["GBR Refinement"]
+    Policy["Decision Policy"]
+    Score["CandidateScore"]
 
-## Integration rule
-
-`M5` must emit `SignalEnvelope v1`.
-`selected_program` and canonical `program_id` are now part of the safe contract so `M6` can apply program-aware weighting without touching sensitive attributes.
-
-Share these files with NLP for integration:
-- `docs/contracts/M5_M6_SIGNAL_ENVELOPE.md`
-- `docs/contracts/M5_M6_SIGNAL_MAPPING.md`
-- `docs/contracts/m5_signal_envelope_v1.example.json`
-
-## Local setup
-
-Install the standalone bundle:
-
-```bash
-pip install -r backend/app/modules/m6_scoring/requirements-m6.txt
+    Envelope --> Rules
+    Envelope --> Features
+    Features --> GBR
+    Rules --> Policy
+    GBR --> Policy
+    Policy --> Score
 ```
 
-Run synthetic evaluation:
+---
 
-```bash
-python -m app.modules.m6_scoring.evaluation --train-samples 300 --test-samples 120 --out-dir backend/tests/m6_scoring/results/manual
-```
+## Input Contract
 
-The evaluation bundle now exports:
-- `balanced_model_comparison.csv`
-- `stress_model_comparison.csv`
-- `balanced_status_distribution.csv`
-- `stress_status_distribution.csv`
-- `balanced_profile_type_summary.csv`
-- `stress_profile_type_summary.csv`
-- `baseline_predictions.csv`
-- `gbr_predictions.csv`
-- `fixture_report.csv`
-- `summary.json`
+`M6` consumes a canonical `SignalEnvelope` containing:
 
-## Statuses
+- safe candidate metadata
+- selected program and canonical program id
+- completeness and data flags
+- normalized structured signals with evidence
 
-The current score scale uses four primary categories:
+---
+
+## Output Contract
+
+`M6` emits `CandidateScore` with:
+
+- `sub_scores`
+- `review_priority_index`
+- `recommendation_status`
+- `manual_review_required`
+- `human_in_loop_required`
+- `uncertainty_flag`
+- `score_breakdown`
+- `top_strengths`
+- `top_risks`
+- `decision_summary`
+
+Primary recommendation categories:
+
 - `STRONG_RECOMMEND`
 - `RECOMMEND`
 - `WAITLIST`
 - `DECLINED`
 
-Manual review is no longer a score category. It is exposed separately via:
-- `manual_review_required`
-- `human_in_loop_required`
-- `uncertainty_flag`
-- `review_recommendation`
+---
 
-`CandidateScore` now also exposes compact UI-facing helpers:
-- `score_status`
-- `decision_summary`
-- `top_strengths`
-- `top_risks`
-- `score_delta_vs_baseline`
+## Scoring Formula
 
-Run the local M6 bundle tests:
+The baseline score is computed from weighted sub-scores:
 
-```bash
-python -m unittest discover -s backend/tests/m6_scoring -p "test_*.py"
+```text
+baseline_rpi =
+  w1 * leadership_potential +
+  w2 * growth_trajectory +
+  w3 * motivation_clarity +
+  w4 * initiative_agency +
+  w5 * learning_agility +
+  w6 * communication_clarity +
+  w7 * ethical_reasoning +
+  w8 * program_fit
 ```
 
-Export the latest tuned results and compare them with the frozen pre-tuning reference:
+Weights and routing thresholds are configured in:
 
-```bash
-python backend/tests/m6_scoring/run_evaluation.py
-```
+- `m6_scoring_config.yaml`
 
-Open the notebook:
+---
 
-```bash
-jupyter lab backend/tests/m6_scoring/notebooks
-```
+## File Responsibilities
 
-## Docker
+| File | Responsibility |
+|---|---|
+| `m6_scoring_config.yaml` | weights, thresholds, program profiles, and routing rules |
+| `m6_scoring_config.py` | typed config loader |
+| `program_policy.py` | canonical program normalization and weight profile lookup |
+| `rules.py` | deterministic baseline scoring |
+| `confidence.py` | confidence and uncertainty logic |
+| `decision_policy.py` | final decision routing |
+| `ml_model.py` | `GradientBoostingRegressor` refinement layer |
+| `service.py` | scoring orchestration |
+| `evaluation.py` | synthetic evaluation helpers |
+| `optimization.py` | threshold and policy search |
+| `synthetic_data.py` | fixtures and synthetic labeled samples |
+| `ranker.py` | batch ranking |
 
-Build:
+---
 
-```bash
-docker build -f backend/app/modules/m6_scoring/Dockerfile.m6 -t invision-m6 .
-```
-
-Run evaluation:
-
-```bash
-docker run --rm -v ${PWD}:/workspace invision-m6
-```
-
-Run with compose:
-
-```bash
-docker compose -f docker-compose.m6.yml up m6_eval
-docker compose -f docker-compose.m6.yml up m6_notebook
-```
+Projet Documentation

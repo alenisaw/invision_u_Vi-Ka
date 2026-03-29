@@ -1,85 +1,131 @@
-# Система отбора кандидатов inVision U
+# inVision U Candidate Selection System
+![Python](https://img.shields.io/badge/Python-3.10.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-template-2496ED?logo=docker&logoColor=white)
+![LLM](https://img.shields.io/badge/LLM-Gemini_2.5_Flash_%7C_Gemini_3.1_Flash_Lite-4285F4)
+![ASR](https://img.shields.io/badge/ASR-Whisper_Large_V3_Turbo-F57C00)
+![Embeddings](https://img.shields.io/badge/Embeddings-Jina_v5_%7C_BGE--M3-7B1FA2)
+![ML](https://img.shields.io/badge/ML-GradientBoostingRegressor-2E7D32)
 
-Платформа поддержки принятия решений с использованием ИИ для процесса поступления в inVision U.
-Система принимает заявки кандидатов, отделяет чувствительные данные, извлекает структурированные сигналы, рассчитывает интерпретируемые оценки и формирует результаты ранжирования для проверяющих.
+---
 
-## Основные принципы
+AI-assisted admissions decision-support backend for inVision U. The repository contains candidate intake, privacy separation, ASR transcription, NLP signal extraction, scoring, ranking, and explainability modules designed for human-in-the-loop review.
 
-- Конфиденциальность, заложенная в архитектуру: персонально идентифицирующая информация (PII) отделяется до того, как данные кандидата попадут в модули ИИ или скоринга.
-- Объяснимость прежде всего: каждая рекомендация должна быть прослеживаема до сигналов и подтверждающих данных.
-- Человек в контуре принятия решения: система помогает проверяющим, а не заменяет окончательное человеческое суждение.
-- Модульная архитектура: каждый этап конвейера изолирован как отдельный сервисный модуль.
+---
 
-## Обзор архитектуры
+## Document Structure
 
-```mermaid
-flowchart LR
-    Candidate["Ввод данных кандидата"]
-    Frontend["Фронтенд Next.js"]
-    M1["M1 API Gateway"]
-    M2["M2 Intake"]
-    M3["M3 Privacy and Normalization"]
-    L1["Слой 1: Хранилище PII"]
-    L2["Слой 2: Операционные метаданные"]
-    L3["Слой 3: Входные данные модели"]
-    M4["M4 Candidate Profile"]
-    M5["M5 NLP Signal Extraction"]
-    M13["M13 ASR Transcription"]
-    M6["M6 Scoring and Ranking"]
-    M7["M7 Explainability"]
-    M8["M8 Reviewer Dashboard API"]
-    M10["M10 Audit Service"]
-    Reviewer["Проверяющий"]
+- [Overview](#overview)
+- [Implemented Modules](#implemented-modules)
+- [Repository Layout](#repository-layout)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Docker](#docker)
 
-    Candidate --> Frontend
-    Frontend --> M1
-    M1 --> M2
-    M2 --> M3
-    M3 --> L1
-    M3 --> L2
-    M3 --> L3
-    L3 --> M4
-    M4 --> M5
-    L3 --> M13
-    M13 --> M5
-    M5 --> M6
-    M6 --> M7
-    M7 --> M8
-    M8 --> Frontend
-    Reviewer --> Frontend
-    M1 --> M10
-    M6 --> M10
-    M8 --> M10
+---
+
+## Overview
+
+The system ingests candidate submissions, isolates sensitive data, prepares safe model input, extracts structured evaluation signals, computes explainable scores, and produces reviewer-facing explanations. It supports the admissions committee and does not make fully autonomous final decisions.
+
+---
+
+## Implemented Modules
+
+- `M1 Gateway`: API routing and backend pipeline orchestration.
+- `M2 Intake`: candidate intake validation and initial persistence.
+- `M3 Privacy`: three-layer separation of PII, metadata, and model-safe content.
+- `M4 Profile`: unified candidate profile assembly.
+- `M5 NLP`: structured signal extraction from safe candidate content.
+- `M6 Scoring`: program-aware scoring, ranking, confidence, and review routing.
+- `M7 Explainability`: reviewer-facing summaries, factor blocks, cautions, and evidence.
+- `M13 ASR`: interview transcription and transcript quality analysis.
+
+`M8 Dashboard` and `M10 Audit` remain placeholders in this branch.
+
+---
+
+## Repository Layout
+
+```text
+backend/
+  app/
+    core/                  configuration, database, security
+    modules/               backend modules
+    schemas/               shared API envelopes
+  tests/                   unit, integration, and evaluation tests
+docs/
+  eng/                     English documentation
+  rus/                     Russian documentation
+frontend/
+  STYLE_GUIDE.md           visual reference from the frontend branch
 ```
 
-## Текущий фокус репозитория
+---
 
-- `backend/` содержит бэкенд на FastAPI, логику скоринга, слой конфиденциальности, сборку профиля и модели хранения.
-- `frontend/` это планируемое рабочее пространство панели для загрузки данных, ранжирования и сценариев просмотра деталей кандидатуры.
-- `docs/ARCHITECTURE.md` содержит полное описание архитектуры и ответственности модулей.
-- `docs/API.md` описывает текущие и планируемые API-интерфейсы.
+## Quick Start
 
-## Ключевые модули бэкенда
+Install backend dependencies:
 
-- `M1 Gateway`: точка входа для запросов и оркестрация конвейера.
-- `M2 Intake`: валидация входящих данных кандидата и создание записи.
-- `M3 Privacy`: трёхслойное разделение данных и маскирование чувствительной информации.
-- `M4 Profile`: сборка единого профиля кандидата.
-- `M5 NLP`: контракт извлечения сигналов и эвристический сценарий извлечения.
-- `M6 Scoring`: скоринг кандидатов на основе правил и с поддержкой ML.
-- `M7 Explainability`: передача объяснений и слой обоснований для проверяющих.
-- `M8 Dashboard API`: эндпоинты ранжирования, шорт-листа и деталей кандидата.
-- `M10 Audit`: поддержка контроля, управления и прослеживаемости.
+```bash
+python -m pip install -r backend/requirements.txt
+```
 
-## Минимально рабочий элемент
+Run the backend:
 
-В репозитории уже есть минимально рабочий элемент бэкенд-скоринга для этапа 1:
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-- основной эндпоинт скоринга сигналов: `POST /api/v1/pipeline/score-signals`
-- эндпоинт приёма данных: `POST /api/v1/candidates/intake`
-- движок скоринга и тесты синтетической оценки в `backend/tests/m6_scoring/`
+Run backend tests:
 
-## Документация
+```bash
+python -m unittest discover -s backend/tests -p "test_*.py"
+```
 
-- Архитектура: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Справочник API: [docs/API.md](docs/API.md)
+Run the M6 evaluation bundle:
+
+```bash
+python backend/tests/m6_scoring/run_evaluation.py
+```
+
+---
+
+## Documentation
+
+English:
+
+- [Architecture](docs/eng/ARCHITECTURE.md)
+- [API Reference](docs/eng/API.md)
+- [Scoring Policy](docs/eng/SCORING.md)
+- [Module Catalog](docs/eng/MODULES.md)
+- [Docker Guide](docs/eng/DOCKER.md)
+
+Russian:
+
+- [Архитектура](docs/rus/ARCHITECTURE.md)
+- [API](docs/rus/API.md)
+- [Скоринг и правила решений](docs/rus/SCORING.md)
+- [Каталог модулей](docs/rus/MODULES.md)
+- [Docker Guide RU](docs/rus/DOCKER.md)
+
+---
+
+## Docker
+
+The repository includes a whole-repository Docker template:
+
+- [docker-compose.template.yml](docker-compose.template.yml)
+
+It defines placeholders for:
+
+- `postgres`
+- `backend`
+- `frontend`
+- `M8 Dashboard`
+- `M10 Audit`
+
+---
+
+Projet Documentation

@@ -1,10 +1,6 @@
 """
 File: confidence.py
 Purpose: Confidence and uncertainty helpers for the M6 module.
-
-Notes:
-- Confidence is a compact operational signal, not a claim of ground-truth certainty.
-- Uncertainty should be conservative for low-quality or conflicting inputs.
 """
 
 from __future__ import annotations

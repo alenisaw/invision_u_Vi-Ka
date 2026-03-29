@@ -1,9 +1,6 @@
 """
 File: test_m6_evaluation.py
 Purpose: Synthetic evaluation tests for the M6 scoring module.
-
-Notes:
-- Keep this focused on metric surface and execution safety.
 """
 
 from __future__ import annotations

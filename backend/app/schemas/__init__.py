@@ -1,1 +1,1 @@
-# TODO
+"""Shared API schema package."""

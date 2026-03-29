@@ -1,10 +1,6 @@
 """
 File: synthetic_data.py
 Purpose: Generate compact synthetic samples for M6 training and sanity checks.
-
-Notes:
-- Synthetic labels are for development and validation only.
-- Keep generation logic aligned with the rule baseline so the model refines, not replaces.
 """
 
 from __future__ import annotations

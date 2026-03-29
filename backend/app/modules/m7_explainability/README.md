@@ -1,53 +1,86 @@
 # M7 Explainability Module
 
-## Current status
+---
 
-`M7` now provides a basic working explainability layer on top of `M6`.
-It still does not change any numeric decisions, but it already formats:
+## Document Structure
+
+- [Purpose](#purpose)
+- [Module Flow](#module-flow)
+- [Input Contract](#input-contract)
+- [Output Contract](#output-contract)
+- [File Responsibilities](#file-responsibilities)
+
+---
+
+## Purpose
+
+`M7` converts `M6` scoring output into reviewer-facing explanation content. It formats evidence, strengths, cautions, and reviewer guidance without recalculating the score.
+
+---
+
+## Module Flow
+
+The module:
+
+1. receives `SignalEnvelope + CandidateScore`;
+2. maps score contributions into positive factors;
+3. maps review-routing and caution flags into caution blocks;
+4. attaches evidence snippets to factor blocks;
+5. returns a reviewer-facing explainability report.
+
+### Diagram 1. M7 Explainability Flow
+
+```mermaid
+flowchart LR
+    Envelope["SignalEnvelope"]
+    Score["CandidateScore"]
+    Factors["Positive Factors"]
+    Evidence["Evidence Mapping"]
+    Cautions["Caution Blocks"]
+    Report["Explainability Report"]
+
+    Envelope --> Evidence
+    Score --> Factors
+    Score --> Cautions
+    Factors --> Report
+    Evidence --> Report
+    Cautions --> Report
+```
+
+---
+
+## Input Contract
+
+`M7` receives:
+
+- `SignalEnvelope` from `M5`
+- `CandidateScore` from `M6`
+
+The module uses only structured evidence and score metadata. It does not invent evidence and does not use raw PII.
+
+---
+
+## Output Contract
+
+`M7` emits:
+
 - summary
-- positive factor blocks
+- positive factors
 - caution blocks
+- evidence items
 - reviewer guidance
-- evidence-backed explanation output
 
-## What M7 will receive
+---
 
-Input from `M6`:
-- final score
-- sub-scores
-- confidence
-- uncertainty flag
-- positive score contributors
-- caution flags
-- signal context with evidence and reasoning
+## File Responsibilities
 
-See:
-- `docs/contracts/M6_M7_EXPLAINABILITY_HANDOFF.md`
-- `docs/contracts/m6_m7_explainability_input_v1.example.json`
-- `backend/app/modules/m7_explainability/schemas.py`
+| File | Responsibility |
+|---|---|
+| `schemas.py` | explainability input and output contracts |
+| `factors.py` | factor titles, factor summaries, caution policy |
+| `evidence.py` | factor-to-evidence mapping and evidence selection |
+| `service.py` | report construction from `M5 + M6` |
 
-## What M7 does now
+---
 
-1. Build a short summary for the candidate.
-2. Turn `positive_factors` into reviewer-facing explanation blocks.
-3. Turn `caution_flags` into caution blocks with severity and suggested action.
-4. Reuse `signal_context.evidence` for evidence snippets.
-5. Generate a short `reviewer_guidance` string.
-
-## What M7 should not do
-
-- do not recompute or override `M6` scores
-- do not invent evidence
-- do not use raw PII
-
-## Main files
-
-- `schemas.py`
-- `evidence.py`
-- `factors.py`
-- `service.py`
-
-## NLP adaptation note
-
-NLP should continue emitting `SignalEnvelope v1`.
-`M6` will carry signal context into the `M6 -> M7` handoff automatically.
+Projet Documentation

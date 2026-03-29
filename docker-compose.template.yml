@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: invisionu_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: invisionu
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - invisionu_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: invisionu_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: invisionu
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - invisionu_net
+
+  m8_dashboard_placeholder:
+    image: busybox:1.36
+    container_name: invisionu_m8_placeholder
+    command: ["sh", "-c", "echo 'M8 dashboard placeholder service'; tail -f /dev/null"]
+    profiles: ["placeholders"]
+    networks:
+      - invisionu_net
+
+  m10_audit_placeholder:
+    image: busybox:1.36
+    container_name: invisionu_m10_placeholder
+    command: ["sh", "-c", "echo 'M10 audit placeholder service'; tail -f /dev/null"]
+    profiles: ["placeholders"]
+    networks:
+      - invisionu_net
+
+  frontend_placeholder:
+    image: busybox:1.36
+    container_name: invisionu_frontend_placeholder
+    command: ["sh", "-c", "echo 'Frontend is implemented in a separate branch'; tail -f /dev/null"]
+    profiles: ["placeholders"]
+    networks:
+      - invisionu_net
+
+networks:
+  invisionu_net:
+    driver: bridge
+
+volumes:
+  postgres_data:

@@ -1,9 +1,6 @@
 """
 File: test_m6_m7_handoff.py
 Purpose: Tests for the prepared M6 -> M7 explainability handoff.
-
-Notes:
-- This validates the contract before M7 exists.
 """
 
 from __future__ import annotations

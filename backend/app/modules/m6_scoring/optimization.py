@@ -1,10 +1,6 @@
 """
 File: optimization.py
 Purpose: Transparent grid search for M6 decision-layer tuning.
-
-Notes:
-- Optimize the routing layer on top of fixed GBR outputs.
-- Keep search interpretable and export-friendly.
 """
 
 from __future__ import annotations

@@ -1,1 +1,1 @@
-# TODO
+"""Alembic migration version package."""

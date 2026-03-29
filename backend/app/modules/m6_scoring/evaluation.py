@@ -1,10 +1,6 @@
 """
 File: evaluation.py
 Purpose: Reproducible synthetic evaluation utilities for the M6 module.
-
-Notes:
-- Keep evaluation logic outside notebooks so results stay reproducible.
-- Use synthetic data for sanity checks, not for real-world quality claims.
 """
 
 from __future__ import annotations

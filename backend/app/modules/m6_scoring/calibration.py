@@ -1,10 +1,6 @@
 """
 File: calibration.py
 Purpose: Optional post-hoc score calibration for M6.
-
-Notes:
-- Keep calibration monotonic and explainable.
-- Support a no-op mode so the decision layer can stay explicit.
 """
 
 from __future__ import annotations
