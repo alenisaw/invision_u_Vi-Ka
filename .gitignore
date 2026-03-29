@@ -25,6 +25,9 @@ node_modules/
 .next/
 .venv/
 venv/
+playwright-report/
+test-results/
+*.tsbuildinfo
 *.egg-info/
 *.egg
 *.whl           

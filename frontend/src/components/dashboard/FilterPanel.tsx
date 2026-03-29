@@ -54,6 +54,7 @@ export default function FilterPanel({
           placeholder="Поиск кандидатов..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
+          data-testid="dashboard-search-input"
           className="px-4 py-[0.92rem] text-[0.82rem] font-[700] rounded-[1rem] outline-none"
           style={{
             border: "1px solid rgba(20, 20, 20, 0.1)",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { reviewerApi } from "@/lib/api";
 import type { RecommendationStatus } from "@/types";
 
 const STATUS_OPTIONS: { value: RecommendationStatus; label: string }[] = [
@@ -13,17 +14,51 @@ const STATUS_OPTIONS: { value: RecommendationStatus; label: string }[] = [
 interface OverridePanelProps {
   candidateId: string;
   currentStatus: RecommendationStatus;
+  onSuccess?: () => Promise<void> | void;
 }
 
-export default function OverridePanel({ candidateId, currentStatus }: OverridePanelProps) {
+export default function OverridePanel({
+  candidateId,
+  currentStatus,
+  onSuccess,
+}: OverridePanelProps) {
+  const [reviewerId, setReviewerId] = useState("committee-reviewer");
   const [newStatus, setNewStatus] = useState<RecommendationStatus>(currentStatus);
   const [comment, setComment] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [hasError, setHasError] = useState(false);
 
-  function handleSubmit() {
-    // TODO: connect to POST /api/v1/dashboard/candidates/{id}/override
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+  useEffect(() => {
+    setNewStatus(currentStatus);
+  }, [currentStatus]);
+
+  async function handleSubmit() {
+    if (!reviewerId.trim() || !comment.trim() || newStatus === currentStatus) {
+      return;
+    }
+
+    setSubmitting(true);
+    setHasError(false);
+    setMessage("");
+
+    try {
+      await reviewerApi.overrideCandidateDecision(candidateId, {
+        reviewer_id: reviewerId.trim(),
+        new_status: newStatus,
+        comment: comment.trim(),
+      });
+      setComment("");
+      setMessage("Изменение сохранено в журнале и применено к кандидату.");
+      await onSuccess?.();
+    } catch (err) {
+      setHasError(true);
+      setMessage(
+        err instanceof Error ? err.message : "Не удалось применить override.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -35,10 +70,26 @@ export default function OverridePanel({ candidateId, currentStatus }: OverridePa
 
       <div className="flex flex-col gap-4">
         <div>
+          <label className="text-[0.82rem] font-[700] block mb-2">Reviewer ID</label>
+          <input
+            type="text"
+            value={reviewerId}
+            onChange={(e) => setReviewerId(e.target.value)}
+            data-testid="reviewer-id-input"
+            className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[600] outline-none"
+            style={{
+              border: "1px solid rgba(20, 20, 20, 0.1)",
+              background: "rgba(255, 255, 255, 0.82)",
+            }}
+          />
+        </div>
+
+        <div>
           <label className="text-[0.82rem] font-[700] block mb-2">Новый статус</label>
           <select
             value={newStatus}
             onChange={(e) => setNewStatus(e.target.value as RecommendationStatus)}
+            data-testid="override-status-select"
             className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[600] outline-none"
             style={{
               border: "1px solid rgba(20, 20, 20, 0.1)",
@@ -60,6 +111,7 @@ export default function OverridePanel({ candidateId, currentStatus }: OverridePa
             onChange={(e) => setComment(e.target.value)}
             placeholder="Укажите причину изменения решения..."
             rows={3}
+            data-testid="override-comment-input"
             className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-none"
             style={{
               border: "1px solid rgba(20, 20, 20, 0.1)",
@@ -68,16 +120,48 @@ export default function OverridePanel({ candidateId, currentStatus }: OverridePa
           />
         </div>
 
+        {message ? (
+          <div
+            className="rounded-[var(--radius-md)] px-4 py-3 text-[0.84rem] font-[600]"
+            style={{
+              background: hasError
+                ? "rgba(255, 142, 112, 0.14)"
+                : "rgba(193, 241, 29, 0.18)",
+              color: hasError ? "#ac472e" : "#415005",
+            }}
+          >
+            {message}
+          </div>
+        ) : null}
+
         <button
           onClick={handleSubmit}
-          disabled={!comment.trim() || newStatus === currentStatus}
+          disabled={
+            submitting ||
+            !reviewerId.trim() ||
+            !comment.trim() ||
+            newStatus === currentStatus
+          }
+          data-testid="submit-override-button"
           className="btn btn--dark btn--sm self-end"
           style={{
-            opacity: !comment.trim() || newStatus === currentStatus ? 0.4 : 1,
-            cursor: !comment.trim() || newStatus === currentStatus ? "not-allowed" : "pointer",
+            opacity:
+              submitting ||
+              !reviewerId.trim() ||
+              !comment.trim() ||
+              newStatus === currentStatus
+                ? 0.4
+                : 1,
+            cursor:
+              submitting ||
+              !reviewerId.trim() ||
+              !comment.trim() ||
+              newStatus === currentStatus
+                ? "not-allowed"
+                : "pointer",
           }}
         >
-          {submitted ? "Отправлено" : "Отправить"}
+          {submitting ? "Сохраняем..." : "Отправить"}
         </button>
       </div>
     </div>

@@ -1,27 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
+import { pipelineApi } from "@/lib/api";
 
 export default function UploadPage() {
   const [jsonInput, setJsonInput] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [candidateId, setCandidateId] = useState("");
 
   async function handleSubmit() {
     if (!jsonInput.trim()) return;
 
     setStatus("submitting");
+    setCandidateId("");
     try {
       const parsed = JSON.parse(jsonInput);
-      // TODO: connect to POST /api/v1/pipeline/submit
+      const result = await pipelineApi.submitCandidate(parsed);
       setStatus("success");
-      setMessage(`Кандидат успешно отправлен. Пайплайн обработки запущен.`);
+      setCandidateId(result.candidate_id);
+      setMessage(`Кандидат успешно отправлен. Пайплайн завершён со статусом ${result.pipeline_status}.`);
       setJsonInput("");
-    } catch {
+    } catch (err) {
       setStatus("error");
-      setMessage("Неверный формат JSON. Проверьте введённые данные.");
+      setMessage(
+        err instanceof Error ? err.message : "Неверный формат JSON. Проверьте введённые данные.",
+      );
     }
   }
 
@@ -29,14 +36,15 @@ export default function UploadPage() {
     if (!jsonInput.trim()) return;
 
     setStatus("submitting");
+    setCandidateId("");
     try {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) {
         throw new Error("Пакетная отправка ожидает JSON-массив");
       }
-      // TODO: connect to POST /api/v1/pipeline/batch
+      const result = await pipelineApi.submitBatch(parsed);
       setStatus("success");
-      setMessage(`${parsed.length} кандидатов отправлено на пакетную обработку.`);
+      setMessage(`${result.length} кандидатов отправлено на пакетную обработку.`);
       setJsonInput("");
     } catch (e) {
       setStatus("error");
@@ -68,6 +76,7 @@ export default function UploadPage() {
                 onChange={(e) => {
                   setJsonInput(e.target.value);
                   setStatus("idle");
+                  setCandidateId("");
                 }}
                 placeholder={`{
   "personal": { "last_name": "...", "first_name": "...", ... },
@@ -76,6 +85,7 @@ export default function UploadPage() {
   "internal_test": { "answers": [...] }
 }`}
                 rows={16}
+                data-testid="candidate-json-input"
                 className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-y font-mono"
                 style={{
                   border: "1px solid rgba(20, 20, 20, 0.1)",
@@ -106,10 +116,22 @@ export default function UploadPage() {
                 </div>
               )}
 
+              {status === "success" && candidateId ? (
+                <div className="mt-3 flex items-center gap-3">
+                  <Link href={`/dashboard/${candidateId}`} className="btn btn--dark btn--sm">
+                    Открыть карточку
+                  </Link>
+                  <Link href="/dashboard" className="btn btn--ghost btn--sm">
+                    Перейти в рейтинг
+                  </Link>
+                </div>
+              ) : null}
+
               <div className="flex gap-3 mt-5">
                 <button
                   onClick={handleSubmit}
                   disabled={!jsonInput.trim() || status === "submitting"}
+                  data-testid="submit-candidate-button"
                   className="btn btn--dark"
                   style={{
                     opacity: !jsonInput.trim() || status === "submitting" ? 0.4 : 1,
