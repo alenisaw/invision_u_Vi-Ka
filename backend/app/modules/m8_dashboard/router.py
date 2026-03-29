@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, require_reviewer_api_key
+from app.modules.m10_audit.schemas import CandidateOverrideRequest
+from app.modules.m10_audit.service import AuditService, AuditWorkflowError
 from app.modules.m8_dashboard.service import DashboardService
 from app.schemas.common import success_response
 
@@ -47,6 +49,21 @@ async def get_dashboard_candidate_detail(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     return success_response(detail.model_dump(mode="json"))
+
+
+@router.post("/candidates/{candidate_id}/override")
+async def override_dashboard_candidate(
+    candidate_id: UUID,
+    payload: CandidateOverrideRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    service = AuditService(db)
+    try:
+        action = await service.override_candidate_decision(candidate_id, payload)
+    except AuditWorkflowError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+    return success_response(action.model_dump(mode="json"))
 
 
 @router.get("/shortlist")

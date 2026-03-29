@@ -41,9 +41,8 @@ The system ingests candidate submissions, isolates sensitive data, prepares safe
 - `M6 Scoring`: program-aware scoring, ranking, confidence, and review routing.
 - `M7 Explainability`: reviewer-facing summaries, factor blocks, cautions, and evidence.
 - `M8 Dashboard`: reviewer-facing dashboard API with safe candidate identity projection.
+- `M10 Audit`: reviewer overrides, reviewer actions, and audit feed APIs.
 - `M13 ASR`: interview transcription and transcript quality analysis.
-
-`M10 Audit` remains a placeholder in this branch.
 
 ---
 
