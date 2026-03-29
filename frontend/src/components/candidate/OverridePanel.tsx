@@ -4,11 +4,10 @@ import { useState } from "react";
 import type { RecommendationStatus } from "@/types";
 
 const STATUS_OPTIONS: { value: RecommendationStatus; label: string }[] = [
-  { value: "STRONG_RECOMMEND", label: "Рекомендован" },
-  { value: "RECOMMEND", label: "К рассмотрению" },
-  { value: "REVIEW_NEEDED", label: "Требует проверки" },
-  { value: "LOW_SIGNAL", label: "Мало данных" },
-  { value: "MANUAL_REVIEW", label: "Ручная проверка" },
+  { value: "STRONG_RECOMMEND", label: "Сильная рекомендация" },
+  { value: "RECOMMEND", label: "Рекомендован" },
+  { value: "WAITLIST", label: "Лист ожидания" },
+  { value: "DECLINED", label: "Отклонен" },
 ];
 
 interface OverridePanelProps {

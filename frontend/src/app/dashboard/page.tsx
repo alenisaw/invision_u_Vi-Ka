@@ -10,11 +10,10 @@ import { formatPercent } from "@/lib/utils";
 import type { RecommendationStatus } from "@/types";
 
 const STATUS_LABELS: Record<RecommendationStatus, string> = {
-  STRONG_RECOMMEND: "Настоятельно рекомендованы",
+  STRONG_RECOMMEND: "Сильная рекомендация",
   RECOMMEND: "Рекомендованы",
-  REVIEW_NEEDED: "Нужна проверка",
-  LOW_SIGNAL: "Мало данных",
-  MANUAL_REVIEW: "Ручная проверка",
+  WAITLIST: "Лист ожидания",
+  DECLINED: "Отклонены",
 };
 
 export default function DashboardPage() {

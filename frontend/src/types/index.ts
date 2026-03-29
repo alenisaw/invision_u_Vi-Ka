@@ -1,9 +1,8 @@
 export type RecommendationStatus =
   | "STRONG_RECOMMEND"
   | "RECOMMEND"
-  | "REVIEW_NEEDED"
-  | "LOW_SIGNAL"
-  | "MANUAL_REVIEW";
+  | "WAITLIST"
+  | "DECLINED";
 
 export type ReviewRecommendation =
   | "FAST_TRACK_REVIEW"

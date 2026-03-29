@@ -2,6 +2,8 @@ import type {
   CandidateListItem,
   CandidateDetail,
   DashboardStats,
+  RecommendationStatus,
+  ReviewRecommendation,
   ReviewerAction,
 } from "@/types";
 
@@ -14,9 +16,8 @@ export const MOCK_STATS: DashboardStats = {
   by_status: {
     STRONG_RECOMMEND: 8,
     RECOMMEND: 16,
-    REVIEW_NEEDED: 9,
-    LOW_SIGNAL: 6,
-    MANUAL_REVIEW: 9,
+    WAITLIST: 15,
+    DECLINED: 9,
   },
 };
 
@@ -91,7 +92,7 @@ export const MOCK_CANDIDATES: CandidateListItem[] = [
     name: "Арман Жунусов",
     selected_program: "Innovative IT Product Design and Development",
     review_priority_index: 0.53,
-    recommendation_status: "REVIEW_NEEDED",
+    recommendation_status: "WAITLIST",
     confidence: 0.61,
     shortlist_eligible: false,
     ranking_position: 6,
@@ -104,7 +105,7 @@ export const MOCK_CANDIDATES: CandidateListItem[] = [
     name: "Камила Ахметова",
     selected_program: "Innovative IT Product Design and Development",
     review_priority_index: 0.48,
-    recommendation_status: "REVIEW_NEEDED",
+    recommendation_status: "WAITLIST",
     confidence: 0.55,
     shortlist_eligible: false,
     ranking_position: 7,
@@ -117,7 +118,7 @@ export const MOCK_CANDIDATES: CandidateListItem[] = [
     name: "Ерлан Касымов",
     selected_program: "Innovative IT Product Design and Development",
     review_priority_index: 0.38,
-    recommendation_status: "LOW_SIGNAL",
+    recommendation_status: "DECLINED",
     confidence: 0.42,
     shortlist_eligible: false,
     ranking_position: 8,
@@ -126,6 +127,42 @@ export const MOCK_CANDIDATES: CandidateListItem[] = [
     created_at: "2026-03-26T17:45:00Z",
   },
 ];
+
+function getMockReviewRecommendation(candidate: CandidateListItem): ReviewRecommendation {
+  if (candidate.caution_flags.length > 0) {
+    return "REQUIRES_MANUAL_REVIEW";
+  }
+
+  return candidate.recommendation_status === "STRONG_RECOMMEND"
+    ? "FAST_TRACK_REVIEW"
+    : "STANDARD_REVIEW";
+}
+
+function getMockDecisionSummary(status: RecommendationStatus): string {
+  switch (status) {
+    case "STRONG_RECOMMEND":
+      return "Кандидат демонстрирует сильный и устойчивый потенциал по ключевым направлениям.";
+    case "RECOMMEND":
+      return "Кандидат показывает достаточный уровень сигналов для дальнейшего рассмотрения.";
+    case "WAITLIST":
+      return "Кейс выглядит пограничным и требует сравнения с соседними по рангу кандидатами.";
+    case "DECLINED":
+      return "Текущий объём сигнала и качество данных недостаточны для продвижения дальше.";
+  }
+}
+
+function getMockExplanationSummary(candidate: CandidateListItem): string {
+  switch (candidate.recommendation_status) {
+    case "STRONG_RECOMMEND":
+      return "Кандидат демонстрирует исключительный лидерский потенциал и ясную траекторию роста. Видеоинтервью подтверждает мотивацию и зрелость решений.";
+    case "RECOMMEND":
+      return "Кандидат показывает хороший потенциал и понятную мотивацию, хотя по отдельным факторам всё ещё полезна reviewer-проверка.";
+    case "WAITLIST":
+      return "Кандидат имеет отдельные сильные сигналы, но общий профиль остаётся пограничным и требует дополнительного сравнения с другими кейсами.";
+    case "DECLINED":
+      return "По текущим данным система видит недостаточную силу сигнала или неполноту профиля для дальнейшего продвижения.";
+  }
+}
 
 export function getMockCandidateDetail(id: string): CandidateDetail | null {
   const candidate = MOCK_CANDIDATES.find((c) => c.candidate_id === id);
@@ -148,17 +185,14 @@ export function getMockCandidateDetail(id: string): CandidateDetail | null {
       },
       review_priority_index: candidate.review_priority_index,
       recommendation_status: candidate.recommendation_status,
-      decision_summary: `Кандидат демонстрирует ${candidate.recommendation_status === "STRONG_RECOMMEND" ? "выдающийся" : "заметный"} потенциал по нескольким направлениям.`,
+      decision_summary: getMockDecisionSummary(candidate.recommendation_status),
       confidence: candidate.confidence,
       confidence_band: candidate.confidence > 0.75 ? "HIGH" : "MEDIUM",
       manual_review_required: candidate.caution_flags.length > 0,
       human_in_loop_required: true,
       uncertainty_flag: candidate.confidence < 0.6,
       shortlist_eligible: candidate.shortlist_eligible,
-      review_recommendation:
-        candidate.recommendation_status === "STRONG_RECOMMEND"
-          ? "FAST_TRACK_REVIEW"
-          : "STANDARD_REVIEW",
+      review_recommendation: getMockReviewRecommendation(candidate),
       review_reasons: candidate.caution_flags,
       top_strengths: candidate.top_strengths,
       top_risks: candidate.caution_flags,
@@ -175,11 +209,8 @@ export function getMockCandidateDetail(id: string): CandidateDetail | null {
       confidence: candidate.confidence,
       manual_review_required: candidate.caution_flags.length > 0,
       human_in_loop_required: true,
-      review_recommendation:
-        candidate.recommendation_status === "STRONG_RECOMMEND"
-          ? "FAST_TRACK_REVIEW"
-          : "STANDARD_REVIEW",
-      summary: `Кандидат демонстрирует ${candidate.recommendation_status === "STRONG_RECOMMEND" ? "исключительный" : "хороший"} лидерский потенциал и траекторию роста. Видеоинтервью показывает искреннюю вовлечённость в цели программы и чёткое изложение пути личностного развития.`,
+      review_recommendation: getMockReviewRecommendation(candidate),
+      summary: getMockExplanationSummary(candidate),
       positive_factors: [
         {
           factor: "leadership_potential",
@@ -283,7 +314,7 @@ export const MOCK_AUDIT_LOG: ReviewerAction[] = [
     candidate_id: "c7a8b9c0-d1e2-3456-abcd-567890123456",
     reviewer_id: "reviewer-1",
     action_type: "override",
-    previous_status: "REVIEW_NEEDED",
+    previous_status: "WAITLIST",
     new_status: "RECOMMEND",
     comment: "После ручной проверки флаг ИИ по эссе — ложное срабатывание. Повышаю до RECOMMEND.",
     created_at: "2026-03-28T16:15:00Z",
