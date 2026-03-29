@@ -1,19 +1,20 @@
 "use client";
 
+import { BarChart3, ClipboardList, Star, Upload, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 interface SidebarLink {
   href: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const LINKS: SidebarLink[] = [
-  { href: "/dashboard", label: "Рейтинг", icon: "📊" },
-  { href: "/shortlist", label: "Шорт-лист", icon: "⭐" },
-  { href: "/upload", label: "Загрузка", icon: "📤" },
-  { href: "/audit", label: "Журнал", icon: "📋" },
+  { href: "/dashboard", label: "Рейтинг", icon: BarChart3 },
+  { href: "/shortlist", label: "Шорт-лист", icon: Star },
+  { href: "/upload", label: "Загрузка", icon: Upload },
+  { href: "/audit", label: "Журнал", icon: ClipboardList },
 ];
 
 export default function Sidebar() {
@@ -28,6 +29,7 @@ export default function Sidebar() {
       <nav className="flex flex-col gap-1">
         {LINKS.map((link) => {
           const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+          const Icon = link.icon;
           return (
             <Link
               key={link.href}
@@ -38,7 +40,7 @@ export default function Sidebar() {
                 color: isActive ? "var(--brand-ink)" : "var(--brand-muted-strong)",
               }}
             >
-              <span>{link.icon}</span>
+              <Icon aria-hidden="true" className="h-[1.15rem] w-[1.15rem] shrink-0" strokeWidth={2.1} />
               {link.label}
             </Link>
           );

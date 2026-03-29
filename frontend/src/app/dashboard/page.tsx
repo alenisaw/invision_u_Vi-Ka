@@ -9,6 +9,14 @@ import { MOCK_CANDIDATES, MOCK_STATS } from "@/lib/mock-data";
 import { formatPercent } from "@/lib/utils";
 import type { RecommendationStatus } from "@/types";
 
+const STATUS_LABELS: Record<RecommendationStatus, string> = {
+  STRONG_RECOMMEND: "Настоятельно рекомендованы",
+  RECOMMEND: "Рекомендованы",
+  REVIEW_NEEDED: "Нужна проверка",
+  LOW_SIGNAL: "Мало данных",
+  MANUAL_REVIEW: "Ручная проверка",
+};
+
 export default function DashboardPage() {
   const [filter, setFilter] = useState<RecommendationStatus | "ALL">("ALL");
   const [sort, setSort] = useState("rpi_desc");
@@ -77,14 +85,14 @@ export default function DashboardPage() {
 
             {/* Status breakdown */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
-              {Object.entries(stats.by_status).map(([status, count]) => (
+              {(Object.entries(stats.by_status) as [RecommendationStatus, number][]).map(([status, count]) => (
                 <div
                   key={status}
                   className="rounded-[var(--radius-md)] px-4 py-3 text-center"
                   style={{ background: "rgba(20, 20, 20, 0.03)" }}
                 >
                   <div className="text-[0.72rem] font-[700] uppercase tracking-[0.1em] mb-1" style={{ color: "var(--brand-muted)" }}>
-                    {status.replace(/_/g, " ")}
+                    {STATUS_LABELS[status]}
                   </div>
                   <div className="text-[1.16rem] font-[800]">{count}</div>
                 </div>
