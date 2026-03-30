@@ -25,7 +25,6 @@ export default function CandidatesPage() {
   const [fixtures, setFixtures] = useState<FixtureSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterArchetype, setFilterArchetype] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [runState, setRunState] = useState<RunState | null>(null);
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -38,15 +37,14 @@ export default function CandidatesPage() {
     const q = search.toLowerCase();
     return fixtures.filter((f) => {
       const m = f.meta;
-      const matchesSearch =
+      return (
         !q ||
         m.display_name.toLowerCase().includes(q) ||
         m.program.toLowerCase().includes(q) ||
-        m.essay_preview.toLowerCase().includes(q);
-      const matchesArchetype = filterArchetype === "all" || m.archetype === filterArchetype;
-      return matchesSearch && matchesArchetype;
+        m.essay_preview.toLowerCase().includes(q)
+      );
     });
-  }, [fixtures, search, filterArchetype]);
+  }, [fixtures, search]);
 
   const handleToggleSelect = useCallback((slug: string) => {
     setSelected((prev) => {
@@ -113,16 +111,6 @@ export default function CandidatesPage() {
     };
   }, []);
 
-  const archetypes = ["all", "strong", "balanced", "weak", "risky", "incomplete"];
-  const archetypeLabels: Record<string, string> = {
-    all: "Все",
-    strong: "Сильные",
-    balanced: "Средние",
-    weak: "Слабые",
-    risky: "Риск",
-    incomplete: "Неполные",
-  };
-
   return (
     <>
       <Header />
@@ -140,7 +128,7 @@ export default function CandidatesPage() {
               Предзагруженные анкеты для демонстрации полного пайплайна оценки
             </p>
 
-            {/* Filters */}
+            {/* Search */}
             <div className="flex flex-wrap gap-3 mb-6 items-center">
               <input
                 value={search}
@@ -152,24 +140,6 @@ export default function CandidatesPage() {
                   background: "rgba(255, 255, 255, 0.82)",
                 }}
               />
-              <div className="flex gap-1.5">
-                {archetypes.map((a) => (
-                  <button
-                    key={a}
-                    onClick={() => setFilterArchetype(a)}
-                    className="chip"
-                    style={{
-                      background:
-                        filterArchetype === a
-                          ? "var(--brand-ink)"
-                          : "rgba(20, 20, 20, 0.05)",
-                      color: filterArchetype === a ? "#fff" : "var(--brand-muted-strong)",
-                    }}
-                  >
-                    {archetypeLabels[a]}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Pipeline progress overlay */}

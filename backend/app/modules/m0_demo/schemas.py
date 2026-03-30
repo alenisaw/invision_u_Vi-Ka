@@ -13,7 +13,6 @@ class FixtureMeta(BaseModel):
 
     slug: str
     display_name: str
-    archetype: str
     program: str
     language: str = "ru"
     essay_preview: str = ""

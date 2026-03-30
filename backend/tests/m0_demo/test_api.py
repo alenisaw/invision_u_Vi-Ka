@@ -52,7 +52,7 @@ class TestListDemoCandidates:
             meta = item["meta"]
             assert "slug" in meta
             assert "display_name" in meta
-            assert "archetype" in meta
+            assert "program" in meta
             assert "program" in meta
 
 

@@ -93,7 +93,6 @@ Example response:
       "meta": {
         "slug": "aisha-strong-leader",
         "display_name": "Аиша Нурланова",
-        "archetype": "strong",
         "program": "Цифровые медиа и маркетинг",
         "language": "ru",
         "essay_preview": "С детства меня привлекала сила историй. Когда мне было двенадцать лет, я начала вести блог о жизни нашего двора..."

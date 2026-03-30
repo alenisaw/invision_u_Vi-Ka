@@ -148,7 +148,6 @@ export interface PipelineResult {
 export interface FixtureMeta {
   slug: string;
   display_name: string;
-  archetype: string;
   program: string;
   language: string;
   essay_preview: string;

@@ -134,7 +134,7 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m0_demo/fixtures/*.json` | Pre-built candidate payloads covering all archetypes |
+| `backend/app/modules/m0_demo/fixtures/*.json` | Pre-built candidate payloads covering all programs |
 | `backend/app/modules/m0_demo/schemas.py` | Fixture metadata and detail contracts |
 | `backend/app/modules/m0_demo/service.py` | Fixture loading, caching, and parsing |
 | `backend/app/modules/m0_demo/router.py` | Demo API endpoints |

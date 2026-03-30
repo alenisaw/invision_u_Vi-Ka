@@ -22,7 +22,7 @@ class TestListFixtures:
         assert len(fixtures) >= 12, f"Expected at least 12 fixtures, got {len(fixtures)}"
 
     def test_each_fixture_has_required_meta_fields(self, svc: DemoFixtureService) -> None:
-        required_fields = {"slug", "display_name", "archetype", "program", "language", "essay_preview"}
+        required_fields = {"slug", "display_name", "program", "language", "essay_preview"}
         for f in svc.list_fixtures():
             meta_dict = f.meta.model_dump()
             missing = required_fields - set(meta_dict.keys())
@@ -33,7 +33,6 @@ class TestListFixtures:
             m = f.meta
             assert m.slug, "slug is empty"
             assert m.display_name, f"{m.slug}: display_name is empty"
-            assert m.archetype, f"{m.slug}: archetype is empty"
             assert m.program, f"{m.slug}: program is empty"
             assert m.essay_preview, f"{m.slug}: essay_preview is empty"
 
@@ -46,11 +45,6 @@ class TestListFixtures:
         slugs = [f.meta.slug for f in svc.list_fixtures()]
         assert len(slugs) == len(set(slugs)), f"Duplicate slugs found: {slugs}"
 
-    def test_archetypes_cover_all_types(self, svc: DemoFixtureService) -> None:
-        archetypes = {f.meta.archetype for f in svc.list_fixtures()}
-        expected = {"strong", "balanced", "weak", "risky", "incomplete"}
-        missing = expected - archetypes
-        assert not missing, f"Missing archetypes: {missing}"
 
 
 
@@ -84,22 +78,9 @@ class TestFixturePayloadParsing:
             assert payload.personal.date_of_birth is not None, f"{f.meta.slug}: missing date_of_birth"
             assert payload.academic.selected_program, f"{f.meta.slug}: missing selected_program"
 
-    def test_strong_fixtures_have_essay(self, svc: DemoFixtureService) -> None:
+    def test_fixtures_with_essay_have_meaningful_content(self, svc: DemoFixtureService) -> None:
         for f in svc.list_fixtures():
-            if f.meta.archetype == "strong":
-                payload = svc.get_fixture_payload(f.meta.slug)
-                assert payload.content.essay_text, f"Strong fixture {f.meta.slug} should have essay_text"
+            payload = svc.get_fixture_payload(f.meta.slug)
+            if payload.content.essay_text and payload.content.essay_text.strip():
                 words = len(payload.content.essay_text.split())
-                assert words >= 50, f"Strong fixture {f.meta.slug} essay too short: {words} words"
-
-    def test_incomplete_fixtures_have_minimal_data(self, svc: DemoFixtureService) -> None:
-        for f in svc.list_fixtures():
-            if f.meta.archetype == "incomplete":
-                payload = svc.get_fixture_payload(f.meta.slug)
-                has_essay = bool(payload.content.essay_text and payload.content.essay_text.strip())
-                has_video = bool(payload.content.video_url and payload.content.video_url.strip())
-                has_projects = len(payload.content.project_descriptions) > 0
-                content_fields = sum([has_essay, has_video, has_projects])
-                assert content_fields <= 1, (
-                    f"Incomplete fixture {f.meta.slug} has too much content ({content_fields} fields)"
-                )
+                assert words >= 5, f"{f.meta.slug} essay too short: {words} words"

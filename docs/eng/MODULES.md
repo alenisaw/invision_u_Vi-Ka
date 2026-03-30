@@ -76,20 +76,10 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m0_demo/fixtures/*.json` | 14 pre-built candidate payloads covering all archetypes and programs |
+| `backend/app/modules/m0_demo/fixtures/*.json` | 14 pre-built candidate payloads covering all programs |
 | `backend/app/modules/m0_demo/schemas.py` | `FixtureMeta`, `FixtureSummary`, `FixtureDetail` contracts |
 | `backend/app/modules/m0_demo/service.py` | Fixture loading, caching, and payload parsing |
 | `backend/app/modules/m0_demo/router.py` | Demo API endpoints: list, detail, and pipeline run |
-
-### Fixture Archetypes
-
-| Archetype | Count | Expected Outcome |
-|---|---|---|
-| `strong` | 4 | `STRONG_RECOMMEND` |
-| `balanced` | 4 | `RECOMMEND` |
-| `weak` | 2 | `WAITLIST` |
-| `risky` | 2 | `WAITLIST` or `RECOMMEND` |
-| `incomplete` | 2 | `DECLINED` |
 
 ---
 
