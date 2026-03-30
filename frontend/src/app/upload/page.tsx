@@ -70,6 +70,16 @@ const INITIAL_FORM: FormState = {
 
 const PIPELINE_STEP_COUNT = 7;
 const STEP_INTERVAL_MS = 1800;
+const MEDIA_EXTENSIONS = [".mp4", ".mov", ".mkv", ".avi", ".webm", ".wav", ".mp3", ".m4a", ".ogg", ".flac", ".mpeg", ".mpga"];
+const TRUSTED_VIDEO_PAGE_HOST_SUFFIXES = [
+  "youtube.com",
+  "youtu.be",
+  "vimeo.com",
+  "drive.google.com",
+  "docs.google.com",
+  "dropbox.com",
+  "dropboxusercontent.com",
+];
 
 function buildPayload(form: FormState): Record<string, unknown> {
   return {
@@ -108,6 +118,44 @@ function buildPayload(form: FormState): Record<string, unknown> {
 
 function wordCount(text: string): number {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+function isDirectMediaUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return MEDIA_EXTENSIONS.some((extension) => parsed.pathname.toLowerCase().endsWith(extension));
+  } catch {
+    return false;
+  }
+}
+
+function isTrustedVideoPageHost(hostname: string): boolean {
+  return TRUSTED_VIDEO_PAGE_HOST_SUFFIXES.some(
+    (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
+  );
+}
+
+function isSafeVideoUrlCandidate(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.trim().toLowerCase();
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    if (!hostname || ["localhost", "127.0.0.1", "::1"].includes(hostname)) return false;
+    if (parsed.username || parsed.password) return false;
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+      if (
+        hostname.startsWith("10.") ||
+        hostname.startsWith("127.") ||
+        hostname.startsWith("192.168.") ||
+        /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+      ) {
+        return false;
+      }
+    }
+    return isDirectMediaUrl(url) || isTrustedVideoPageHost(hostname);
+  } catch {
+    return false;
+  }
 }
 
 export default function UploadPage() {
@@ -166,6 +214,11 @@ export default function UploadPage() {
 
   function handleFormSubmit() {
     if (!isFormValid) return;
+    if (form.video_url.trim() && !isSafeVideoUrlCandidate(form.video_url.trim())) {
+      setStatus("error");
+      setMessage("Video URL must point to a direct media file or an approved public video host.");
+      return;
+    }
     runPipeline(buildPayload(form));
   }
 

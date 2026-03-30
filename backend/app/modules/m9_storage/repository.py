@@ -43,10 +43,12 @@ class StorageRepository(Generic[ModelT]):
         selected_program: str | None = None,
         pipeline_status: str = "pending",
         intake_id: UUID | None = None,
+        dedupe_key: str | None = None,
     ) -> Candidate:
         candidate = Candidate(
             selected_program=selected_program,
             pipeline_status=pipeline_status,
+            dedupe_key=dedupe_key,
         )
         if intake_id is not None:
             candidate.intake_id = intake_id
@@ -58,6 +60,11 @@ class StorageRepository(Generic[ModelT]):
 
     async def get_candidate(self, candidate_id: UUID) -> Candidate | None:
         stmt = select(Candidate).where(Candidate.id == candidate_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_candidate_by_dedupe_key(self, dedupe_key: str) -> Candidate | None:
+        stmt = select(Candidate).where(Candidate.dedupe_key == dedupe_key)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

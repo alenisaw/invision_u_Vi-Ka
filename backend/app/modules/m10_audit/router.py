@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, require_reviewer_api_key
+from app.core.dependencies import ReviewerAuthContext, get_db, require_reviewer_api_key
 from app.modules.m10_audit.schemas import ReviewerActionCreateRequest
 from app.modules.m10_audit.service import AuditService, AuditWorkflowError
 from app.schemas.common import success_response
@@ -14,13 +14,11 @@ from app.schemas.common import success_response
 dashboard_router = APIRouter(
     prefix="/api/v1/dashboard",
     tags=["dashboard"],
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 
 audit_router = APIRouter(
     prefix="/api/v1/audit",
     tags=["audit"],
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 
 
@@ -28,11 +26,16 @@ audit_router = APIRouter(
 async def create_candidate_reviewer_action(
     candidate_id: UUID,
     payload: ReviewerActionCreateRequest,
+    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     service = AuditService(db)
     try:
-        action = await service.create_reviewer_action(candidate_id, payload)
+        action = await service.create_reviewer_action(
+            candidate_id,
+            payload,
+            reviewer.reviewer_id,
+        )
     except AuditWorkflowError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     return success_response(action.model_dump(mode="json"))
@@ -41,8 +44,10 @@ async def create_candidate_reviewer_action(
 @dashboard_router.get("/candidates/{candidate_id}/actions")
 async def list_candidate_reviewer_actions(
     candidate_id: UUID,
+    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    _ = reviewer
     service = AuditService(db)
     try:
         actions = await service.list_reviewer_actions(candidate_id)
@@ -54,8 +59,10 @@ async def list_candidate_reviewer_actions(
 @audit_router.get("/feed")
 async def get_audit_feed(
     limit: int = Query(default=100, ge=1, le=500),
+    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    _ = reviewer
     service = AuditService(db)
     entries = await service.list_audit_feed(limit=limit)
     return success_response([entry.model_dump(mode="json") for entry in entries])

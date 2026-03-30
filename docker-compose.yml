@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-invisionu}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     ports:
       - "5432:5432"
     volumes:
@@ -28,8 +28,10 @@ services:
     container_name: invisionu_backend
     restart: unless-stopped
     environment:
-      API_KEY: ${API_KEY:-test-reviewer-key}
-      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:-change-me-to-a-32-byte-minimum-secret-for-development}
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      API_KEY: ${API_KEY:?API_KEY must be set}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       JINA_API_KEY: ${JINA_API_KEY:-}
@@ -38,7 +40,7 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-invisionu}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     command:
       [
         "sh",
@@ -73,7 +75,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       BACKEND_URL: http://backend:8000
-      REVIEWER_API_KEY: ${API_KEY:-test-reviewer-key}
+      REVIEWER_API_KEY: ${API_KEY:?API_KEY must be set}
     ports:
       - "3000:3000"
     depends_on:

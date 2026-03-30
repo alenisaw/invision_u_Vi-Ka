@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from dataclasses import dataclass
 from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import AsyncSessionLocal
 from app.modules.m2_intake.schemas import CandidateIntakeRequest
 from app.modules.m2_intake.service import CandidateIntakeService
 from app.modules.m3_privacy.service import PrivacyService
@@ -20,32 +23,43 @@ from app.modules.m6_scoring.service import ScoringService
 from app.modules.m9_storage import StorageRepository
 
 logger = logging.getLogger(__name__)
+DEFAULT_BATCH_CONCURRENCY = 4
+
+
+@dataclass(frozen=True)
+class NLPStageResult:
+    status: str
+    envelope: SignalEnvelope | None = None
+    reason: str | None = None
 
 
 class PipelineResult:
     """Holds the output of a full pipeline run."""
 
-    __slots__ = ("candidate_id", "profile", "score", "pipeline_status")
+    __slots__ = ("candidate_id", "profile", "score", "pipeline_status", "processing_issue")
 
     def __init__(
         self,
         candidate_id: UUID,
         profile: CandidateProfile,
-        score: CandidateScore,
+        score: CandidateScore | None,
         pipeline_status: str,
+        processing_issue: str | None = None,
     ) -> None:
         self.candidate_id = candidate_id
         self.profile = profile
         self.score = score
         self.pipeline_status = pipeline_status
+        self.processing_issue = processing_issue
 
     def to_dict(self) -> dict:
         return {
             "candidate_id": str(self.candidate_id),
             "pipeline_status": self.pipeline_status,
-            "score": self.score.model_dump(mode="json"),
+            "score": self.score.model_dump(mode="json") if self.score is not None else None,
             "completeness": self.profile.completeness,
             "data_flags": self.profile.data_flags,
+            "processing_issue": self.processing_issue,
         }
 
 
@@ -100,7 +114,40 @@ class PipelineOrchestrator:
         profile = await profile_service.build(candidate_id)
 
         # Step 4: M5 NLP Signal Extraction
-        envelope = await self._run_nlp_extraction(candidate_id, profile)
+        nlp_result = await self._run_nlp_extraction(candidate_id, profile)
+        if nlp_result.status != "ok" or nlp_result.envelope is None:
+            pipeline_status = (
+                "requires_manual_review"
+                if nlp_result.status == "insufficient_data"
+                else "failed"
+            )
+            audit_action = (
+                "nlp_insufficient_input"
+                if nlp_result.status == "insufficient_data"
+                else "nlp_extraction_failed"
+            )
+            reason = nlp_result.reason or "m5_unavailable"
+            await self.repository.update_pipeline_status(candidate_id, pipeline_status)
+            await self.repository.create_audit_log(
+                entity_type="candidate",
+                entity_id=candidate_id,
+                action=audit_action,
+                actor="system",
+                details={
+                    "reason": reason,
+                    "selected_program": profile.selected_program,
+                    "data_flags": profile.data_flags,
+                },
+            )
+            await self.repository.commit()
+            return PipelineResult(
+                candidate_id=candidate_id,
+                profile=profile,
+                score=None,
+                pipeline_status=pipeline_status,
+                processing_issue=reason,
+            )
+        envelope = nlp_result.envelope
 
         # Step 5: M6 Scoring
         score = self.scoring.score_candidate(envelope)
@@ -131,14 +178,23 @@ class PipelineOrchestrator:
         )
 
     async def run_batch(
-        self, payloads: list[CandidateIntakeRequest]
+        self,
+        payloads: list[CandidateIntakeRequest],
+        *,
+        max_concurrency: int = DEFAULT_BATCH_CONCURRENCY,
     ) -> list[PipelineResult]:
-        """Run the pipeline for multiple candidates sequentially."""
-        results: list[PipelineResult] = []
-        for payload in payloads:
-            result = await self.run_pipeline(payload)
-            results.append(result)
-        return results
+        """Run the pipeline for multiple candidates with bounded parallelism."""
+
+        concurrency_limit = max(1, int(max_concurrency))
+        semaphore = asyncio.Semaphore(concurrency_limit)
+
+        async def _run_single(payload: CandidateIntakeRequest) -> PipelineResult:
+            async with semaphore:
+                async with AsyncSessionLocal() as session:
+                    orchestrator = PipelineOrchestrator(session)
+                    return await orchestrator.run_pipeline(payload)
+
+        return list(await asyncio.gather(*(_run_single(payload) for payload in payloads)))
 
     # --- M5 integration (stub until teammates deliver) ---
 
@@ -164,7 +220,7 @@ class PipelineOrchestrator:
                 media_path=video_reference if parsed.scheme not in {"http", "https"} else None,
                 selected_program=payload.academic.selected_program,
             )
-            result = asr_service.transcribe(request)
+            result = await asr_service.transcribe_async(request)
             return result.transcript, result.mean_confidence, result.flags
         except (ImportError, AttributeError, NotImplementedError, ValueError, RuntimeError, FileNotFoundError) as exc:
             logger.warning(
@@ -176,8 +232,14 @@ class PipelineOrchestrator:
 
     async def _run_nlp_extraction(
         self, candidate_id: UUID, profile: CandidateProfile
-    ) -> SignalEnvelope:
-        """Call M5 for signal extraction. Falls back to empty signals if M5 is not ready."""
+    ) -> NLPStageResult:
+        """Call M5 for signal extraction and keep failure semantics explicit."""
+        if not self._has_minimum_nlp_input(profile):
+            return NLPStageResult(
+                status="insufficient_data",
+                reason="insufficient_model_input",
+            )
+
         try:
             from app.modules.m5_nlp.schemas import M5ExtractionRequest
             from app.modules.m5_nlp.service import nlp_signal_extraction_service
@@ -193,22 +255,36 @@ class PipelineOrchestrator:
                 project_descriptions=list(profile.model_input.project_descriptions),
                 internal_test_answers=list(profile.model_input.internal_test_answers),
             )
-            return nlp_signal_extraction_service.extract_signals(request)
+            envelope = await asyncio.to_thread(
+                nlp_signal_extraction_service.extract_signals,
+                request,
+            )
+            return NLPStageResult(status="ok", envelope=envelope)
         except Exception as exc:
             logger.warning(
-                "M5 NLP failed for candidate %s, using empty signals fallback: %s",
+                "M5 NLP failed for candidate %s",
                 candidate_id,
-                exc.__class__.__name__,
+                exc_info=True,
             )
-            return SignalEnvelope(
-                candidate_id=candidate_id,
-                signal_schema_version="v1",
-                m5_model_version="stub",
-                selected_program=profile.selected_program or "",
-                completeness=profile.completeness,
-                data_flags=profile.data_flags,
-                signals={},
+            return NLPStageResult(
+                status="failed",
+                reason=f"m5_processing_failed:{exc.__class__.__name__}",
             )
+
+    def _has_minimum_nlp_input(self, profile: CandidateProfile) -> bool:
+        model_input = profile.model_input
+        if (model_input.video_transcript or "").strip():
+            return True
+        if (model_input.essay_text or "").strip():
+            return True
+        if (model_input.experience_summary or "").strip():
+            return True
+        if any((project or "").strip() for project in model_input.project_descriptions):
+            return True
+        for answer in model_input.internal_test_answers:
+            if isinstance(answer, dict) and str(answer.get("answer") or answer.get("answer_text") or "").strip():
+                return True
+        return False
 
     # --- M7 integration (stub until teammates deliver) ---
 

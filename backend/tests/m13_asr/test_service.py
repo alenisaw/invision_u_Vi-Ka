@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import unittest
 from pathlib import Path
@@ -103,6 +104,21 @@ class TestM13Service(unittest.TestCase):
             self.assertGreaterEqual(result.mean_confidence, 0.0)
             self.assertEqual(len(result.segments), 2)
             self.assertFalse(result.requires_human_review)
+        finally:
+            media_path.unlink(missing_ok=True)
+
+    def test_service_transcribe_async_uses_same_contract(self) -> None:
+        with tempfile.NamedTemporaryFile(dir=TEST_ROOT, suffix=".wav", delete=False) as handle:
+            media_path = Path(handle.name)
+        try:
+            service = ASRService(transcriber=_FakeTranscriber())
+            request = ASRRequest(candidate_id=uuid4(), media_path=str(media_path))
+
+            result = asyncio.run(service.transcribe_async(request))
+
+            self.assertTrue(result.transcript)
+            self.assertEqual(result.transcriber_model, "whisper-large-v3-turbo")
+            self.assertEqual(result.detected_languages, ["en"])
         finally:
             media_path.unlink(missing_ok=True)
 

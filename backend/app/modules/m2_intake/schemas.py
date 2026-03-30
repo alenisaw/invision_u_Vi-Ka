@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core.url_safety import validate_public_video_url
 
 
 class ParentContact(BaseModel):
@@ -71,6 +73,13 @@ class ContentInfo(BaseModel):
     essay_text: str | None = None
     project_descriptions: list[str] = Field(default_factory=list)
     experience_summary: str | None = None
+
+    @field_validator("video_url")
+    @classmethod
+    def validate_video_url(cls, value: str | None) -> str | None:
+        if not value:
+            return value
+        return validate_public_video_url(value)
 
 
 class SocialStatusInfo(BaseModel):

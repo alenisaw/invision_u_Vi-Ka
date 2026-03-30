@@ -10,6 +10,7 @@ from app.modules.m6_scoring.schemas import SignalEnvelope
 from app.schemas.common import success_response
 
 router = APIRouter(prefix="/api/v1/pipeline", tags=["pipeline"])
+MAX_BATCH_SIZE = 50
 
 
 # --- Full pipeline endpoints ---
@@ -37,6 +38,11 @@ async def submit_batch(
     """Submit multiple candidates through the full pipeline."""
     if not payloads:
         raise HTTPException(status_code=422, detail="Empty batch")
+    if len(payloads) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Batch size exceeds limit of {MAX_BATCH_SIZE}",
+        )
 
     orchestrator = PipelineOrchestrator(db)
     results = await orchestrator.run_batch(payloads)
@@ -63,6 +69,14 @@ async def score_signal_batch(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Score and rank a batch of signal envelopes."""
+    if not envelopes:
+        raise HTTPException(status_code=422, detail="Empty batch")
+    if len(envelopes) > MAX_BATCH_SIZE:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Batch size exceeds limit of {MAX_BATCH_SIZE}",
+        )
+
     orchestrator = PipelineOrchestrator(db)
     scores = orchestrator.score_signal_batch(envelopes)
     return success_response([s.model_dump(mode="json") for s in scores])

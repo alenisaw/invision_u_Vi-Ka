@@ -14,7 +14,6 @@ ReviewerActionType = Literal["comment", "shortlist_add", "shortlist_remove", "ov
 class CandidateOverrideRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    reviewer_id: str = Field(..., min_length=1, max_length=100)
     new_status: RecommendationStatus
     comment: str = Field(..., min_length=1, max_length=5000)
 
@@ -22,7 +21,6 @@ class CandidateOverrideRequest(BaseModel):
 class ReviewerActionCreateRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    reviewer_id: str = Field(..., min_length=1, max_length=100)
     action_type: Literal["comment", "shortlist_add", "shortlist_remove"]
     comment: str = Field(..., min_length=1, max_length=5000)
 

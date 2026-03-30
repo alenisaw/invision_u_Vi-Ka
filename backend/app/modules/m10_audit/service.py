@@ -31,6 +31,7 @@ class AuditService:
         self,
         candidate_id: UUID,
         payload: CandidateOverrideRequest,
+        reviewer_id: str,
     ) -> ReviewerActionResponse:
         candidate = await self._get_candidate_or_raise(candidate_id)
 
@@ -85,7 +86,7 @@ class AuditService:
 
         action = await self.repository.create_reviewer_action(
             candidate_id=candidate_id,
-            reviewer_id=payload.reviewer_id.strip(),
+            reviewer_id=reviewer_id,
             action_type="override",
             previous_status=previous_status,
             new_status=payload.new_status,
@@ -95,9 +96,9 @@ class AuditService:
             entity_type="candidate",
             entity_id=candidate_id,
             action="override",
-            actor=payload.reviewer_id.strip(),
+            actor=reviewer_id,
             details={
-                "reviewer_id": payload.reviewer_id.strip(),
+                "reviewer_id": reviewer_id,
                 "previous_status": previous_status,
                 "new_status": payload.new_status,
                 "comment": payload.comment.strip(),
@@ -111,6 +112,7 @@ class AuditService:
         self,
         candidate_id: UUID,
         payload: ReviewerActionCreateRequest,
+        reviewer_id: str,
     ) -> ReviewerActionResponse:
         candidate = await self._get_candidate_or_raise(candidate_id)
 
@@ -137,7 +139,7 @@ class AuditService:
 
         action = await self.repository.create_reviewer_action(
             candidate_id=candidate_id,
-            reviewer_id=payload.reviewer_id.strip(),
+            reviewer_id=reviewer_id,
             action_type=payload.action_type,
             previous_status=previous_status,
             new_status=new_status,
@@ -147,9 +149,9 @@ class AuditService:
             entity_type="candidate",
             entity_id=candidate_id,
             action=payload.action_type,
-            actor=payload.reviewer_id.strip(),
+            actor=reviewer_id,
             details={
-                "reviewer_id": payload.reviewer_id.strip(),
+                "reviewer_id": reviewer_id,
                 "previous_status": previous_status,
                 "new_status": new_status,
                 "comment": payload.comment.strip(),

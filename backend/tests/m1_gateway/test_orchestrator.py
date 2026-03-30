@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.modules.m1_gateway.orchestrator import PipelineOrchestrator, PipelineResult
+from app.modules.m1_gateway.orchestrator import NLPStageResult, PipelineOrchestrator, PipelineResult
 from app.modules.m2_intake.schemas import (
     AcademicInfo,
     CandidateIntakeRequest,
@@ -72,6 +72,7 @@ class TestPipelineResult:
         assert d["score"]["recommendation_status"] == "RECOMMEND"
         assert d["completeness"] == 0.85
         assert d["data_flags"] == ["missing_video"]
+        assert d["processing_issue"] is None
 
 
 class TestPipelineOrchestratorDirect:
@@ -166,20 +167,99 @@ class TestPipelineIntegrations:
         profile = CandidateProfile(
             candidate_id=cid,
             selected_program="CS",
-            model_input=ModelInput(),
+            model_input=ModelInput(essay_text="I want to build meaningful products."),
             metadata=ProfileMetadata(data_completeness=0.8),
             completeness=0.8,
             data_flags=[],
             created_at="2026-03-27T12:00:00Z",
         )
 
-        envelope = await orch._run_nlp_extraction(cid, profile)
+        result = await orch._run_nlp_extraction(cid, profile)
 
-        assert isinstance(envelope, SignalEnvelope)
-        assert envelope.candidate_id == cid
-        assert envelope.selected_program == "CS"
-        assert envelope.program_id
-        assert envelope.signal_schema_version == "v1"
+        assert result.status == "ok"
+        assert isinstance(result.envelope, SignalEnvelope)
+        assert result.envelope.candidate_id == cid
+        assert result.envelope.selected_program == "CS"
+        assert result.envelope.program_id
+        assert result.envelope.signal_schema_version == "v1"
+
+    @pytest.mark.asyncio
+    async def test_nlp_extraction_marks_insufficient_input(self) -> None:
+        session = MagicMock()
+        orch = PipelineOrchestrator(session)
+        cid = uuid4()
+        profile = CandidateProfile(
+            candidate_id=cid,
+            selected_program="CS",
+            model_input=ModelInput(),
+            metadata=ProfileMetadata(data_completeness=0.2),
+            completeness=0.2,
+            data_flags=["missing_essay", "missing_video"],
+            created_at="2026-03-27T12:00:00Z",
+        )
+
+        result = await orch._run_nlp_extraction(cid, profile)
+
+        assert result.status == "insufficient_data"
+        assert result.envelope is None
+        assert result.reason == "insufficient_model_input"
+
+    @pytest.mark.asyncio
+    async def test_run_pipeline_stops_before_scoring_on_nlp_failure(self) -> None:
+        session = MagicMock()
+        orch = PipelineOrchestrator(session)
+        orch.repository = AsyncMock()
+        cid = uuid4()
+        payload = _make_payload()
+        profile = CandidateProfile(
+            candidate_id=cid,
+            selected_program="CS",
+            model_input=ModelInput(essay_text="Useful text"),
+            metadata=ProfileMetadata(data_completeness=0.8),
+            completeness=0.8,
+            data_flags=[],
+            created_at="2026-03-27T12:00:00Z",
+        )
+
+        with patch(
+            "app.modules.m1_gateway.orchestrator.CandidateIntakeService.intake_candidate",
+            AsyncMock(return_value=CandidateIntakeResponse(candidate_id=str(cid))),
+        ), patch(
+            "app.modules.m1_gateway.orchestrator.PrivacyService.process",
+            AsyncMock(return_value=MagicMock()),
+        ), patch(
+            "app.modules.m1_gateway.orchestrator.ProfileService.build",
+            AsyncMock(return_value=profile),
+        ), patch.object(
+            orch,
+            "_run_asr_transcription",
+            AsyncMock(return_value=(None, None, [])),
+        ), patch.object(
+            orch,
+            "_run_nlp_extraction",
+            AsyncMock(
+                return_value=NLPStageResult(
+                    status="failed",
+                    reason="m5_processing_failed:RuntimeError",
+                )
+            ),
+        ), patch.object(
+            orch,
+            "_persist_score",
+            AsyncMock(),
+        ) as persist_mock, patch.object(
+            orch,
+            "_run_explainability",
+            AsyncMock(),
+        ) as explain_mock:
+            result = await orch.run_pipeline(payload)
+
+        assert result.score is None
+        assert result.pipeline_status == "failed"
+        assert result.processing_issue == "m5_processing_failed:RuntimeError"
+        persist_mock.assert_not_awaited()
+        explain_mock.assert_not_awaited()
+        orch.repository.update_pipeline_status.assert_awaited_once_with(cid, "failed")
 
     @pytest.mark.asyncio
     async def test_explainability_generation_does_not_raise(self) -> None:
