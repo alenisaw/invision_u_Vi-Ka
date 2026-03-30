@@ -3,7 +3,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-template-2496ED?logo=docker&logoColor=white)
-![LLM](https://img.shields.io/badge/LLM-Gemini_2.5_Flash_%7C_Gemini_3.1_Flash_Lite-4285F4)
+![LLM](https://img.shields.io/badge/LLM-Gemini_2.5_Flash-4285F4)
 ![ASR](https://img.shields.io/badge/ASR-Whisper_Large_V3_Turbo-F57C00)
 ![Embeddings](https://img.shields.io/badge/Embeddings-Jina_v5_%7C_BGE--M3-7B1FA2)
 ![ML](https://img.shields.io/badge/ML-GradientBoostingRegressor-2E7D32)
@@ -40,9 +40,9 @@ The system ingests candidate submissions, isolates sensitive data, prepares safe
 - `M5 NLP`: structured signal extraction from safe candidate content.
 - `M6 Scoring`: program-aware scoring, ranking, confidence, and review routing.
 - `M7 Explainability`: reviewer-facing summaries, factor blocks, cautions, and evidence.
+- `M8 Dashboard`: reviewer-facing dashboard API with safe candidate identity projection.
+- `M10 Audit`: reviewer overrides, reviewer actions, and audit feed APIs.
 - `M13 ASR`: interview transcription and transcript quality analysis.
-
-`M8 Dashboard` and `M10 Audit` remain placeholders in this branch.
 
 ---
 
@@ -81,8 +81,17 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Run backend tests:
 
 ```bash
-python -m unittest discover -s backend/tests -p "test_*.py"
+cd backend && python -m pytest tests -q
 ```
+
+Reviewer dashboard access:
+
+```bash
+curl -H "X-API-Key: $API_KEY" http://localhost:8000/api/v1/dashboard/stats
+```
+
+`M8` dashboard endpoints require the `X-API-Key` header.
+Candidate names are returned only through a reviewer projection layer that derives a safe `name` from encrypted PII. Raw snapshots, contacts, documents, addresses, and family data are never exposed by reviewer routes.
 
 Run the M6 evaluation bundle:
 
@@ -114,17 +123,39 @@ Russian:
 
 ## Docker
 
-The repository includes a whole-repository Docker template:
+The repository now includes a runnable whole-project Docker Compose setup:
 
-- [docker-compose.template.yml](docker-compose.template.yml)
+- [docker-compose.yml](docker-compose.yml)
 
-It defines placeholders for:
+Start everything:
 
-- `postgres`
-- `backend`
-- `frontend`
-- `M8 Dashboard`
-- `M10 Audit`
+```bash
+./scripts/stack.sh up
+```
+
+Run in background:
+
+```bash
+./scripts/stack.sh up -d
+```
+
+Stop containers:
+
+```bash
+./scripts/stack.sh down
+```
+
+Reset containers and database volume:
+
+```bash
+./scripts/stack.sh reset
+```
+
+The stack exposes:
+
+- `frontend` on `http://localhost:3000`
+- `backend` on `http://localhost:8000`
+- `postgres` on `localhost:5432`
 
 ---
 

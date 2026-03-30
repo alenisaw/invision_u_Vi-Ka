@@ -21,7 +21,7 @@ export default function RankingTable({ candidates }: RankingTableProps) {
   }
 
   return (
-    <div className="card overflow-hidden" style={{ borderRadius: "1rem" }}>
+    <div className="card overflow-hidden" style={{ borderRadius: "1rem" }} data-testid="ranking-table">
       <table className="w-full">
         <thead>
           <tr
@@ -42,6 +42,7 @@ export default function RankingTable({ candidates }: RankingTableProps) {
           {candidates.map((candidate) => (
             <tr
               key={candidate.candidate_id}
+              data-testid={`candidate-row-${candidate.candidate_id}`}
               className="group transition-colors duration-[250ms]"
               style={{ borderBottom: "1px solid rgba(20, 20, 20, 0.05)" }}
             >

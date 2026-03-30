@@ -36,6 +36,7 @@ The platform is intentionally human-centered:
 ```mermaid
 flowchart LR
     Candidate["Candidate Input"]
+    M0["M0 Demo Fixtures"]
     Frontend["Next.js Frontend"]
     M1["M1 API Gateway"]
     M2["M2 Intake"]
@@ -53,6 +54,7 @@ flowchart LR
     Reviewer["Reviewer"]
 
     Candidate --> Frontend
+    M0 --> M1
     Frontend --> M1
     M1 --> M2
     M2 --> M3
@@ -99,6 +101,7 @@ The system adapts to the selected academic track using policy-defined weights wh
 
 The implemented backend flow in the current branch is:
 
+0. `M0 Demo` provides pre-built candidate fixtures for demonstration purposes.
 1. `M2 Intake` validates candidate submission payloads and creates the initial candidate record.
 2. `M13 ASR` transcribes interview media and emits transcript-quality markers.
 3. `M3 Privacy` separates input into secure PII, operational metadata, and safe model input.
@@ -124,6 +127,17 @@ Use the dedicated module catalog for full module-level functionality, inputs, ou
 - [`docs/eng/MODULES.md`](MODULES.md)
 
 ---
+
+### `M0 Demo`
+
+Provides pre-built candidate fixtures for hackathon demonstration. Loads realistic payloads from JSON files and runs them through the existing pipeline.
+
+| File | Responsibility |
+|---|---|
+| `backend/app/modules/m0_demo/fixtures/*.json` | Pre-built candidate payloads covering all programs |
+| `backend/app/modules/m0_demo/schemas.py` | Fixture metadata and detail contracts |
+| `backend/app/modules/m0_demo/service.py` | Fixture loading, caching, and parsing |
+| `backend/app/modules/m0_demo/router.py` | Demo API endpoints |
 
 ### `M1 Gateway`
 
@@ -195,7 +209,7 @@ Computes sub-scores, recommendation categories, ranking fields, confidence, unce
 
 ### `M7 Explainability`
 
-Formats reviewer-facing explanation output from `SignalEnvelope + CandidateScore`.
+Builds deterministic reviewer-facing explanation output from `SignalEnvelope + CandidateScore`.
 
 | File | Responsibility |
 |---|---|
@@ -206,7 +220,7 @@ Formats reviewer-facing explanation output from `SignalEnvelope + CandidateScore
 
 ### `M8 Dashboard`
 
-Reserved placeholder for future reviewer dashboard API work.
+Reviewer-facing read API for stats, ranking lists, candidate detail, and shortlist views.
 
 ### `M9 Storage`
 
@@ -219,7 +233,7 @@ Repository and persistence layer used by active modules.
 
 ### `M10 Audit`
 
-Reserved placeholder for future audit workflows.
+Reviewer write and traceability layer for overrides, reviewer actions, and audit feed access.
 
 ### `M13 ASR`
 
@@ -242,7 +256,7 @@ Transcribes interview media and exposes transcript quality markers.
 | Module | Model | Role |
 |---|---|---|
 | `M5` | `gemini-2.5-flash` | Structured signal extraction |
-| `M7` | `gemini-3.1-flash-lite-preview` | Fast explainability generation |
+| `M7` | deterministic formatter | Explainability report construction from persisted M6 output |
 
 ### ASR
 

@@ -6,6 +6,7 @@
 
 - [Overview](#overview)
 - [Diagram 1. Module Interaction Map](#diagram-1-module-interaction-map)
+- [M0 Demo](#m0-demo)
 - [M1 Gateway](#m1-gateway)
 - [M2 Intake](#m2-intake)
 - [M3 Privacy](#m3-privacy)
@@ -30,6 +31,7 @@ This document consolidates the functional documentation for all backend modules.
 
 ```mermaid
 flowchart LR
+    M0["M0 Demo"]
     M1["M1 Gateway"]
     M2["M2 Intake"]
     M13["M13 ASR"]
@@ -42,6 +44,7 @@ flowchart LR
     M9["M9 Storage"]
     M10["M10 Audit"]
 
+    M0 --> M1
     M1 --> M2
     M1 --> M13
     M1 --> M3
@@ -64,6 +67,19 @@ flowchart LR
     M7 --> M8
     M8 --> M10
 ```
+
+---
+
+## M0 Demo
+
+Provides pre-built candidate fixtures for hackathon demonstration. Loads realistic candidate payloads from JSON files and runs them through the existing pipeline without any modifications to M2-M7 modules.
+
+| File | Responsibility |
+|---|---|
+| `backend/app/modules/m0_demo/fixtures/*.json` | 14 pre-built candidate payloads covering all programs |
+| `backend/app/modules/m0_demo/schemas.py` | `FixtureMeta`, `FixtureSummary`, `FixtureDetail` contracts |
+| `backend/app/modules/m0_demo/service.py` | Fixture loading, caching, and payload parsing |
+| `backend/app/modules/m0_demo/router.py` | Demo API endpoints: list, detail, and pipeline run |
 
 ---
 
@@ -367,20 +383,21 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Purpose
 
-`M8` is reserved for the reviewer-facing dashboard API.
+`M8` exposes the reviewer-facing dashboard API.
 
 ### Current State
 
-- placeholder only in this branch;
-- intended to expose ranking lists, candidate detail views, and reviewer actions.
+- implemented in this branch;
+- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, and safe reviewer identity projection;
+- requires reviewer API key access before returning reviewer-facing data.
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | Future dashboard routes |
-| `backend/app/modules/m8_dashboard/service.py` | Future dashboard logic |
-| `backend/app/modules/m8_dashboard/schemas.py` | Future dashboard contracts |
+| `backend/app/modules/m8_dashboard/router.py` | Reviewer-facing read routes and override entrypoint |
+| `backend/app/modules/m8_dashboard/service.py` | Safe reviewer projection logic and dashboard aggregation |
+| `backend/app/modules/m8_dashboard/schemas.py` | Reviewer DTOs for stats, lists, detail, and shortlist |
 
 ---
 
@@ -410,20 +427,21 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Purpose
 
-`M10` is reserved for audit logging and reviewer action traceability.
+`M10` handles audit logging and reviewer action traceability.
 
 ### Current State
 
-- placeholder only in this branch;
-- intended to store decision overrides, reviewer actions, and pipeline audit events.
+- implemented in this branch;
+- stores decision overrides, reviewer actions, and pipeline audit events;
+- exposes candidate action endpoints and a reviewer-facing audit feed.
 
 ### Files
 
 | File | Responsibility |
 |---|---|
 | `backend/app/modules/m10_audit/logger.py` | Future audit logging helpers |
-| `backend/app/modules/m10_audit/service.py` | Future audit service |
-| `backend/app/modules/m10_audit/router.py` | Future audit routes |
+| `backend/app/modules/m10_audit/service.py` | Override workflows, reviewer action writes, and audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | Reviewer action and audit feed routes |
 
 ---
 

@@ -16,6 +16,7 @@ from .client import GroqTranscriptionClient
 from .embeddings import clamp, tokenize
 from .extractor import HeuristicSignalExtractor
 from .gemini_client import GeminiSignalClient, SignalGroupSpec
+from .groq_llm_client import GroqSignalClient
 from .schemas import M5ExtractionRequest
 from .source_bundle import SourceBundle, build_source_bundle, default_evidence, keyword_signal
 
@@ -131,13 +132,27 @@ class GroupedNLPSignalExtractionService:
         self,
         extractor: HeuristicSignalExtractor | None = None,
         transcription_client: GroqTranscriptionClient | None = None,
-        llm_client: GeminiSignalClient | None = None,
+        llm_client: GeminiSignalClient | GroqSignalClient | None = None,
         enable_llm: bool | None = None,
     ) -> None:
         self.extractor = extractor or HeuristicSignalExtractor()
         self.transcription_client = transcription_client or GroqTranscriptionClient()
-        self.llm_client = llm_client or GeminiSignalClient()
+        self.llm_client = llm_client or self._build_default_llm_client()
         self.enable_llm = self.llm_client.enabled if enable_llm is None else bool(enable_llm and self.llm_client.enabled)
+
+    @staticmethod
+    def _build_default_llm_client() -> GeminiSignalClient | GroqSignalClient:
+        """Pick the best available LLM client: Groq first (higher rate limits), Gemini as fallback."""
+        groq_client = GroqSignalClient()
+        if groq_client.enabled:
+            logger.info("M5 LLM backend: Groq (%s)", groq_client.primary_model)
+            return groq_client
+        gemini_client = GeminiSignalClient()
+        if gemini_client.enabled:
+            logger.info("M5 LLM backend: Gemini (%s)", gemini_client.primary_model)
+            return gemini_client
+        logger.warning("M5 LLM backend: none (heuristic-only mode)")
+        return gemini_client
 
     def extract_signals(self, request: M5ExtractionRequest) -> SignalEnvelope:
         return self.extract_signal_groups(request).envelope
@@ -365,7 +380,7 @@ class GroupedNLPSignalExtractionService:
         return list(dict.fromkeys(data_flags))
 
     def _resolve_model_version(self, request: M5ExtractionRequest, llm_used: bool) -> str:
-        if llm_used and request.m5_model_version == "heuristic-gemini-v1":
+        if llm_used:
             return f"{self.llm_client.primary_model}:grouped-v1"
         return request.m5_model_version
 

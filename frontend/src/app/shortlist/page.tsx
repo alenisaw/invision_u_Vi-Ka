@@ -1,16 +1,37 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import StatusBadge from "@/components/dashboard/StatusBadge";
-import { MOCK_CANDIDATES } from "@/lib/mock-data";
+import { reviewerApi } from "@/lib/api";
 import { formatPercent, formatDate } from "@/lib/utils";
+import type { CandidateListItem } from "@/types";
 
 export default function ShortlistPage() {
-  const shortlisted = MOCK_CANDIDATES.filter((c) => c.shortlist_eligible).sort(
-    (a, b) => b.review_priority_index - a.review_priority_index
-  );
+  const [shortlisted, setShortlisted] = useState<CandidateListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void loadShortlist();
+  }, []);
+
+  async function loadShortlist() {
+    setLoading(true);
+    setError("");
+
+    try {
+      setShortlisted(await reviewerApi.listShortlist());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Не удалось загрузить шорт-лист.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
@@ -36,6 +57,26 @@ export default function ShortlistPage() {
               </button>
             </div>
 
+            {loading ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                  Загружаем шорт-лист...
+                </p>
+              </div>
+            ) : error ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600] mb-4">{error}</p>
+                <button onClick={() => void loadShortlist()} className="btn btn--dark btn--sm">
+                  Повторить
+                </button>
+              </div>
+            ) : shortlisted.length === 0 ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                  В шорт-листе пока нет кандидатов
+                </p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {shortlisted.map((candidate) => (
                 <Link
@@ -93,6 +134,7 @@ export default function ShortlistPage() {
                 </Link>
               ))}
             </div>
+            )}
           </div>
         </main>
       </div>

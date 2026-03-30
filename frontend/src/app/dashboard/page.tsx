@@ -1,29 +1,57 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import FilterPanel from "@/components/dashboard/FilterPanel";
 import RankingTable from "@/components/dashboard/RankingTable";
-import { MOCK_CANDIDATES, MOCK_STATS } from "@/lib/mock-data";
+import { reviewerApi } from "@/lib/api";
 import { formatPercent } from "@/lib/utils";
-import type { RecommendationStatus } from "@/types";
+import type { DashboardStats, RecommendationStatus, CandidateListItem } from "@/types";
 
 const STATUS_LABELS: Record<RecommendationStatus, string> = {
-  STRONG_RECOMMEND: "Настоятельно рекомендованы",
+  STRONG_RECOMMEND: "Сильная рекомендация",
   RECOMMEND: "Рекомендованы",
-  REVIEW_NEEDED: "Нужна проверка",
-  LOW_SIGNAL: "Мало данных",
-  MANUAL_REVIEW: "Ручная проверка",
+  WAITLIST: "Лист ожидания",
+  DECLINED: "Отклонены",
 };
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState<RecommendationStatus | "ALL">("ALL");
   const [sort, setSort] = useState("rpi_desc");
   const [search, setSearch] = useState("");
 
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [nextStats, nextCandidates] = await Promise.all([
+        reviewerApi.getDashboardStats(),
+        reviewerApi.listDashboardCandidates(),
+      ]);
+
+      setStats(nextStats);
+      setCandidates(nextCandidates);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Не удалось загрузить данные дашборда.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filtered = useMemo(() => {
-    let result = [...MOCK_CANDIDATES];
+    let result = [...candidates];
 
     if (filter !== "ALL") {
       result = result.filter((c) => c.recommendation_status === filter);
@@ -53,9 +81,7 @@ export default function DashboardPage() {
     }
 
     return result;
-  }, [filter, sort, search]);
-
-  const stats = MOCK_STATS;
+  }, [candidates, filter, sort, search]);
 
   return (
     <>
@@ -74,6 +100,23 @@ export default function DashboardPage() {
               Панель оценки кандидатов с помощью ИИ для приёмной комиссии inVision U
             </p>
 
+            {loading && !stats ? (
+              <DashboardStateCard
+                title="Загружаем данные кандидатов"
+                description="Подтягиваем статистику, рейтинг и reviewer-данные из backend."
+              />
+            ) : error && !stats ? (
+              <DashboardStateCard
+                title="Не удалось загрузить дашборд"
+                description={error}
+                action={
+                  <button onClick={() => void loadDashboard()} className="btn btn--dark btn--sm">
+                    Повторить
+                  </button>
+                }
+              />
+            ) : stats ? (
+              <>
             {/* Summary strip */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
               <SummaryCard label="Всего" value={stats.total_candidates} />
@@ -111,10 +154,32 @@ export default function DashboardPage() {
             <div className="mt-6">
               <RankingTable candidates={filtered} />
             </div>
+              </>
+            ) : null}
           </div>
         </main>
       </div>
     </>
+  );
+}
+
+function DashboardStateCard({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="card p-12 text-center">
+      <h2 className="text-[1.1rem] font-[800] mb-3">{title}</h2>
+      <p className="text-[0.9rem] mb-6" style={{ color: "var(--brand-muted)" }}>
+        {description}
+      </p>
+      {action}
+    </div>
   );
 }
 

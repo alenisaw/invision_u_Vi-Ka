@@ -7,7 +7,7 @@ from app.core.dependencies import get_db
 from app.modules.m1_gateway.orchestrator import PipelineOrchestrator
 from app.modules.m2_intake.schemas import CandidateIntakeRequest
 from app.modules.m6_scoring.schemas import SignalEnvelope
-from app.schemas.common import error_response, success_response
+from app.schemas.common import success_response
 
 router = APIRouter(prefix="/api/v1/pipeline", tags=["pipeline"])
 

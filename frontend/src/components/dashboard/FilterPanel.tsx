@@ -4,11 +4,10 @@ import type { RecommendationStatus } from "@/types";
 
 const FILTER_OPTIONS: { value: RecommendationStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "Все кандидаты" },
-  { value: "STRONG_RECOMMEND", label: "Рекомендованы" },
-  { value: "RECOMMEND", label: "К рассмотрению" },
-  { value: "REVIEW_NEEDED", label: "Требуют проверки" },
-  { value: "LOW_SIGNAL", label: "Мало данных" },
-  { value: "MANUAL_REVIEW", label: "Ручная проверка" },
+  { value: "STRONG_RECOMMEND", label: "Сильная рекомендация" },
+  { value: "RECOMMEND", label: "Рекомендованы" },
+  { value: "WAITLIST", label: "Лист ожидания" },
+  { value: "DECLINED", label: "Отклонены" },
 ];
 
 const SORT_OPTIONS = [
@@ -55,6 +54,7 @@ export default function FilterPanel({
           placeholder="Поиск кандидатов..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
+          data-testid="dashboard-search-input"
           className="px-4 py-[0.92rem] text-[0.82rem] font-[700] rounded-[1rem] outline-none"
           style={{
             border: "1px solid rgba(20, 20, 20, 0.1)",

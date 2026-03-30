@@ -1,25 +1,15 @@
 export type RecommendationStatus =
   | "STRONG_RECOMMEND"
   | "RECOMMEND"
-  | "REVIEW_NEEDED"
-  | "LOW_SIGNAL"
-  | "MANUAL_REVIEW";
+  | "WAITLIST"
+  | "DECLINED";
 
 export type ReviewRecommendation =
   | "FAST_TRACK_REVIEW"
   | "STANDARD_REVIEW"
   | "REQUIRES_MANUAL_REVIEW";
 
-export interface SubScores {
-  leadership_potential: number;
-  growth_trajectory: number;
-  motivation_clarity: number;
-  initiative_agency: number;
-  learning_agility: number;
-  communication_clarity: number;
-  ethical_reasoning: number;
-  program_fit: number;
-}
+export type SubScores = Record<string, number>;
 
 export interface CandidateScore {
   candidate_id: string;
@@ -70,6 +60,7 @@ export interface ExplainabilityReport {
   candidate_id: string;
   scoring_version: string;
   selected_program: string;
+  program_id: string;
   recommendation_status: RecommendationStatus;
   review_priority_index: number;
   confidence: number;
@@ -98,6 +89,8 @@ export interface CandidateListItem {
 }
 
 export interface CandidateDetail {
+  candidate_id: string;
+  name: string;
   score: CandidateScore;
   explanation: ExplainabilityReport;
 }
@@ -110,6 +103,21 @@ export interface ReviewerAction {
   previous_status: string;
   new_status: string;
   comment: string;
+  created_at: string;
+}
+
+export interface AuditFeedItem {
+  id: string;
+  entity_type: string;
+  entity_id: string | null;
+  candidate_id: string | null;
+  action_type: string;
+  actor: string;
+  reviewer_id: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  comment: string | null;
+  details: Record<string, unknown>;
   created_at: string;
 }
 
@@ -127,4 +135,29 @@ export interface ApiResponse<T> {
   data: T;
   error: { code: string; message: string; details?: Record<string, unknown> } | null;
   meta: { timestamp: string; version: string };
+}
+
+export interface PipelineResult {
+  candidate_id: string;
+  pipeline_status: string;
+  score: CandidateScore;
+  completeness: number;
+  data_flags: string[];
+}
+
+export interface FixtureMeta {
+  slug: string;
+  display_name: string;
+  program: string;
+  language: string;
+  essay_preview: string;
+}
+
+export interface FixtureSummary {
+  meta: FixtureMeta;
+}
+
+export interface FixtureDetail {
+  meta: FixtureMeta;
+  payload: Record<string, unknown>;
 }
