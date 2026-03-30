@@ -1,55 +1,247 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
+import PipelineProgress from "@/components/candidate/PipelineProgress";
 import { pipelineApi } from "@/lib/api";
 
+type Tab = "form" | "json";
+
+const PROGRAMS = [
+  "Цифровые медиа и маркетинг",
+  "Инновационные цифровые продукты и сервисы",
+  "Креативная инженерия",
+  "Социология инноваций и лидерства",
+  "Стратегии государственного управления и развития",
+  "General Admissions",
+];
+
+const EXAM_TYPES = ["IELTS", "TOEFL", "Kaztest", ""];
+
+interface TestAnswer {
+  question_id: string;
+  answer: string;
+}
+
+interface FormState {
+  first_name: string;
+  last_name: string;
+  patronymic: string;
+  date_of_birth: string;
+  gender: string;
+  citizenship: string;
+  selected_program: string;
+  language_exam_type: string;
+  language_score: string;
+  essay_text: string;
+  video_url: string;
+  project_descriptions: string[];
+  experience_summary: string;
+  answers: TestAnswer[];
+  phone: string;
+  telegram: string;
+  has_social_benefit: boolean;
+  benefit_type: string;
+}
+
+const INITIAL_FORM: FormState = {
+  first_name: "",
+  last_name: "",
+  patronymic: "",
+  date_of_birth: "",
+  gender: "",
+  citizenship: "KZ",
+  selected_program: PROGRAMS[0],
+  language_exam_type: "IELTS",
+  language_score: "",
+  essay_text: "",
+  video_url: "",
+  project_descriptions: [""],
+  experience_summary: "",
+  answers: [{ question_id: "q1", answer: "" }],
+  phone: "",
+  telegram: "",
+  has_social_benefit: false,
+  benefit_type: "",
+};
+
+const PIPELINE_STEP_COUNT = 7;
+const STEP_INTERVAL_MS = 1800;
+
+function buildPayload(form: FormState): Record<string, unknown> {
+  return {
+    personal: {
+      first_name: form.first_name,
+      last_name: form.last_name,
+      ...(form.patronymic ? { patronymic: form.patronymic } : {}),
+      date_of_birth: form.date_of_birth,
+      ...(form.gender ? { gender: form.gender } : {}),
+      ...(form.citizenship ? { citizenship: form.citizenship } : {}),
+    },
+    contacts: {
+      ...(form.phone ? { phone: form.phone } : {}),
+      ...(form.telegram ? { telegram: form.telegram } : {}),
+    },
+    academic: {
+      selected_program: form.selected_program,
+      ...(form.language_exam_type ? { language_exam_type: form.language_exam_type } : {}),
+      ...(form.language_score ? { language_score: parseFloat(form.language_score) } : {}),
+    },
+    content: {
+      ...(form.essay_text ? { essay_text: form.essay_text } : {}),
+      ...(form.video_url ? { video_url: form.video_url } : {}),
+      project_descriptions: form.project_descriptions.filter(Boolean),
+      ...(form.experience_summary ? { experience_summary: form.experience_summary } : {}),
+    },
+    internal_test: {
+      answers: form.answers.filter((a) => a.answer.trim()),
+    },
+    social_status: {
+      has_social_benefit: form.has_social_benefit,
+      ...(form.has_social_benefit && form.benefit_type ? { benefit_type: form.benefit_type } : {}),
+    },
+  };
+}
+
+function wordCount(text: string): number {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
 export default function UploadPage() {
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("form");
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [jsonInput, setJsonInput] = useState("");
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [showPreview, setShowPreview] = useState(false);
+
+  const [status, setStatus] = useState<"idle" | "running" | "completed" | "error">("idle");
+  const [pipelineStep, setPipelineStep] = useState(0);
   const [message, setMessage] = useState("");
   const [candidateId, setCandidateId] = useState("");
 
-  async function handleSubmit() {
-    if (!jsonInput.trim()) return;
+  const updateField = useCallback(
+    <K extends keyof FormState>(key: K, value: FormState[K]) => {
+      setForm((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
 
-    setStatus("submitting");
+  const isFormValid =
+    form.first_name.trim() &&
+    form.last_name.trim() &&
+    form.date_of_birth &&
+    form.selected_program;
+
+  async function runPipeline(payload: unknown) {
+    setStatus("running");
+    setPipelineStep(0);
     setCandidateId("");
+    setMessage("");
+
+    let currentStep = 0;
+    const timer = setInterval(() => {
+      currentStep += 1;
+      if (currentStep < PIPELINE_STEP_COUNT) {
+        setPipelineStep(currentStep);
+      }
+    }, STEP_INTERVAL_MS);
+
     try {
-      const parsed = JSON.parse(jsonInput);
-      const result = await pipelineApi.submitCandidate(parsed);
-      setStatus("success");
+      const result = await pipelineApi.submitCandidate(payload);
+      clearInterval(timer);
+      setPipelineStep(PIPELINE_STEP_COUNT);
+      setStatus("completed");
       setCandidateId(result.candidate_id);
-      setMessage(`Кандидат успешно отправлен. Пайплайн завершён со статусом ${result.pipeline_status}.`);
-      setJsonInput("");
+      setMessage(`Пайплайн завершён: ${result.pipeline_status}`);
+      setTimeout(() => router.push(`/dashboard/${result.candidate_id}`), 1500);
     } catch (err) {
+      clearInterval(timer);
       setStatus("error");
-      setMessage(
-        err instanceof Error ? err.message : "Неверный формат JSON. Проверьте введённые данные.",
-      );
+      setMessage(err instanceof Error ? err.message : "Ошибка обработки");
+    }
+  }
+
+  function handleFormSubmit() {
+    if (!isFormValid) return;
+    runPipeline(buildPayload(form));
+  }
+
+  function handleJsonSubmit() {
+    if (!jsonInput.trim()) return;
+    try {
+      runPipeline(JSON.parse(jsonInput));
+    } catch {
+      setStatus("error");
+      setMessage("Неверный формат JSON");
     }
   }
 
   async function handleBatchSubmit() {
     if (!jsonInput.trim()) return;
-
-    setStatus("submitting");
-    setCandidateId("");
+    setStatus("running");
+    setPipelineStep(0);
     try {
       const parsed = JSON.parse(jsonInput);
-      if (!Array.isArray(parsed)) {
-        throw new Error("Пакетная отправка ожидает JSON-массив");
-      }
+      if (!Array.isArray(parsed)) throw new Error("Ожидается JSON-массив");
       const result = await pipelineApi.submitBatch(parsed);
-      setStatus("success");
-      setMessage(`${result.length} кандидатов отправлено на пакетную обработку.`);
-      setJsonInput("");
+      setStatus("completed");
+      setPipelineStep(PIPELINE_STEP_COUNT);
+      setMessage(`${result.length} кандидатов обработано.`);
     } catch (e) {
       setStatus("error");
-      setMessage(e instanceof Error ? e.message : "Неверный формат JSON.");
+      setMessage(e instanceof Error ? e.message : "Ошибка");
     }
+  }
+
+  function handleReset() {
+    setStatus("idle");
+    setMessage("");
+    setCandidateId("");
+    setPipelineStep(0);
+  }
+
+  // -- Helpers for dynamic lists --
+
+  function addProject() {
+    updateField("project_descriptions", [...form.project_descriptions, ""]);
+  }
+
+  function removeProject(idx: number) {
+    updateField(
+      "project_descriptions",
+      form.project_descriptions.filter((_, i) => i !== idx),
+    );
+  }
+
+  function updateProject(idx: number, value: string) {
+    updateField(
+      "project_descriptions",
+      form.project_descriptions.map((p, i) => (i === idx ? value : p)),
+    );
+  }
+
+  function addAnswer() {
+    updateField("answers", [
+      ...form.answers,
+      { question_id: `q${form.answers.length + 1}`, answer: "" },
+    ]);
+  }
+
+  function removeAnswer(idx: number) {
+    updateField(
+      "answers",
+      form.answers.filter((_, i) => i !== idx),
+    );
+  }
+
+  function updateAnswer(idx: number, field: "question_id" | "answer", value: string) {
+    updateField(
+      "answers",
+      form.answers.map((a, i) => (i === idx ? { ...a, [field]: value } : a)),
+    );
   }
 
   return (
@@ -65,127 +257,359 @@ export default function UploadPage() {
             >
               Загрузка кандидата
             </h1>
-            <p className="text-[0.95rem] mb-8" style={{ color: "var(--brand-muted)" }}>
-              Отправьте данные кандидата в формате JSON для запуска пайплайна оценки ИИ
+            <p className="text-[0.95rem] mb-6" style={{ color: "var(--brand-muted)" }}>
+              Заполните анкету или загрузите JSON для запуска пайплайна оценки
             </p>
 
-            <div className="card p-6 mb-6">
-              <div className="eyebrow mb-4">JSON-данные кандидата</div>
-              <textarea
-                value={jsonInput}
-                onChange={(e) => {
-                  setJsonInput(e.target.value);
-                  setStatus("idle");
-                  setCandidateId("");
-                }}
-                placeholder={`{
-  "personal": { "last_name": "...", "first_name": "...", ... },
-  "academic": { "selected_program": "...", ... },
-  "content": { "essay_text": "...", "video_url": "...", ... },
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6">
+              {(["form", "json"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setTab(t); handleReset(); }}
+                  className="chip"
+                  style={{
+                    background: tab === t ? "var(--brand-ink)" : "rgba(20, 20, 20, 0.05)",
+                    color: tab === t ? "#fff" : "var(--brand-muted-strong)",
+                  }}
+                >
+                  {t === "form" ? "Анкета" : "JSON"}
+                </button>
+              ))}
+            </div>
+
+            {/* Pipeline progress */}
+            {status !== "idle" && (
+              <div className="card card--dark p-5 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[0.82rem] font-[700]" style={{ color: "#fff" }}>
+                    {status === "running"
+                      ? "Обработка кандидата..."
+                      : status === "completed"
+                        ? "Готово! Переход к результатам..."
+                        : `Ошибка: ${message}`}
+                  </div>
+                  {(status === "error" || status === "completed") && (
+                    <button
+                      onClick={handleReset}
+                      className="text-[0.78rem] font-[600]"
+                      style={{ color: "rgba(255,255,255,0.6)" }}
+                    >
+                      Закрыть
+                    </button>
+                  )}
+                </div>
+                <PipelineProgress status={status} currentStep={pipelineStep} />
+                {status === "completed" && candidateId && (
+                  <div className="flex gap-3 mt-4">
+                    <Link href={`/dashboard/${candidateId}`} className="btn btn--sm" style={{ background: "var(--brand-lime)", color: "#000" }}>
+                      Открыть карточку
+                    </Link>
+                    <Link href="/dashboard" className="btn btn--ghost btn--sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      Перейти в рейтинг
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* === FORM TAB === */}
+            {tab === "form" && (
+              <>
+                {/* Section 1: Personal */}
+                <FormSection title="Личные данные" required>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormInput label="Фамилия *" value={form.last_name} onChange={(v) => updateField("last_name", v)} />
+                    <FormInput label="Имя *" value={form.first_name} onChange={(v) => updateField("first_name", v)} />
+                    <FormInput label="Отчество" value={form.patronymic} onChange={(v) => updateField("patronymic", v)} />
+                    <FormInput label="Дата рождения *" type="date" value={form.date_of_birth} onChange={(v) => updateField("date_of_birth", v)} />
+                    <FormSelect label="Пол" value={form.gender} onChange={(v) => updateField("gender", v)} options={[
+                      { value: "", label: "Не указан" },
+                      { value: "male", label: "Мужской" },
+                      { value: "female", label: "Женский" },
+                    ]} />
+                    <FormInput label="Гражданство" value={form.citizenship} onChange={(v) => updateField("citizenship", v)} placeholder="KZ" />
+                  </div>
+                </FormSection>
+
+                {/* Section 2: Academic */}
+                <FormSection title="Образование">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormSelect label="Программа *" value={form.selected_program} onChange={(v) => updateField("selected_program", v)} options={PROGRAMS.map((p) => ({ value: p, label: p }))} />
+                    <FormSelect label="Языковой экзамен" value={form.language_exam_type} onChange={(v) => updateField("language_exam_type", v)} options={EXAM_TYPES.map((t) => ({ value: t, label: t || "Не сдавал" }))} />
+                    {form.language_exam_type && (
+                      <FormInput label="Балл" type="number" value={form.language_score} onChange={(v) => updateField("language_score", v)} placeholder="0.0 – 9.0" />
+                    )}
+                  </div>
+                </FormSection>
+
+                {/* Section 3: Content */}
+                <FormSection title="Контент">
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted-strong)" }}>Эссе</label>
+                        <span className="text-[0.76rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                          {wordCount(form.essay_text)} слов
+                        </span>
+                      </div>
+                      <textarea
+                        value={form.essay_text}
+                        onChange={(e) => updateField("essay_text", e.target.value)}
+                        placeholder="Напишите мотивационное эссе (3–5 абзацев)..."
+                        rows={8}
+                        className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-y"
+                        style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)", lineHeight: 1.7 }}
+                      />
+                    </div>
+                    <FormInput label="Ссылка на видео-интервью" value={form.video_url} onChange={(v) => updateField("video_url", v)} placeholder="https://..." />
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted-strong)" }}>Проекты</label>
+                        <button onClick={addProject} className="text-[0.78rem] font-[700]" style={{ color: "var(--brand-blue)" }}>+ Добавить</button>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {form.project_descriptions.map((p, i) => (
+                          <div key={i} className="flex gap-2">
+                            <input
+                              value={p}
+                              onChange={(e) => updateProject(i, e.target.value)}
+                              placeholder={`Проект ${i + 1}: описание...`}
+                              className="flex-1 px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none"
+                              style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+                            />
+                            {form.project_descriptions.length > 1 && (
+                              <button onClick={() => removeProject(i)} className="text-[0.82rem] font-[600] px-2" style={{ color: "var(--brand-coral)" }}>×</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <FormInput label="Краткое описание опыта" value={form.experience_summary} onChange={(v) => updateField("experience_summary", v)} placeholder="Опыт, навыки, достижения..." />
+                  </div>
+                </FormSection>
+
+                {/* Section 4: Internal Test */}
+                <FormSection title="Внутренний тест">
+                  <div className="flex flex-col gap-3">
+                    {form.answers.map((a, i) => (
+                      <div key={i} className="card p-4" style={{ background: "rgba(20,20,20,0.02)" }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[0.78rem] font-[700]" style={{ color: "var(--brand-muted)" }}>
+                            Вопрос {a.question_id}
+                          </span>
+                          {form.answers.length > 1 && (
+                            <button onClick={() => removeAnswer(i)} className="text-[0.78rem] font-[600]" style={{ color: "var(--brand-coral)" }}>Удалить</button>
+                          )}
+                        </div>
+                        <textarea
+                          value={a.answer}
+                          onChange={(e) => updateAnswer(i, "answer", e.target.value)}
+                          placeholder="Ваш ответ..."
+                          rows={3}
+                          className="w-full px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none resize-y"
+                          style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)", lineHeight: 1.6 }}
+                        />
+                      </div>
+                    ))}
+                    <button onClick={addAnswer} className="text-[0.82rem] font-[700] self-start" style={{ color: "var(--brand-blue)" }}>
+                      + Добавить вопрос
+                    </button>
+                  </div>
+                </FormSection>
+
+                {/* Section 5: Optional */}
+                <CollapsibleSection title="Дополнительно (необязательно)">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormInput label="Телефон" value={form.phone} onChange={(v) => updateField("phone", v)} placeholder="+7..." />
+                    <FormInput label="Telegram" value={form.telegram} onChange={(v) => updateField("telegram", v)} placeholder="@username" />
+                    <div className="sm:col-span-2 flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer text-[0.84rem] font-[600]">
+                        <input
+                          type="checkbox"
+                          checked={form.has_social_benefit}
+                          onChange={(e) => updateField("has_social_benefit", e.target.checked)}
+                          className="accent-[#3dedf1] w-4 h-4"
+                        />
+                        Социальный статус
+                      </label>
+                      {form.has_social_benefit && (
+                        <input
+                          value={form.benefit_type}
+                          onChange={(e) => updateField("benefit_type", e.target.value)}
+                          placeholder="Тип льготы..."
+                          className="flex-1 px-3 py-2 rounded-[1rem] text-[0.84rem] font-[500] outline-none"
+                          style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </CollapsibleSection>
+
+                {/* Preview JSON toggle */}
+                <div className="mt-4 mb-2">
+                  <button
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="text-[0.82rem] font-[700]"
+                    style={{ color: "var(--brand-muted)" }}
+                  >
+                    {showPreview ? "Скрыть JSON" : "Показать JSON"}
+                  </button>
+                  {showPreview && (
+                    <pre
+                      className="mt-2 px-4 py-3 rounded-[1rem] text-[0.78rem] font-mono overflow-x-auto max-h-[300px] overflow-y-auto"
+                      style={{ background: "rgba(20, 20, 20, 0.04)", border: "1px solid rgba(20, 20, 20, 0.06)" }}
+                    >
+                      {JSON.stringify(buildPayload(form), null, 2)}
+                    </pre>
+                  )}
+                </div>
+
+                {/* Submit */}
+                <div className="flex gap-3 mt-4 mb-8">
+                  <button
+                    onClick={handleFormSubmit}
+                    disabled={!isFormValid || status === "running"}
+                    data-testid="submit-candidate-button"
+                    className="btn btn--dark"
+                    style={{
+                      opacity: !isFormValid || status === "running" ? 0.4 : 1,
+                      cursor: !isFormValid || status === "running" ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Отправить на оценку
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* === JSON TAB === */}
+            {tab === "json" && (
+              <div className="card p-6 mb-6">
+                <div className="eyebrow mb-4">JSON-данные кандидата</div>
+                <textarea
+                  value={jsonInput}
+                  onChange={(e) => { setJsonInput(e.target.value); handleReset(); }}
+                  placeholder={`{
+  "personal": { "last_name": "...", "first_name": "...", "date_of_birth": "2007-01-01" },
+  "academic": { "selected_program": "..." },
+  "content": { "essay_text": "...", "video_url": "..." },
   "internal_test": { "answers": [...] }
 }`}
-                rows={16}
-                data-testid="candidate-json-input"
-                className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-y font-mono"
-                style={{
-                  border: "1px solid rgba(20, 20, 20, 0.1)",
-                  background: "rgba(255, 255, 255, 0.82)",
-                  lineHeight: 1.6,
-                }}
-              />
-
-              {status !== "idle" && (
-                <div
-                  className="mt-4 rounded-[var(--radius-md)] px-4 py-3 text-[0.88rem] font-[600]"
-                  style={{
-                    background:
-                      status === "success"
-                        ? "rgba(193, 241, 29, 0.18)"
-                        : status === "error"
-                          ? "rgba(255, 142, 112, 0.14)"
-                          : "rgba(61, 237, 241, 0.12)",
-                    color:
-                      status === "success"
-                        ? "#415005"
-                        : status === "error"
-                          ? "#ac472e"
-                          : "#0a6a6d",
-                  }}
-                >
-                  {status === "submitting" ? "Обработка..." : message}
+                  rows={16}
+                  data-testid="candidate-json-input"
+                  className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-y font-mono"
+                  style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)", lineHeight: 1.6 }}
+                />
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={handleJsonSubmit}
+                    disabled={!jsonInput.trim() || status === "running"}
+                    data-testid="submit-json-button"
+                    className="btn btn--dark"
+                    style={{
+                      opacity: !jsonInput.trim() || status === "running" ? 0.4 : 1,
+                      cursor: !jsonInput.trim() || status === "running" ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Отправить
+                  </button>
+                  <button
+                    onClick={handleBatchSubmit}
+                    disabled={!jsonInput.trim() || status === "running"}
+                    className="btn"
+                    style={{
+                      opacity: !jsonInput.trim() || status === "running" ? 0.4 : 1,
+                      cursor: !jsonInput.trim() || status === "running" ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Пакетная отправка
+                  </button>
                 </div>
-              )}
-
-              {status === "success" && candidateId ? (
-                <div className="mt-3 flex items-center gap-3">
-                  <Link href={`/dashboard/${candidateId}`} className="btn btn--dark btn--sm">
-                    Открыть карточку
-                  </Link>
-                  <Link href="/dashboard" className="btn btn--ghost btn--sm">
-                    Перейти в рейтинг
-                  </Link>
-                </div>
-              ) : null}
-
-              <div className="flex gap-3 mt-5">
-                <button
-                  onClick={handleSubmit}
-                  disabled={!jsonInput.trim() || status === "submitting"}
-                  data-testid="submit-candidate-button"
-                  className="btn btn--dark"
-                  style={{
-                    opacity: !jsonInput.trim() || status === "submitting" ? 0.4 : 1,
-                    cursor: !jsonInput.trim() || status === "submitting" ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Отправить
-                </button>
-                <button
-                  onClick={handleBatchSubmit}
-                  disabled={!jsonInput.trim() || status === "submitting"}
-                  className="btn"
-                  style={{
-                    opacity: !jsonInput.trim() || status === "submitting" ? 0.4 : 1,
-                    cursor: !jsonInput.trim() || status === "submitting" ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Пакетная отправка
-                </button>
               </div>
-            </div>
-
-            <div className="card card--dark p-6">
-              <div className="text-[0.76rem] font-[800] uppercase tracking-[0.12em] mb-3 opacity-60">
-                Этапы пайплайна
-              </div>
-              <div className="flex flex-wrap gap-2 items-center text-[0.82rem] font-[700]">
-                {[
-                  "M2 Intake",
-                  "M3 Privacy",
-                  "M4 Profile",
-                  "M13 ASR",
-                  "M5 NLP",
-                  "M6 Scoring",
-                  "M7 Explain",
-                ].map((step, i) => (
-                  <span key={step} className="flex items-center gap-2">
-                    <span
-                      className="px-3 py-1.5 rounded-full text-[0.78rem]"
-                      style={{
-                        background: "rgba(193, 241, 29, 0.18)",
-                        color: "#c1f11d",
-                      }}
-                    >
-                      {step}
-                    </span>
-                    {i < 6 && <span style={{ color: "rgba(255,255,255,0.3)" }}>&rarr;</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </main>
       </div>
     </>
+  );
+}
+
+/* ---------- Reusable form sub-components ---------- */
+
+function FormSection({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="card p-5 mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="eyebrow">{title}</div>
+        {required && <span className="text-[0.7rem] font-[700] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255, 142, 112, 0.14)", color: "#ac472e" }}>обязательно</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function FormInput({ label, value, onChange, type = "text", placeholder }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-[0.82rem] font-[700] mb-1.5" style={{ color: "var(--brand-muted-strong)" }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none"
+        style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+        {...(type === "number" ? { step: "0.5", min: "0", max: "120" } : {})}
+      />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <label className="block text-[0.82rem] font-[700] mb-1.5" style={{ color: "var(--brand-muted-strong)" }}>
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none appearance-none"
+        style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card p-5 mb-4">
+      <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full">
+        <div className="eyebrow">{title}</div>
+        <span className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted)" }}>
+          {open ? "−" : "+"}
+        </span>
+      </button>
+      {open && <div className="mt-4">{children}</div>}
+    </div>
   );
 }

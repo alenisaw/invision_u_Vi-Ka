@@ -7,6 +7,7 @@
 - [Overview](#overview)
 - [Response Envelope](#response-envelope)
 - [System Endpoints](#system-endpoints)
+- [Demo Endpoints](#demo-endpoints)
 - [Candidate Intake Endpoints](#candidate-intake-endpoints)
 - [Pipeline Endpoints](#pipeline-endpoints)
 - [Diagram 1. Full Pipeline Endpoint Flow](#diagram-1-full-pipeline-endpoint-flow)
@@ -73,6 +74,43 @@ Returns application metadata.
 ### `GET /health`
 
 Returns a lightweight health response.
+
+---
+
+## Demo Endpoints
+
+### `GET /api/v1/demo/candidates`
+
+Lists all available demo candidate fixtures with metadata.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "meta": {
+        "slug": "aisha-strong-leader",
+        "display_name": "Аиша Нурланова",
+        "archetype": "strong",
+        "expected_outcome": "STRONG_RECOMMEND",
+        "description": "Сильный кандидат с ярко выраженным лидерством...",
+        "program": "Цифровые медиа и маркетинг",
+        "language": "ru"
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/v1/demo/candidates/{slug}`
+
+Returns a single fixture with its full payload.
+
+### `POST /api/v1/demo/candidates/{slug}/run`
+
+Loads the fixture payload and runs it through the full pipeline (`M2 → M13 → M3 → M4 → M5 → M6 → M7`). Returns the same result structure as `POST /api/v1/pipeline/submit`.
 
 ---
 

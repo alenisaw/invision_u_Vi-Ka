@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ClipboardList, Star, Upload, type LucideIcon } from "lucide-react";
+import { BarChart3, ClipboardList, Star, Upload, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,6 +11,7 @@ interface SidebarLink {
 }
 
 const LINKS: SidebarLink[] = [
+  { href: "/candidates", label: "Кандидаты", icon: Users },
   { href: "/dashboard", label: "Рейтинг", icon: BarChart3 },
   { href: "/shortlist", label: "Шорт-лист", icon: Star },
   { href: "/upload", label: "Загрузка", icon: Upload },

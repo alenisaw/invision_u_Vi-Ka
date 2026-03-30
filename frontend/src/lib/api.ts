@@ -4,6 +4,8 @@ import type {
   CandidateDetail,
   CandidateListItem,
   DashboardStats,
+  FixtureDetail,
+  FixtureSummary,
   PipelineResult,
   RecommendationStatus,
   ReviewerAction,
@@ -91,4 +93,13 @@ export const pipelineApi = {
     api.post<PipelineResult>("/api/backend/pipeline/submit", body),
   submitBatch: (body: unknown[]) =>
     api.post<PipelineResult[]>("/api/backend/pipeline/batch", body),
+};
+
+export const demoApi = {
+  listFixtures: () =>
+    api.get<FixtureSummary[]>("/api/backend/demo/candidates"),
+  getFixture: (slug: string) =>
+    api.get<FixtureDetail>(`/api/backend/demo/candidates/${slug}`),
+  runFixture: (slug: string) =>
+    api.post<PipelineResult>(`/api/backend/demo/candidates/${slug}/run`, {}),
 };

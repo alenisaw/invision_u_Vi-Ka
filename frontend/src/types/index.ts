@@ -144,3 +144,22 @@ export interface PipelineResult {
   completeness: number;
   data_flags: string[];
 }
+
+export interface FixtureMeta {
+  slug: string;
+  display_name: string;
+  archetype: string;
+  expected_outcome: RecommendationStatus;
+  description: string;
+  program: string;
+  language: string;
+}
+
+export interface FixtureSummary {
+  meta: FixtureMeta;
+}
+
+export interface FixtureDetail {
+  meta: FixtureMeta;
+  payload: Record<string, unknown>;
+}

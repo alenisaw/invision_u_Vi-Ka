@@ -6,6 +6,7 @@
 
 - [Overview](#overview)
 - [Diagram 1. Module Interaction Map](#diagram-1-module-interaction-map)
+- [M0 Demo](#m0-demo)
 - [M1 Gateway](#m1-gateway)
 - [M2 Intake](#m2-intake)
 - [M3 Privacy](#m3-privacy)
@@ -30,6 +31,7 @@ This document consolidates the functional documentation for all backend modules.
 
 ```mermaid
 flowchart LR
+    M0["M0 Demo"]
     M1["M1 Gateway"]
     M2["M2 Intake"]
     M13["M13 ASR"]
@@ -42,6 +44,7 @@ flowchart LR
     M9["M9 Storage"]
     M10["M10 Audit"]
 
+    M0 --> M1
     M1 --> M2
     M1 --> M13
     M1 --> M3
@@ -64,6 +67,29 @@ flowchart LR
     M7 --> M8
     M8 --> M10
 ```
+
+---
+
+## M0 Demo
+
+Provides pre-built candidate fixtures for hackathon demonstration. Loads realistic candidate payloads from JSON files and runs them through the existing pipeline without any modifications to M2-M7 modules.
+
+| File | Responsibility |
+|---|---|
+| `backend/app/modules/m0_demo/fixtures/*.json` | 14 pre-built candidate payloads covering all archetypes and programs |
+| `backend/app/modules/m0_demo/schemas.py` | `FixtureMeta`, `FixtureSummary`, `FixtureDetail` contracts |
+| `backend/app/modules/m0_demo/service.py` | Fixture loading, caching, and payload parsing |
+| `backend/app/modules/m0_demo/router.py` | Demo API endpoints: list, detail, and pipeline run |
+
+### Fixture Archetypes
+
+| Archetype | Count | Expected Outcome |
+|---|---|---|
+| `strong` | 4 | `STRONG_RECOMMEND` |
+| `balanced` | 4 | `RECOMMEND` |
+| `weak` | 2 | `WAITLIST` |
+| `risky` | 2 | `WAITLIST` or `RECOMMEND` |
+| `incomplete` | 2 | `DECLINED` |
 
 ---
 

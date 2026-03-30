@@ -22,6 +22,7 @@ from app.schemas.common import error_response
 logger = logging.getLogger(__name__)
 
 ROUTER_MODULES = (
+    "app.modules.m0_demo.router",
     "app.modules.m1_gateway.router",
     "app.modules.m2_intake.router",
     "app.modules.m8_dashboard.router",
