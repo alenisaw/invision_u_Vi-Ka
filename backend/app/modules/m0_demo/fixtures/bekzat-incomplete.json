@@ -3,8 +3,6 @@
     "slug": "bekzat-incomplete",
     "display_name": "Бекзат Серикулы",
     "archetype": "incomplete",
-    "expected_outcome": "DECLINED",
-    "description": "Крайне неполная анкета: нет эссе, нет видео, минимум данных. Edge case для тестирования graceful degradation.",
     "program": "General Admissions",
     "language": "ru"
   },

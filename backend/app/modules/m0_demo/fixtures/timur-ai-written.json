@@ -3,8 +3,6 @@
     "slug": "timur-ai-written",
     "display_name": "Тимур Алиев",
     "archetype": "risky",
-    "expected_outcome": "WAITLIST",
-    "description": "Подозрительно идеальное эссе — шаблонный язык, общие фразы, признаки AI-генерации. Тест для AI-детектора модуля M5.",
     "program": "Инновационные цифровые продукты и сервисы",
     "language": "ru"
   },

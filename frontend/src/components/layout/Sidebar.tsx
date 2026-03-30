@@ -11,7 +11,7 @@ interface SidebarLink {
 }
 
 const LINKS: SidebarLink[] = [
-  { href: "/candidates", label: "Кандидаты", icon: Users },
+  { href: "/candidates", label: "Анкеты кандидатов", icon: Users },
   { href: "/dashboard", label: "Рейтинг", icon: BarChart3 },
   { href: "/shortlist", label: "Шорт-лист", icon: Star },
   { href: "/upload", label: "Загрузка", icon: Upload },

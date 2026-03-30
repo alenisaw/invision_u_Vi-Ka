@@ -53,10 +53,10 @@ export default function DemoCard({
       </div>
 
       <p
-        className="text-[0.84rem] font-[500] line-clamp-3"
+        className="text-[0.84rem] font-[500] line-clamp-3 italic"
         style={{ color: "var(--brand-muted-strong)" }}
       >
-        {meta.description}
+        {meta.essay_preview}
       </p>
 
       <div className="flex items-center gap-2 text-[0.76rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
@@ -65,12 +65,6 @@ export default function DemoCard({
           style={{ background: "rgba(20, 20, 20, 0.05)" }}
         >
           {meta.language.toUpperCase()}
-        </span>
-        <span
-          className="px-2 py-0.5 rounded-full"
-          style={{ background: "rgba(20, 20, 20, 0.05)" }}
-        >
-          {meta.expected_outcome.replace(/_/g, " ")}
         </span>
       </div>
 

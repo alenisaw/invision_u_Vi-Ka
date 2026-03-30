@@ -14,10 +14,9 @@ class FixtureMeta(BaseModel):
     slug: str
     display_name: str
     archetype: str
-    expected_outcome: str
-    description: str
     program: str
     language: str = "ru"
+    essay_preview: str = ""
 
 
 class FixtureSummary(BaseModel):

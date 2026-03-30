@@ -3,8 +3,6 @@
     "slug": "diana-high-gpa-low-fit",
     "display_name": "Диана Нурпеисова",
     "archetype": "risky",
-    "expected_outcome": "RECOMMEND",
-    "description": "Высокий академический уровень, но эссе слабо связано с выбранной программой. Тест на program fit scoring.",
     "program": "General Admissions",
     "language": "ru"
   },

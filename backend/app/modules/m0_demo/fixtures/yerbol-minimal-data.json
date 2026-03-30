@@ -3,8 +3,6 @@
     "slug": "yerbol-minimal-data",
     "display_name": "Ербол Кайратулы",
     "archetype": "incomplete",
-    "expected_outcome": "DECLINED",
-    "description": "Минимальные данные с коротким эссе. Нет видео, нет проектов, один ответ на тест. Edge case.",
     "program": "Креативная инженерия",
     "language": "kk"
   },

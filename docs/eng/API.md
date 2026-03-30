@@ -94,10 +94,9 @@ Example response:
         "slug": "aisha-strong-leader",
         "display_name": "Аиша Нурланова",
         "archetype": "strong",
-        "expected_outcome": "STRONG_RECOMMEND",
-        "description": "Сильный кандидат с ярко выраженным лидерством...",
         "program": "Цифровые медиа и маркетинг",
-        "language": "ru"
+        "language": "ru",
+        "essay_preview": "С детства меня привлекала сила историй. Когда мне было двенадцать лет, я начала вести блог о жизни нашего двора..."
       }
     }
   ]

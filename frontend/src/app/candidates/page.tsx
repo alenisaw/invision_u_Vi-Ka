@@ -42,7 +42,7 @@ export default function CandidatesPage() {
         !q ||
         m.display_name.toLowerCase().includes(q) ||
         m.program.toLowerCase().includes(q) ||
-        m.description.toLowerCase().includes(q);
+        m.essay_preview.toLowerCase().includes(q);
       const matchesArchetype = filterArchetype === "all" || m.archetype === filterArchetype;
       return matchesSearch && matchesArchetype;
     });

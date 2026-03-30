@@ -22,7 +22,7 @@ class TestListFixtures:
         assert len(fixtures) >= 12, f"Expected at least 12 fixtures, got {len(fixtures)}"
 
     def test_each_fixture_has_required_meta_fields(self, svc: DemoFixtureService) -> None:
-        required_fields = {"slug", "display_name", "archetype", "expected_outcome", "description", "program", "language"}
+        required_fields = {"slug", "display_name", "archetype", "program", "language", "essay_preview"}
         for f in svc.list_fixtures():
             meta_dict = f.meta.model_dump()
             missing = required_fields - set(meta_dict.keys())
@@ -34,9 +34,13 @@ class TestListFixtures:
             assert m.slug, "slug is empty"
             assert m.display_name, f"{m.slug}: display_name is empty"
             assert m.archetype, f"{m.slug}: archetype is empty"
-            assert m.expected_outcome, f"{m.slug}: expected_outcome is empty"
-            assert m.description, f"{m.slug}: description is empty"
             assert m.program, f"{m.slug}: program is empty"
+            assert m.essay_preview, f"{m.slug}: essay_preview is empty"
+
+    def test_no_expected_outcome_in_meta(self, svc: DemoFixtureService) -> None:
+        for f in svc.list_fixtures():
+            meta_dict = f.meta.model_dump()
+            assert "expected_outcome" not in meta_dict, f"{f.meta.slug}: should not have expected_outcome"
 
     def test_slugs_are_unique(self, svc: DemoFixtureService) -> None:
         slugs = [f.meta.slug for f in svc.list_fixtures()]
@@ -48,12 +52,6 @@ class TestListFixtures:
         missing = expected - archetypes
         assert not missing, f"Missing archetypes: {missing}"
 
-    def test_expected_outcomes_are_valid(self, svc: DemoFixtureService) -> None:
-        valid = {"STRONG_RECOMMEND", "RECOMMEND", "WAITLIST", "DECLINED"}
-        for f in svc.list_fixtures():
-            assert f.meta.expected_outcome in valid, (
-                f"{f.meta.slug}: invalid expected_outcome '{f.meta.expected_outcome}'"
-            )
 
 
 class TestGetFixture:

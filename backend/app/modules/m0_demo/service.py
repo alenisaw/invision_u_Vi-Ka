@@ -37,8 +37,15 @@ def _load_all_fixtures() -> dict[str, dict]:
     return fixtures
 
 
+_PREVIEW_LENGTH = 120
+
+
 def _extract_meta(raw: dict) -> FixtureMeta:
-    return FixtureMeta(**raw["_meta"])
+    meta_fields = dict(raw["_meta"])
+    essay = (raw.get("content") or {}).get("essay_text") or ""
+    preview = essay[:_PREVIEW_LENGTH].rstrip() + ("..." if len(essay) > _PREVIEW_LENGTH else "")
+    meta_fields["essay_preview"] = preview or "Эссе отсутствует"
+    return FixtureMeta(**meta_fields)
 
 
 def _strip_meta(raw: dict) -> dict:
