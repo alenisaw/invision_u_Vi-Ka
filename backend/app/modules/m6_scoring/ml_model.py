@@ -16,7 +16,7 @@ from .io_utils import ensure_trusted_artifact_path
 from .program_policy import normalize_program_id
 from .rules import MODIFIER_SIGNAL_NAMES, get_scoring_signal_names, get_signal_confidence, get_signal_value
 from .schemas import LabeledEnvelope, SignalEnvelope
-from .m6_scoring_config import PROGRAM_CATALOG
+from .m6_scoring_config import PROGRAM_CATALOG, SUBSCORE_SIGNAL_WEIGHTS
 
 try:
     import joblib
@@ -66,7 +66,8 @@ def build_feature_vector(envelope: SignalEnvelope, sub_scores: dict[str, float],
         "mean_signal_confidence": calculate_mean_signal_confidence(envelope),
         "signal_coverage": calculate_signal_coverage(envelope),
     }
-    feature_values.update(sub_scores)
+    for sub_score_name in SUBSCORE_SIGNAL_WEIGHTS:
+        feature_values[sub_score_name] = sub_scores.get(sub_score_name, 0.0)
     active_program_id = normalize_program_id(envelope.program_id or envelope.selected_program)
     for program_id in sorted(PROGRAM_CATALOG):
         feature_values[f"program__{program_id}"] = 1.0 if active_program_id == program_id else 0.0

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import date, datetime, timezone
 import hashlib
 import hmac
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 from app.core.security import encrypt_json
 from app.modules.m2_intake.schemas import CandidateIntakeRequest, CandidateIntakeResponse
 from app.modules.m9_storage import StorageRepository
@@ -33,11 +37,30 @@ class CandidateIntakeService:
             else None
         )
         if candidate is None:
-            candidate = await self.repository.create_candidate(
-                selected_program=payload.academic.selected_program,
-                pipeline_status="pending",
-                dedupe_key=dedupe_key,
-            )
+            try:
+                candidate = await self.repository.create_candidate(
+                    selected_program=payload.academic.selected_program,
+                    pipeline_status="pending",
+                    dedupe_key=dedupe_key,
+                )
+                await self.repository.flush()
+            except IntegrityError as exc:
+                is_dedupe_conflict = (
+                    exc.orig is not None
+                    and "ix_candidates_dedupe_key" in str(exc.orig)
+                )
+                if not is_dedupe_conflict:
+                    raise
+                logger.info("Concurrent duplicate detected for dedupe_key, recovering")
+                await self.repository.rollback()
+                candidate = await self.repository.get_candidate_by_dedupe_key(dedupe_key)
+                if candidate is None:
+                    raise RuntimeError(
+                        "Duplicate key conflict but candidate not found after rollback"
+                    ) from exc
+                candidate.selected_program = payload.academic.selected_program
+                candidate.pipeline_status = "pending"
+                await self.repository.flush()
         else:
             candidate.selected_program = payload.academic.selected_program
             candidate.pipeline_status = "pending"

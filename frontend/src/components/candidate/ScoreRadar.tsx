@@ -17,11 +17,15 @@ interface ScoreRadarProps {
 }
 
 export default function ScoreRadar({ subScores }: ScoreRadarProps) {
-  const data = Object.entries(subScores).map(([key, value]) => ({
-    dimension: SUB_SCORE_LABELS[key] ?? key,
-    score: Math.round(value * 100),
-    fullMark: 100,
-  }));
+  const data = Object.keys(SUB_SCORE_LABELS).map((key) => {
+    const value = subScores[key] as number | undefined;
+    return {
+      dimension: SUB_SCORE_LABELS[key],
+      score: value != null ? Math.round(value * 100) : 0,
+      missing: value == null,
+      fullMark: 100,
+    };
+  });
 
   return (
     <div className="card p-6">
@@ -31,7 +35,22 @@ export default function ScoreRadar({ subScores }: ScoreRadarProps) {
           <PolarGrid stroke="rgba(20, 20, 20, 0.08)" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fontWeight: 700, fill: "rgba(20, 20, 20, 0.62)" }}
+            tick={({ x, y, payload }: { x: number; y: number; payload: { index: number; value: string } }) => {
+              const isMissing = data[payload.index]?.missing;
+              return (
+                <text
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fontWeight={700}
+                  fill={isMissing ? "rgba(20, 20, 20, 0.28)" : "rgba(20, 20, 20, 0.62)"}
+                  fontStyle={isMissing ? "italic" : undefined}
+                >
+                  {payload.value}
+                </text>
+              );
+            }}
           />
           <PolarRadiusAxis
             angle={90}
@@ -55,10 +74,17 @@ export default function ScoreRadar({ subScores }: ScoreRadarProps) {
               fontSize: "0.82rem",
               fontWeight: 700,
             }}
-            formatter={(value: number) => [`${value}%`, "Балл"]}
+            formatter={(value: number, _name: string, props: { payload?: { missing?: boolean } }) =>
+              props.payload?.missing ? ["Нет данных", ""] : [`${value}%`, "Балл"]
+            }
           />
         </RadarChart>
       </ResponsiveContainer>
+      {data.some((d) => d.missing) && (
+        <p className="text-[0.75rem] font-[600] mt-2 text-center" style={{ color: "var(--brand-muted)" }}>
+          Затенённые оси — недостаточно данных для оценки
+        </p>
+      )}
     </div>
   );
 }

@@ -77,6 +77,26 @@ class TestRedactText:
         result = redact_text(text)
         assert result == text
 
+    def test_preserves_standalone_years(self) -> None:
+        text = "In 2021 I won a national olympiad and in 2023 I graduated."
+        result = redact_text(text)
+        assert result == text
+
+    def test_preserves_numeric_scores(self) -> None:
+        text = "I scored 85 out of 100 on the entrance exam and my GPA is 3.8."
+        result = redact_text(text)
+        assert result == text
+
+    def test_preserves_numeric_ranges(self) -> None:
+        text = "Our team of 5-7 participants aged 16-25 competed in the contest."
+        result = redact_text(text)
+        assert result == text
+
+    def test_preserves_percentages_and_counts(self) -> None:
+        text = "We raised 150000 tenge and helped 30 families, a 40% increase."
+        result = redact_text(text)
+        assert result == text
+
 
 class TestRedactTexts:
     def test_batch_redaction(self) -> None:

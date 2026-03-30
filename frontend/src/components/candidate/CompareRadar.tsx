@@ -27,14 +27,16 @@ interface CompareRadarProps {
 export default function CompareRadar({ candidates }: CompareRadarProps) {
   if (candidates.length === 0) return null;
 
-  const dimensions = Object.keys(candidates[0].subScores);
+  const canonicalKeys = Object.keys(SUB_SCORE_LABELS);
 
-  const data = dimensions.map((key) => {
+  const data = canonicalKeys.map((key) => {
     const row: Record<string, string | number> = {
-      dimension: SUB_SCORE_LABELS[key] ?? key,
+      dimension: SUB_SCORE_LABELS[key],
     };
     candidates.forEach((c, i) => {
-      row[`candidate_${i}`] = Math.round((c.subScores[key] ?? 0) * 100);
+      row[`candidate_${i}`] = c.subScores[key] != null
+        ? Math.round((c.subScores[key] as number) * 100)
+        : 0;
     });
     return row;
   });

@@ -99,9 +99,7 @@ function ComparePageInner() {
   const allDone = states.length > 0 && states.every((s) => s.status === "done");
   const completedResults = states.filter((s) => s.result).map((s) => s.result!);
 
-  const subScoreKeys = completedResults[0]
-    ? Object.keys(completedResults[0].score.sub_scores)
-    : [];
+  const subScoreKeys = Object.keys(SUB_SCORE_LABELS);
 
   return (
     <>
@@ -205,8 +203,18 @@ function ComparePageInner() {
                             {SUB_SCORE_LABELS[key] ?? key}
                           </td>
                           {completedResults.map((r, i) => (
-                            <td key={states[i].slug} className="text-center py-2 px-3 font-[700]">
-                              {formatPercent(r.score.sub_scores[key] ?? 0)}
+                            <td
+                              key={states[i].slug}
+                              className="text-center py-2 px-3 font-[700]"
+                              style={
+                                r.score.sub_scores[key] == null
+                                  ? { color: "var(--brand-muted)", fontStyle: "italic" }
+                                  : undefined
+                              }
+                            >
+                              {r.score.sub_scores[key] != null
+                                ? formatPercent(r.score.sub_scores[key])
+                                : "—"}
                             </td>
                           ))}
                         </tr>

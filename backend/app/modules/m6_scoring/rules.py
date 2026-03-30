@@ -49,7 +49,13 @@ def get_scoring_signal_names() -> set[str]:
 
 
 def compute_sub_scores(envelope: SignalEnvelope) -> dict[str, float]:
-    """Compute the eight main sub-scores from available structured signals."""
+    """Compute sub-scores from available structured signals.
+
+    Sub-scores with zero present signals are omitted from the result
+    so that ``compute_baseline_rpi`` can renormalize weights and avoid
+    treating absent data as 0.0 (the completeness penalty already
+    handles missing-data downgrading).
+    """
 
     sub_scores: dict[str, float] = {}
     for sub_score_name, signal_map in SUBSCORE_SIGNAL_WEIGHTS.items():
@@ -64,19 +70,33 @@ def compute_sub_scores(envelope: SignalEnvelope) -> dict[str, float]:
             weighted_total += signal_value * weight
             present_weight += weight
 
-        sub_scores[sub_score_name] = clamp_score(weighted_total / present_weight) if present_weight else 0.0
+        if present_weight:
+            sub_scores[sub_score_name] = clamp_score(weighted_total / present_weight)
 
     return sub_scores
 
 
 def compute_baseline_rpi(sub_scores: dict[str, float], program_id: str | None = None) -> float:
-    """Compute the deterministic review priority index."""
+    """Compute the deterministic review priority index.
+
+    Only sub-scores actually present in *sub_scores* contribute.  Their
+    weights are renormalized so that the RPI reflects the quality of the
+    data we *do* have rather than being dragged towards zero by absent
+    dimensions.  The completeness penalty applied later already accounts
+    for missing data.
+    """
 
     scoring_weights = get_program_weight_profile(program_id)
-    review_priority_index = 0.0
+    weighted_total = 0.0
+    present_weight_sum = 0.0
     for sub_score_name, weight in scoring_weights.items():
-        review_priority_index += sub_scores.get(sub_score_name, 0.0) * weight
-    return clamp_score(review_priority_index)
+        if sub_score_name in sub_scores:
+            weighted_total += sub_scores[sub_score_name] * weight
+            present_weight_sum += weight
+
+    if not present_weight_sum:
+        return 0.0
+    return clamp_score(weighted_total / present_weight_sum)
 
 
 def apply_missing_data_penalty(score: float, completeness: float) -> float:
