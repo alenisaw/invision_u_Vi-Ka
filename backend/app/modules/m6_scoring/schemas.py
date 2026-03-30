@@ -75,5 +75,3 @@ class LabeledEnvelope(BaseModel):
     target_rpi: float = Field(..., ge=0.0, le=1.0)
 
 
-# File summary: schemas.py
-# Stores compact shared models for M6 input, output, and synthetic labels.

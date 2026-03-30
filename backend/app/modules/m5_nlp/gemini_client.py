@@ -263,5 +263,3 @@ class GeminiSignalClient:
             return 0.0
 
 
-# File summary: gemini_client.py
-# Implements structured Gemini API calls for grouped M5 signal extraction.

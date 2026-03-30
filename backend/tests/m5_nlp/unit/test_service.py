@@ -168,5 +168,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_service.py
-# Covers canonical envelope generation, M6 compatibility, and transcription fallback for M5.

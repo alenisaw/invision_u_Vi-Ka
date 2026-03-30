@@ -15,5 +15,3 @@ class NLPSignalExtractionService(GroupedNLPSignalExtractionService):
 nlp_signal_extraction_service = NLPSignalExtractionService()
 
 
-# File summary: service.py
-# Keeps the legacy import path stable while delegating to the grouped M5 service.

@@ -33,7 +33,11 @@ CORE_SIGNAL_NAMES = {
     "ethical_reasoning",
     "program_alignment",
 }
-FOUNDATION_YEAR_MARKERS = ("foundation year", "foundation", "подготовитель")
+FOUNDATION_YEAR_MARKERS = (
+    "foundation year",
+    "foundation",
+    "\u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u0435\u043b\u044c",
+)
 FOUNDATION_INTERVIEW_CRITERIA = {
     "motivation": ("motivation_clarity", "program_alignment"),
     "goals": ("goal_specificity", "future_goals_alignment"),
@@ -398,5 +402,3 @@ class GroupedNLPSignalExtractionService:
         return any(marker in selected_program for marker in FOUNDATION_YEAR_MARKERS)
 
 
-# File summary: signal_extraction_service.py
-# Provides grouped Gemini-backed M5 extraction with deterministic fallback and a stable M6 handoff.

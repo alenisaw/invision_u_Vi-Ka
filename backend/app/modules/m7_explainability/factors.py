@@ -53,5 +53,3 @@ def caution_block(flag: ExplainabilityCautionFlag) -> CautionBlock:
     )
 
 
-# File summary: factors.py
-# Maps M6 factors and caution flags into reviewer-facing titles, summaries, and actions.

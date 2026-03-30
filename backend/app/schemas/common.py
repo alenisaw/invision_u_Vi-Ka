@@ -48,5 +48,3 @@ def error_response(
     }
 
 
-# File summary: common.py
-# Provides compact success and error response envelope helpers.

@@ -5,7 +5,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import build_audit_event_hash
+from app.core.config import get_settings
 from app.modules.m10_audit.schemas import (
+    AuditChainVerificationResponse,
     AuditFeedItemResponse,
     CandidateOverrideRequest,
     ReviewerActionCreateRequest,
@@ -177,6 +180,58 @@ class AuditService:
         logs = await self.repository.list_audit_logs(limit=limit)
         return [self._audit_feed_item(log) for log in logs]
 
+    async def verify_audit_chain(self, limit: int = 1000) -> AuditChainVerificationResponse:
+        logs = await self.repository.list_signed_audit_logs(limit=limit)
+        if not logs:
+            return AuditChainVerificationResponse(
+                verified=True,
+                verified_count=0,
+                message="No signed audit records were found.",
+            )
+
+        prev_hash: str | None = None
+        verified_count = 0
+        signing_key = get_settings().effective_audit_signing_key
+
+        for log in logs:
+            if log.sequence_no is None or log.event_hash is None:
+                return AuditChainVerificationResponse(
+                    verified=False,
+                    verified_count=verified_count,
+                    failed_sequence_no=log.sequence_no,
+                    failed_event_hash=log.event_hash,
+                    message="Audit chain contains unsigned or incomplete records.",
+                )
+
+            expected_hash = build_audit_event_hash(
+                secret=signing_key,
+                sequence_no=log.sequence_no,
+                prev_hash=prev_hash,
+                entity_type=log.entity_type,
+                entity_id=log.entity_id,
+                action=log.action,
+                actor=log.actor,
+                details=log.details if isinstance(log.details, dict) else {},
+                created_at=log.created_at,
+            )
+            if log.prev_hash != prev_hash or log.event_hash != expected_hash:
+                return AuditChainVerificationResponse(
+                    verified=False,
+                    verified_count=verified_count,
+                    failed_sequence_no=log.sequence_no,
+                    failed_event_hash=log.event_hash,
+                    message="Audit chain verification failed.",
+                )
+
+            prev_hash = log.event_hash
+            verified_count += 1
+
+        return AuditChainVerificationResponse(
+            verified=True,
+            verified_count=verified_count,
+            message="Audit chain verified successfully.",
+        )
+
     async def _get_candidate_or_raise(self, candidate_id: UUID) -> Candidate:
         candidate = await self.repository.get_candidate_with_related(candidate_id)
         if candidate is None:
@@ -203,6 +258,7 @@ class AuditService:
 
         return AuditFeedItemResponse(
             id=log.id,
+            sequence_no=log.sequence_no,
             entity_type=log.entity_type,
             entity_id=log.entity_id,
             candidate_id=candidate_id,
@@ -213,6 +269,9 @@ class AuditService:
             new_status=self._clean_text(details.get("new_status")) or None,
             comment=self._clean_text(details.get("comment")) or None,
             details=details,
+            prev_hash=log.prev_hash,
+            event_hash=log.event_hash,
+            signature_version=log.signature_version,
             created_at=log.created_at,
         )
 

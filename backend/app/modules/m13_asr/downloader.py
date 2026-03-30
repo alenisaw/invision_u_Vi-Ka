@@ -194,5 +194,3 @@ def cleanup_paths(paths: tuple[Path, ...]) -> None:
                 continue
 
 
-# File summary: downloader.py
-# Resolves trusted local media or safely downloads direct media URLs into temp storage.

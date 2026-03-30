@@ -44,3 +44,17 @@ def test_accepts_secure_runtime_configuration() -> None:
 
     assert settings.app_debug is False
     assert settings.is_development is False
+
+
+def test_rejects_unknown_queue_backend() -> None:
+    try:
+        Settings(
+            api_key="reviewer-key-1234567890-abcdef",
+            pii_encryption_key="very-secure-pii-encryption-secret-123456",
+            postgres_password="local-dev-password",
+            pipeline_queue_backend="rabbitmq",
+        )
+    except ValidationError as exc:
+        assert "PIPELINE_QUEUE_BACKEND" in str(exc)
+    else:  # pragma: no cover - defensive failure branch
+        raise AssertionError("Expected invalid queue backend to be rejected")

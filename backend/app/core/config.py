@@ -46,11 +46,19 @@ class Settings(BaseSettings):
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
     backend_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    pipeline_queue_backend: str = "memory"
+    pipeline_queue_name: str = "invisionu:pipeline:jobs"
+    redis_url: str = "redis://localhost:6379/0"
+    pipeline_worker_poll_timeout_seconds: int = Field(default=1, ge=0, le=30)
+    submit_rate_limit_per_minute: int = Field(default=60, ge=1, le=10000)
+    batch_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)
+    reviewer_rate_limit_per_minute: int = Field(default=120, ge=1, le=10000)
 
     api_v1_prefix: str = "/api/v1"
     api_key: str = Field(min_length=24)
     default_reviewer_id: str = Field(default="reviewer_api_client", min_length=3, max_length=100)
     reviewer_api_keys_json: str = ""
+    audit_signing_key: str = ""
 
     postgres_host: str = "localhost"
     postgres_port: int = 5432
@@ -74,6 +82,11 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_audit_signing_key(self) -> str:
+        return self.audit_signing_key.strip() or self.pii_encryption_key
+
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
         if self.app_debug and not self.is_development:
@@ -87,10 +100,21 @@ class Settings(BaseSettings):
                 "PII_ENCRYPTION_KEY must be configured with a strong non-placeholder secret"
             )
 
+        if self.audit_signing_key and _looks_insecure_secret(self.audit_signing_key):
+            raise ValueError(
+                "AUDIT_SIGNING_KEY must be configured with a strong non-placeholder secret"
+            )
+
         if _looks_insecure_secret(self.postgres_password) and not self.is_development:
             raise ValueError(
                 "POSTGRES_PASSWORD must be configured with a non-default secret outside development"
             )
+
+        if self.pipeline_queue_backend not in {"memory", "redis"}:
+            raise ValueError("PIPELINE_QUEUE_BACKEND must be either 'memory' or 'redis'")
+
+        if self.pipeline_queue_backend == "redis" and not self.redis_url.strip():
+            raise ValueError("REDIS_URL must be configured when Redis queue backend is enabled")
 
         return self
 

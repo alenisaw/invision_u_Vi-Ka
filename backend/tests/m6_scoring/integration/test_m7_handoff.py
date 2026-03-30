@@ -34,5 +34,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_m6_m7_handoff.py
-# Covers the prepared handoff payload from M6 into the future M7.

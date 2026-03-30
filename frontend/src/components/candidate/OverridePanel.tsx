@@ -22,7 +22,6 @@ export default function OverridePanel({
   currentStatus,
   onSuccess,
 }: OverridePanelProps) {
-  const [reviewerId, setReviewerId] = useState("committee-reviewer");
   const [newStatus, setNewStatus] = useState<RecommendationStatus>(currentStatus);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -34,7 +33,7 @@ export default function OverridePanel({
   }, [currentStatus]);
 
   async function handleSubmit() {
-    if (!reviewerId.trim() || !comment.trim() || newStatus === currentStatus) {
+    if (!comment.trim() || newStatus === currentStatus) {
       return;
     }
 
@@ -44,7 +43,6 @@ export default function OverridePanel({
 
     try {
       await reviewerApi.overrideCandidateDecision(candidateId, {
-        reviewer_id: reviewerId.trim(),
         new_status: newStatus,
         comment: comment.trim(),
       });
@@ -69,21 +67,6 @@ export default function OverridePanel({
       </p>
 
       <div className="flex flex-col gap-4">
-        <div>
-          <label className="text-[0.82rem] font-[700] block mb-2">Reviewer ID</label>
-          <input
-            type="text"
-            value={reviewerId}
-            onChange={(e) => setReviewerId(e.target.value)}
-            data-testid="reviewer-id-input"
-            className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[600] outline-none"
-            style={{
-              border: "1px solid rgba(20, 20, 20, 0.1)",
-              background: "rgba(255, 255, 255, 0.82)",
-            }}
-          />
-        </div>
-
         <div>
           <label className="text-[0.82rem] font-[700] block mb-2">Новый статус</label>
           <select
@@ -138,7 +121,6 @@ export default function OverridePanel({
           onClick={handleSubmit}
           disabled={
             submitting ||
-            !reviewerId.trim() ||
             !comment.trim() ||
             newStatus === currentStatus
           }
@@ -147,14 +129,12 @@ export default function OverridePanel({
           style={{
             opacity:
               submitting ||
-              !reviewerId.trim() ||
               !comment.trim() ||
               newStatus === currentStatus
                 ? 0.4
                 : 1,
             cursor:
               submitting ||
-              !reviewerId.trim() ||
               !comment.trim() ||
               newStatus === currentStatus
                 ? "not-allowed"

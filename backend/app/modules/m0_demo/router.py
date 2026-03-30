@@ -1,6 +1,10 @@
+# app/modules/m0_demo/router.py
 """
-File: router.py
-Purpose: Demo API endpoints for listing and running pre-built candidate fixtures.
+Demo endpoints for fixture discovery and execution.
+
+Purpose:
+- Return packaged candidate fixtures for demos and testing.
+- Queue fixture payloads through the asynchronous pipeline.
 """
 
 from __future__ import annotations
@@ -41,7 +45,7 @@ async def run_demo_candidate(
     slug: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Load a demo fixture and run it through the full pipeline."""
+    """Load a demo fixture and queue it through the asynchronous pipeline."""
     try:
         payload = _fixture_service.get_fixture_payload(slug)
     except KeyError:
@@ -49,7 +53,9 @@ async def run_demo_candidate(
 
     try:
         orchestrator = PipelineOrchestrator(db)
-        result = await orchestrator.run_pipeline(payload)
-        return success_response(result.to_dict())
+        result = await orchestrator.submit_async(payload, requested_by="demo_fixture")
+        return success_response(result.model_dump(mode="json"))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))

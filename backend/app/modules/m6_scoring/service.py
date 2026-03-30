@@ -426,5 +426,3 @@ class ScoringService:
         return list(dict.fromkeys(top_risks))[:3]
 
 
-# File summary: service.py
-# Exposes the main scoring entry points and keeps M6 orchestration compact.

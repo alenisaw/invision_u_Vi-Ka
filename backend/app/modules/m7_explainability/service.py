@@ -201,5 +201,3 @@ class ExplainabilityService:
         return "Use the explanation bundle as decision support; the final outcome remains with the committee."
 
 
-# File summary: service.py
-# Builds summary, evidence-backed strengths, caution blocks, and reviewer guidance from M6 output.

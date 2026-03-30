@@ -64,5 +64,3 @@ class ASRService:
 asr_service = ASRService()
 
 
-# File summary: service.py
-# Exposes the compact M13 service API used by the main pipeline.

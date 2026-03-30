@@ -42,5 +42,3 @@ def collect_factor_evidence(handoff: ExplainabilityInput, factor_name: str, limi
     return evidence_items
 
 
-# File summary: evidence.py
-# Selects short, source-backed evidence snippets for reviewer-facing explanation blocks.

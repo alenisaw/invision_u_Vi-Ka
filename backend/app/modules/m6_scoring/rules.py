@@ -130,5 +130,3 @@ def map_recommendation_status(score: float, completeness: float) -> str:
     return "DECLINED"
 
 
-# File summary: rules.py
-# Holds score mapping, penalties, and status logic for the M6 baseline.

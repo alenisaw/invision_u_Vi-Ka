@@ -215,5 +215,3 @@ class GroqWhisperTranscriber:
         }
 
 
-# File summary: transcriber.py
-# Calls Groq Whisper Large V3 Turbo via API and normalizes transcript segments.

@@ -94,5 +94,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_service.py
-# Covers summary, positive factors, and reviewer guidance generation for M7.

@@ -74,5 +74,3 @@ class ASRTranscriptResult(BaseModel):
     transcriber_model: str = "whisper-large-v3-turbo"
 
 
-# File summary: schemas.py
-# Defines the compact public contracts for M13 ASR requests, segments, and results.

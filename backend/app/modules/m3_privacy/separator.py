@@ -61,6 +61,25 @@ def _clean_text(text: str | None) -> str | None:
     return cleaned
 
 
+def _compact_mapping(payload: dict[str, Any]) -> dict[str, Any]:
+    compacted: dict[str, Any] = {}
+    for key, value in payload.items():
+        if value is None or value == "":
+            continue
+        if isinstance(value, dict):
+            nested = _compact_mapping(value)
+            if nested:
+                compacted[key] = nested
+            continue
+        if isinstance(value, list):
+            filtered_list = [item for item in value if item not in (None, "", [], {})]
+            if filtered_list:
+                compacted[key] = filtered_list
+            continue
+        compacted[key] = value
+    return compacted
+
+
 def separate(
     payload: CandidateIntakeRequest,
     *,
@@ -91,8 +110,33 @@ def separate(
     parents_dict = payload.parents.model_dump(mode="json")
     known_names = collect_known_names(personal_dict, parents_dict)
 
-    # Layer 1: full PII snapshot (will be encrypted)
-    layer1 = Layer1PII(snapshot=payload.model_dump(mode="json"))
+    # Layer 1: only sensitive administrative fields (will be encrypted)
+    layer1 = Layer1PII(
+        snapshot=_compact_mapping(
+            {
+                "personal": {
+                    "last_name": payload.personal.last_name,
+                    "first_name": payload.personal.first_name,
+                    "patronymic": payload.personal.patronymic,
+                    "date_of_birth": payload.personal.date_of_birth,
+                    "gender": payload.personal.gender,
+                    "citizenship": payload.personal.citizenship,
+                    "iin": payload.personal.iin,
+                    "document_type": payload.personal.document_type,
+                    "document_no": payload.personal.document_no,
+                    "document_authority": payload.personal.document_authority,
+                    "document_date": payload.personal.document_date,
+                },
+                "contacts": payload.contacts.model_dump(mode="json", exclude_none=True),
+                "parents": payload.parents.model_dump(mode="json", exclude_none=True),
+                "address": payload.address.model_dump(mode="json", exclude_none=True),
+                "social_status": payload.social_status.model_dump(
+                    mode="json",
+                    exclude_none=True,
+                ),
+            }
+        )
+    )
 
     # Layer 2: operational metadata only
     layer2 = Layer2Metadata(

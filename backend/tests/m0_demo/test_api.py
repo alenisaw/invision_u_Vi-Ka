@@ -81,21 +81,23 @@ class TestRunDemoCandidate:
         resp = client.post("/api/v1/demo/candidates/nonexistent-slug/run")
         assert resp.status_code == 404
 
-    @patch("app.modules.m1_gateway.orchestrator.PipelineOrchestrator.run_pipeline")
-    def test_valid_slug_calls_pipeline(self, mock_pipeline: MagicMock, client: TestClient) -> None:
+    @patch("app.modules.m1_gateway.orchestrator.PipelineOrchestrator.submit_async")
+    def test_valid_slug_calls_pipeline(self, mock_submit_async: MagicMock, client: TestClient) -> None:
         fake_result = MagicMock()
-        fake_result.to_dict.return_value = {
+        fake_result.model_dump.return_value = {
             "candidate_id": "test-id-123",
-            "pipeline_status": "completed",
-            "score": {},
-            "completeness": 0.85,
-            "data_flags": [],
+            "job_id": "job-id-456",
+            "pipeline_status": "queued",
+            "job_status": "queued",
+            "current_stage": "privacy",
+            "message": "Candidate accepted and queued for asynchronous processing.",
         }
-        mock_pipeline.return_value = fake_result
+        mock_submit_async.return_value = fake_result
 
         resp = client.post("/api/v1/demo/candidates/aisha-strong-leader/run")
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True
         assert body["data"]["candidate_id"] == "test-id-123"
-        mock_pipeline.assert_awaited_once()
+        assert body["data"]["job_status"] == "queued"
+        mock_submit_async.assert_awaited_once()

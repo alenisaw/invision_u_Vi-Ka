@@ -265,5 +265,3 @@ class HeuristicSignalExtractor:
         )
 
 
-# File summary: extractor.py
-# Implements a deterministic baseline extractor for M5 using shared source helpers.

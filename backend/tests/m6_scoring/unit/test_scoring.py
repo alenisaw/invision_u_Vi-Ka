@@ -121,5 +121,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_m6_scoring.py
-# Covers shape, ranking, and the synthetic training path of M6.

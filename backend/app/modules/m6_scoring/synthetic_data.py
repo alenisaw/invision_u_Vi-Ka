@@ -226,5 +226,3 @@ def build_reference_fixtures() -> dict[str, SignalEnvelope]:
     }
 
 
-# File summary: synthetic_data.py
-# Generates compact synthetic fixtures and labeled samples for M6 work.

@@ -82,5 +82,3 @@ def build_quality_summary(transcript: str, segments: list[ASRSegment], duration_
     )
 
 
-# File summary: quality_checker.py
-# Derives explicit ASR quality metrics and review flags from normalized segments.

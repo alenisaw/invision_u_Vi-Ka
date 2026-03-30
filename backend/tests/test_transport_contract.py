@@ -10,7 +10,7 @@ from app.main import app
 
 def test_http_exceptions_use_common_error_envelope() -> None:
     with TestClient(app) as client:
-        response = client.post("/api/v1/pipeline/batch", json=[])
+        response = client.post("/api/v1/pipeline/submit-async/batch", json=[])
 
     assert response.status_code == 422
     body = response.json()

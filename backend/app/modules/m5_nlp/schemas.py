@@ -81,5 +81,3 @@ class M5ExtractionRequest(BaseModel):
         return normalized[:20]
 
 
-# File summary: schemas.py
-# Defines the request shape for M5 extraction and transcription orchestration.

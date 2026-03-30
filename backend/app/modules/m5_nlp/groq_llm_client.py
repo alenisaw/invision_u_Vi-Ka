@@ -222,5 +222,3 @@ class GroqSignalClient:
             return 0.0
 
 
-# File summary: groq_llm_client.py
-# OpenAI-compatible Groq client for M5 signal extraction, same interface as GeminiSignalClient.

@@ -9,17 +9,19 @@
 - [System Endpoints](#system-endpoints)
 - [Demo Endpoints](#demo-endpoints)
 - [Candidate Intake Endpoints](#candidate-intake-endpoints)
-- [Pipeline Endpoints](#pipeline-endpoints)
-- [Diagram 1. Full Pipeline Endpoint Flow](#diagram-1-full-pipeline-endpoint-flow)
+- [Asynchronous Pipeline Endpoints](#asynchronous-pipeline-endpoints)
+- [Diagram 1. Asynchronous Pipeline Flow](#diagram-1-asynchronous-pipeline-flow)
 - [Direct Scoring Endpoints](#direct-scoring-endpoints)
-- [Diagram 2. Reviewer Workflow Surface](#diagram-2-reviewer-workflow-surface)
+- [Reviewer and Audit Endpoints](#reviewer-and-audit-endpoints)
+- [Diagram 2. Reviewer Surface](#diagram-2-reviewer-surface)
 - [Canonical Contracts](#canonical-contracts)
 
 ---
 
 ## Overview
 
-This document lists the endpoints implemented in the current branch. It excludes future endpoints that do not yet exist in code.
+This document describes the endpoints implemented in the current branch.
+The public processing path is asynchronous: the API accepts a candidate payload, creates a persistent job, and returns `candidate_id` plus `job_id` immediately.
 
 Base URL:
 
@@ -37,7 +39,7 @@ Successful response:
   "data": {},
   "error": null,
   "meta": {
-    "timestamp": "2026-03-29T12:00:00Z",
+    "timestamp": "2026-03-30T10:00:00Z",
     "version": "1.0.0"
   }
 }
@@ -55,13 +57,13 @@ Error response:
     "details": {}
   },
   "meta": {
-    "timestamp": "2026-03-29T12:00:00Z",
+    "timestamp": "2026-03-30T10:00:00Z",
     "version": "1.0.0"
   }
 }
 ```
 
-The same envelope is returned for non-2xx API errors such as validation failures, auth failures, and not-found responses.
+The same envelope is used for validation errors, authentication failures, not-found responses, and operational failures.
 
 ---
 
@@ -81,34 +83,28 @@ Returns a lightweight health response.
 
 ### `GET /api/v1/demo/candidates`
 
-Lists all available demo candidate fixtures with metadata.
+Lists all available demo fixtures with lightweight metadata.
+
+### `GET /api/v1/demo/candidates/{slug}`
+
+Returns one demo fixture with the full candidate payload.
+
+### `POST /api/v1/demo/candidates/{slug}/run`
+
+Queues the selected fixture through the same asynchronous pipeline used for real submissions.
 
 Example response:
 
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "meta": {
-        "slug": "aisha-strong-leader",
-        "display_name": "Аиша Нурланова",
-        "program": "Цифровые медиа и маркетинг",
-        "language": "ru",
-        "essay_preview": "С детства меня привлекала сила историй. Когда мне было двенадцать лет, я начала вести блог о жизни нашего двора..."
-      }
-    }
-  ]
+  "candidate_id": "c0e5ce38-6b8b-4f51-a16d-3d5e35501d9b",
+  "job_id": "57a558a0-23ba-4311-a4ce-91b812a31c9a",
+  "pipeline_status": "queued",
+  "job_status": "queued",
+  "current_stage": "privacy",
+  "message": "Pipeline job accepted and queued."
 }
 ```
-
-### `GET /api/v1/demo/candidates/{slug}`
-
-Returns a single fixture with its full payload.
-
-### `POST /api/v1/demo/candidates/{slug}/run`
-
-Loads the fixture payload and runs it through the full pipeline (`M2 → M13 → M3 → M4 → M5 → M6 → M7`). Returns the same result structure as `POST /api/v1/pipeline/submit`.
 
 ---
 
@@ -116,7 +112,7 @@ Loads the fixture payload and runs it through the full pipeline (`M2 → M13 →
 
 ### `POST /api/v1/candidates/intake`
 
-Validates the candidate submission, creates the candidate record, stores encrypted PII and metadata, and returns a `candidate_id`.
+Validates a candidate submission, creates the candidate record, stores protected personal data, stores operational metadata, and returns `candidate_id`.
 
 Example request:
 
@@ -147,51 +143,120 @@ Example request:
 
 ---
 
-## Pipeline Endpoints
+## Asynchronous Pipeline Endpoints
 
-### `POST /api/v1/pipeline/submit`
+### `POST /api/v1/pipeline/submit-async`
 
-Runs the implemented backend flow:
+Accepts one candidate payload, creates a persistent job, and returns immediately.
 
-`M2 -> M13 -> M3 -> M4 -> M5 -> M6 -> M7`
+The asynchronous stage order is:
 
-The response includes:
+`privacy -> asr -> profile -> nlp -> scoring -> explainability`
 
-- `candidate_id`
-- `pipeline_status`
-- `score`
-- `completeness`
-- `data_flags`
+Example response:
 
-### `POST /api/v1/pipeline/batch`
+```json
+{
+  "candidate_id": "c0e5ce38-6b8b-4f51-a16d-3d5e35501d9b",
+  "job_id": "57a558a0-23ba-4311-a4ce-91b812a31c9a",
+  "pipeline_status": "queued",
+  "job_status": "queued",
+  "current_stage": "privacy",
+  "message": "Pipeline job accepted and queued."
+}
+```
 
-Runs the same flow for a list of candidate payloads. The current batch path is processed sequentially.
+### `POST /api/v1/pipeline/submit-async/batch`
+
+Accepts up to `50` candidate payloads and creates one job per payload.
+
+### `GET /api/v1/pipeline/jobs/{job_id}`
+
+Returns the persisted job snapshot with stage runs.
+
+Key fields:
+
+- `status`
+- `current_stage`
+- `attempt_count`
+- `error_code`
+- `error_message`
+- `stage_runs`
+
+### `GET /api/v1/pipeline/jobs/{job_id}/events`
+
+Returns the event timeline for the job.
+
+Typical events:
+
+- `job_queued`
+- `stage_started`
+- `stage_completed`
+- `stage_failed`
+- `job_completed`
+- `job_failed`
+- `job_requires_manual_review`
+
+### `GET /api/v1/pipeline/candidates/{candidate_id}/status`
+
+Returns candidate-level pipeline status plus the latest job snapshot.
+
+### `GET /api/v1/pipeline/queue/metrics`
+
+Reviewer-only operational endpoint.
+
+Returns queue depth, stage counters, retry metrics, failure rate, manual review rate, and aggregated stage timing.
+
+### `GET /api/v1/pipeline/ops/jobs/dead-letter`
+
+Reviewer-only endpoint for dead-letter inspection.
+
+### `GET /api/v1/pipeline/ops/jobs/delayed`
+
+Reviewer-only endpoint for delayed retry inspection.
+
+### `GET /api/v1/pipeline/ops/jobs/{job_id}/inspection`
+
+Reviewer-only endpoint that shows where one job is currently stored, whether it is retryable, and what the current attempt state is.
+
+### `POST /api/v1/pipeline/ops/jobs/{job_id}/retry`
+
+Reviewer-only endpoint that manually requeues a failed or dead-lettered job.
 
 ---
 
-## Diagram 1. Full Pipeline Endpoint Flow
+## Diagram 1. Asynchronous Pipeline Flow
 
 ```mermaid
 sequenceDiagram
     actor Client
-    participant Gateway as M1 Gateway
-    participant Intake as M2
-    participant ASR as M13
-    participant Privacy as M3
-    participant Profile as M4
-    participant NLP as M5
-    participant Score as M6
-    participant Explain as M7
+    participant Gateway as "M1 Gateway"
+    participant Queue as "Redis Queue"
+    participant Worker as "Pipeline Worker"
+    participant Intake as "M2"
+    participant Privacy as "M3"
+    participant ASR as "M13"
+    participant Profile as "M4"
+    participant NLP as "M5"
+    participant Score as "M6"
+    participant Explain as "M7"
+    participant DB as "Postgres"
 
-    Client->>Gateway: POST /api/v1/pipeline/submit
-    Gateway->>Intake: validate and create candidate
-    Gateway->>ASR: optional transcription
-    Gateway->>Privacy: split into layers
-    Gateway->>Profile: build profile
-    Gateway->>NLP: extract signals
-    Gateway->>Score: compute score
-    Gateway->>Explain: build explanation
-    Gateway-->>Client: pipeline result
+    Client->>Gateway: POST /api/v1/pipeline/submit-async
+    Gateway->>DB: create candidate and pipeline job
+    Gateway->>Queue: enqueue job_id
+    Gateway-->>Client: candidate_id + job_id
+    Worker->>Queue: reserve job
+    Worker->>DB: mark running stage
+    Worker->>Privacy: build privacy layers
+    Worker->>ASR: transcribe media if needed
+    Worker->>Profile: build candidate profile
+    Worker->>NLP: extract signals
+    Worker->>Score: compute score
+    Worker->>Explain: build reviewer explanation
+    Worker->>DB: persist outputs and mark completed
+    Client->>Gateway: GET /api/v1/pipeline/jobs/{job_id}
+    Gateway-->>Client: job status and stage runs
 ```
 
 ---
@@ -202,60 +267,13 @@ sequenceDiagram
 
 Scores one candidate from a canonical `SignalEnvelope`.
 
-Example request:
-
-```json
-{
-  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
-  "signal_schema_version": "v1",
-  "m5_model_version": "gemini-2.5-flash:grouped-v1",
-  "selected_program": "Digital Products and Services",
-  "program_id": "digital_products_and_services",
-  "completeness": 0.91,
-  "data_flags": [],
-  "signals": {
-    "leadership_indicators": {
-      "value": 0.82,
-      "confidence": 0.88,
-      "source": ["video_transcript", "essay"],
-      "evidence": ["candidate led a school team project"],
-      "reasoning": "leadership behavior is explicit and concrete"
-    }
-  }
-}
-```
-
-Example response fields:
-
-```json
-{
-  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
-  "sub_scores": {
-    "leadership_potential": 0.82,
-    "growth_trajectory": 0.0,
-    "motivation_clarity": 0.0,
-    "initiative_agency": 0.0,
-    "learning_agility": 0.0,
-    "communication_clarity": 0.0,
-    "ethical_reasoning": 0.0,
-    "program_fit": 0.0
-  },
-  "review_priority_index": 0.63,
-  "recommendation_status": "RECOMMEND",
-  "manual_review_required": false,
-  "human_in_loop_required": false,
-  "uncertainty_flag": false,
-  "review_recommendation": "STANDARD_REVIEW"
-}
-```
-
 ### `POST /api/v1/pipeline/score-signals/batch`
 
 Scores and ranks a batch of `SignalEnvelope` objects.
 
 ### `POST /api/v1/pipeline/score-signals/train-synthetic`
 
-Trains the scoring refinement layer on synthetic data.
+Trains the refinement layer on synthetic data.
 
 Query parameters:
 
@@ -274,25 +292,69 @@ Query parameters:
 
 ---
 
-## Diagram 2. Reviewer Workflow Surface
+## Reviewer and Audit Endpoints
+
+### `GET /api/v1/dashboard/stats`
+
+Returns dashboard summary counters.
+
+### `GET /api/v1/dashboard/candidates`
+
+Returns reviewer-facing ranking rows.
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}`
+
+Returns the full reviewer detail page payload.
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/override`
+
+Creates a reviewer override.
+
+The reviewer identity is derived server-side from the reviewer API key context.
+
+### `GET /api/v1/dashboard/shortlist`
+
+Returns shortlisted candidates.
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/actions`
+
+Creates a non-override reviewer action such as comment or shortlist change.
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}/actions`
+
+Returns reviewer action history for one candidate.
+
+### `GET /api/v1/audit/feed`
+
+Returns the audit feed.
+
+### `GET /api/v1/audit/verify`
+
+Verifies the tamper-evident audit chain.
+
+---
+
+## Diagram 2. Reviewer Surface
 
 ```mermaid
 flowchart TD
-    Ranking["Ranking Page"]
-    Detail["Candidate Detail Page"]
-    Explanation["Explanation Block"]
-    Evidence["Evidence List"]
-    Override["Reviewer Override"]
-    Shortlist["Shortlist Decision"]
-    Audit["Audit Log"]
+    Queue["Queue Metrics"]
+    Ranking["Candidate Ranking"]
+    Detail["Candidate Detail"]
+    Explain["Explanation"]
+    Override["Override Action"]
+    Actions["Reviewer Actions"]
+    Audit["Audit Feed"]
+    Verify["Audit Chain Verification"]
 
+    Queue --> Ranking
     Ranking --> Detail
-    Detail --> Explanation
-    Detail --> Evidence
+    Detail --> Explain
     Detail --> Override
-    Override --> Shortlist
+    Detail --> Actions
     Override --> Audit
-    Shortlist --> Audit
+    Actions --> Audit
+    Audit --> Verify
 ```
 
 ---
@@ -322,7 +384,7 @@ Each signal contains:
 
 ### M6 Output
 
-`M6` emits `CandidateScore` with four primary recommendation categories:
+`M6` emits `CandidateScore` with the primary recommendation categories:
 
 - `STRONG_RECOMMEND`
 - `RECOMMEND`

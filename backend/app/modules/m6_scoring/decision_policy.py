@@ -265,5 +265,3 @@ def apply_decision_policy(
     )
 
 
-# File summary: decision_policy.py
-# Separates class assignment, uncertainty categories, and manual-review routing.

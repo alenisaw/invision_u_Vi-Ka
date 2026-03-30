@@ -423,5 +423,3 @@ if __name__ == "__main__":
     main()
 
 
-# File summary: optimization.py
-# Runs grid search for thresholds, uncertainty routing, calibration, and top recommendations.

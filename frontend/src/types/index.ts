@@ -137,12 +137,61 @@ export interface ApiResponse<T> {
   meta: { timestamp: string; version: string };
 }
 
-export interface PipelineResult {
+export interface PipelineStageRun {
+  id: string;
+  stage_name: string;
+  status: string;
+  attempt_count: number;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  error_code: string | null;
+  error_message: string | null;
+  output_ref: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface PipelineJobEvent {
+  id: string;
+  event_type: string;
+  stage_name: string | null;
+  status: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface PipelineJobStatus {
+  job_id: string;
+  candidate_id: string;
+  job_type: string;
+  status: string;
+  current_stage: string | null;
+  requested_by: string;
+  execution_mode: string;
+  attempt_count: number;
+  error_code: string | null;
+  error_message: string | null;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  payload_schema_version: string | null;
+  stage_runs: PipelineStageRun[];
+}
+
+export interface AsyncPipelineSubmitResponse {
+  candidate_id: string;
+  job_id: string;
+  pipeline_status: string;
+  job_status: string;
+  current_stage: string | null;
+  message: string;
+}
+
+export interface CandidatePipelineStatus {
   candidate_id: string;
   pipeline_status: string;
-  score: CandidateScore;
-  completeness: number;
-  data_flags: string[];
+  selected_program: string | null;
+  latest_job: PipelineJobStatus | null;
 }
 
 export interface FixtureMeta {

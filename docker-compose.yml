@@ -21,6 +21,18 @@ services:
       timeout: 5s
       retries: 12
 
+  redis:
+    image: redis:7-alpine
+    container_name: invisionu_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   backend:
     build:
       context: ./backend
@@ -32,6 +44,7 @@ services:
       APP_DEBUG: ${APP_DEBUG:-false}
       API_KEY: ${API_KEY:?API_KEY must be set}
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set}
+      AUDIT_SIGNING_KEY: ${AUDIT_SIGNING_KEY:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       JINA_API_KEY: ${JINA_API_KEY:-}
@@ -41,6 +54,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-invisionu}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PIPELINE_QUEUE_BACKEND: ${PIPELINE_QUEUE_BACKEND:-redis}
+      PIPELINE_QUEUE_NAME: ${PIPELINE_QUEUE_NAME:-invisionu:pipeline:jobs}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      PIPELINE_WORKER_POLL_TIMEOUT_SECONDS: ${PIPELINE_WORKER_POLL_TIMEOUT_SECONDS:-1}
+      SUBMIT_RATE_LIMIT_PER_MINUTE: ${SUBMIT_RATE_LIMIT_PER_MINUTE:-60}
+      BATCH_RATE_LIMIT_PER_MINUTE: ${BATCH_RATE_LIMIT_PER_MINUTE:-10}
+      REVIEWER_RATE_LIMIT_PER_MINUTE: ${REVIEWER_RATE_LIMIT_PER_MINUTE:-120}
     command:
       [
         "sh",
@@ -51,6 +71,8 @@ services:
       - "8000:8000"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test:
@@ -63,6 +85,46 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+
+  pipeline_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: invisionu_pipeline_worker
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      API_KEY: ${API_KEY:?API_KEY must be set}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?PII_ENCRYPTION_KEY must be set}
+      AUDIT_SIGNING_KEY: ${AUDIT_SIGNING_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      JINA_API_KEY: ${JINA_API_KEY:-}
+      M5_LLM_MODEL: ${M5_LLM_MODEL:-}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-invisionu}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PIPELINE_QUEUE_BACKEND: ${PIPELINE_QUEUE_BACKEND:-redis}
+      PIPELINE_QUEUE_NAME: ${PIPELINE_QUEUE_NAME:-invisionu:pipeline:jobs}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      PIPELINE_WORKER_POLL_TIMEOUT_SECONDS: ${PIPELINE_WORKER_POLL_TIMEOUT_SECONDS:-1}
+      SUBMIT_RATE_LIMIT_PER_MINUTE: ${SUBMIT_RATE_LIMIT_PER_MINUTE:-60}
+      BATCH_RATE_LIMIT_PER_MINUTE: ${BATCH_RATE_LIMIT_PER_MINUTE:-10}
+      REVIEWER_RATE_LIMIT_PER_MINUTE: ${REVIEWER_RATE_LIMIT_PER_MINUTE:-120}
+    command:
+      [
+        "sh",
+        "-c",
+        "python -m alembic upgrade head && python -m app.modules.m1_gateway.worker",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:

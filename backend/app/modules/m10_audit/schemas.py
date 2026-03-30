@@ -42,6 +42,7 @@ class AuditFeedItemResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID
+    sequence_no: int | None = None
     entity_type: str
     entity_id: UUID | None = None
     candidate_id: UUID | None = None
@@ -52,4 +53,17 @@ class AuditFeedItemResponse(BaseModel):
     new_status: str | None = None
     comment: str | None = None
     details: dict[str, Any] = Field(default_factory=dict)
+    prev_hash: str | None = None
+    event_hash: str | None = None
+    signature_version: str | None = None
     created_at: datetime
+
+
+class AuditChainVerificationResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    verified: bool
+    verified_count: int
+    failed_sequence_no: int | None = None
+    failed_event_hash: str | None = None
+    message: str

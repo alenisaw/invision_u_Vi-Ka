@@ -45,5 +45,3 @@ class ScoreCalibrator:
         return max(0.0, min(1.0, round(calibrated, 4)))
 
 
-# File summary: calibration.py
-# Provides an optional monotonic calibration layer for the M6 score.

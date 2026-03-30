@@ -88,6 +88,10 @@ class Candidate(Base):
         back_populates="candidate",
         cascade="all, delete-orphan",
     )
+    pipeline_jobs: Mapped[list[PipelineJob]] = relationship(
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+    )
 
 
 class CandidatePII(TimestampMixin, Base):
@@ -253,6 +257,99 @@ class ReviewerAction(TimestampMixin, Base):
     candidate: Mapped[Candidate] = relationship(back_populates="reviewer_actions")
 
 
+class PipelineJob(Base):
+    __tablename__ = "pipeline_jobs"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    candidate_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False, default="candidate_submission")
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="queued", index=True)
+    current_stage: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    execution_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="async")
+    requested_by: Mapped[str] = mapped_column(String(100), nullable=False, default="system")
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payload_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    queued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    candidate: Mapped[Candidate] = relationship(back_populates="pipeline_jobs")
+    stage_runs: Mapped[list[PipelineStageRun]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="PipelineStageRun.created_at.asc()",
+    )
+    events: Mapped[list[PipelineJobEvent]] = relationship(
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="PipelineJobEvent.created_at.asc()",
+    )
+
+
+class PipelineStageRun(TimestampMixin, Base):
+    __tablename__ = "pipeline_stage_runs"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("pipeline_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stage_name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="queued", index=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    output_ref: Mapped[dict | None] = mapped_column(JSONB, default=dict, nullable=True)
+
+    job: Mapped[PipelineJob] = relationship(back_populates="stage_runs")
+
+
+class PipelineJobEvent(TimestampMixin, Base):
+    __tablename__ = "pipeline_job_events"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("pipeline_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    stage_name: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    status: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+
+    job: Mapped[PipelineJob] = relationship(back_populates="events")
+
+
 class AuditLog(TimestampMixin, Base):
     __tablename__ = "audit_log"
 
@@ -262,6 +359,10 @@ class AuditLog(TimestampMixin, Base):
     action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     actor: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     details: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    sequence_no: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    prev_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    event_hash: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    signature_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Program(TimestampMixin, Base):

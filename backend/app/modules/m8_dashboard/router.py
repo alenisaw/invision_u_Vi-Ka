@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import ReviewerAuthContext, get_db, require_reviewer_api_key
+from app.core.dependencies import ReviewerAuthContext, get_db, require_rate_limited_reviewer
 from app.modules.m10_audit.schemas import CandidateOverrideRequest
 from app.modules.m10_audit.service import AuditService, AuditWorkflowError
 from app.modules.m8_dashboard.service import DashboardService
@@ -20,7 +20,7 @@ router = APIRouter(
 
 @router.get("/stats")
 async def get_dashboard_stats(
-    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
+    reviewer: ReviewerAuthContext = Depends(require_rate_limited_reviewer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     _ = reviewer
@@ -31,7 +31,7 @@ async def get_dashboard_stats(
 
 @router.get("/candidates")
 async def list_dashboard_candidates(
-    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
+    reviewer: ReviewerAuthContext = Depends(require_rate_limited_reviewer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     _ = reviewer
@@ -43,7 +43,7 @@ async def list_dashboard_candidates(
 @router.get("/candidates/{candidate_id}")
 async def get_dashboard_candidate_detail(
     candidate_id: UUID,
-    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
+    reviewer: ReviewerAuthContext = Depends(require_rate_limited_reviewer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     _ = reviewer
@@ -60,7 +60,7 @@ async def get_dashboard_candidate_detail(
 async def override_dashboard_candidate(
     candidate_id: UUID,
     payload: CandidateOverrideRequest,
-    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
+    reviewer: ReviewerAuthContext = Depends(require_rate_limited_reviewer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     service = AuditService(db)
@@ -78,7 +78,7 @@ async def override_dashboard_candidate(
 
 @router.get("/shortlist")
 async def list_dashboard_shortlist(
-    reviewer: ReviewerAuthContext = Depends(require_reviewer_api_key),
+    reviewer: ReviewerAuthContext = Depends(require_rate_limited_reviewer),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     _ = reviewer

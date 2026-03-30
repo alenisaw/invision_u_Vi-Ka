@@ -1,12 +1,15 @@
 import type {
+  AsyncPipelineSubmitResponse,
   ApiResponse,
   AuditFeedItem,
+  CandidatePipelineStatus,
   CandidateDetail,
   CandidateListItem,
   DashboardStats,
   FixtureDetail,
   FixtureSummary,
-  PipelineResult,
+  PipelineJobEvent,
+  PipelineJobStatus,
   RecommendationStatus,
   ReviewerAction,
 } from "@/types";
@@ -74,7 +77,6 @@ export const reviewerApi = {
   overrideCandidateDecision: (
     candidateId: string,
     body: {
-      reviewer_id: string;
       new_status: RecommendationStatus;
       comment: string;
     },
@@ -88,11 +90,53 @@ export const reviewerApi = {
     api.get<AuditFeedItem[]>(`/api/backend/audit/feed?limit=${limit}`),
 };
 
+const PIPELINE_TERMINAL_STATUSES = new Set([
+  "completed",
+  "failed",
+  "requires_manual_review",
+]);
+
+async function waitForCandidateCompletion(
+  candidateId: string,
+  options?: { intervalMs?: number; timeoutMs?: number },
+): Promise<CandidatePipelineStatus> {
+  const intervalMs = Math.max(250, options?.intervalMs ?? 2000);
+  const timeoutMs = Math.max(intervalMs, options?.timeoutMs ?? 120000);
+  const startedAt = Date.now();
+
+  while (true) {
+    const status = await api.get<CandidatePipelineStatus>(
+      `/api/backend/pipeline/candidates/${candidateId}/status`,
+    );
+
+    if (PIPELINE_TERMINAL_STATUSES.has(status.pipeline_status)) {
+      return status;
+    }
+
+    if (Date.now() - startedAt >= timeoutMs) {
+      throw new ApiError(
+        "Timed out while waiting for candidate processing to complete.",
+        408,
+        "PIPELINE_TIMEOUT",
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 export const pipelineApi = {
   submitCandidate: (body: unknown) =>
-    api.post<PipelineResult>("/api/backend/pipeline/submit", body),
+    api.post<AsyncPipelineSubmitResponse>("/api/backend/pipeline/submit-async", body),
   submitBatch: (body: unknown[]) =>
-    api.post<PipelineResult[]>("/api/backend/pipeline/batch", body),
+    api.post<AsyncPipelineSubmitResponse[]>("/api/backend/pipeline/submit-async/batch", body),
+  getJobStatus: (jobId: string) =>
+    api.get<PipelineJobStatus>(`/api/backend/pipeline/jobs/${jobId}`),
+  getJobEvents: (jobId: string) =>
+    api.get<PipelineJobEvent[]>(`/api/backend/pipeline/jobs/${jobId}/events`),
+  getCandidateStatus: (candidateId: string) =>
+    api.get<CandidatePipelineStatus>(`/api/backend/pipeline/candidates/${candidateId}/status`),
+  waitForCandidateCompletion,
 };
 
 export const demoApi = {
@@ -101,5 +145,5 @@ export const demoApi = {
   getFixture: (slug: string) =>
     api.get<FixtureDetail>(`/api/backend/demo/candidates/${slug}`),
   runFixture: (slug: string) =>
-    api.post<PipelineResult>(`/api/backend/demo/candidates/${slug}/run`, {}),
+    api.post<AsyncPipelineSubmitResponse>(`/api/backend/demo/candidates/${slug}/run`, {}),
 };
