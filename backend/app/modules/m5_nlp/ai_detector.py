@@ -72,22 +72,51 @@ def voice_consistency_score(essay_text: str, transcript_text: str) -> float:
     return clamp(0.35 + similarity * 0.65)
 
 
-def ai_writing_risk_score(essay_text: str, transcript_text: str, project_text: str = "") -> float:
-    """Estimate advisory AI-writing risk from genericity and low specificity."""
+def authenticity_risk_score(primary_text: str, supporting_text: str = "", project_text: str = "") -> float:
+    """Estimate advisory authenticity risk from genericity, specificity, and cross-source support."""
 
-    essay_specificity = specificity_score(essay_text)
-    transcript_specificity = specificity_score(transcript_text) if transcript_text else essay_specificity
+    primary_specificity = specificity_score(primary_text)
+    supporting_specificity = specificity_score(supporting_text) if supporting_text else primary_specificity
     project_specificity = specificity_score(project_text) if project_text else 0.50
-    genericity = min(1.0, _generic_phrase_hits(essay_text) / 4) if essay_text else 0.0
-    consistency = voice_consistency_score(essay_text, transcript_text)
+    genericity = min(1.0, _generic_phrase_hits(primary_text) / 4) if primary_text else 0.0
+    cross_source_consistency = (
+        semantic_similarity(primary_text, supporting_text)
+        if primary_text and supporting_text
+        else 0.55
+    )
+    support_specificity = (
+        (supporting_specificity + project_specificity) / 2
+        if supporting_text or project_text
+        else max(primary_specificity, 0.50)
+    )
 
     risk = (
-        0.40 * (1.0 - essay_specificity)
+        0.45 * (1.0 - primary_specificity)
         + 0.25 * genericity
-        + 0.20 * max(0.0, 0.60 - consistency)
-        + 0.15 * max(0.0, 0.55 - ((transcript_specificity + project_specificity) / 2))
+        + 0.15 * max(0.0, 0.58 - cross_source_consistency)
+        + 0.15 * max(0.0, 0.55 - support_specificity)
     )
     return clamp(risk)
+
+
+def ai_writing_risk_score(essay_text: str, transcript_text: str, project_text: str = "") -> float:
+    """Backward-compatible wrapper for essay-centric authenticity checks."""
+
+    return authenticity_risk_score(
+        primary_text=essay_text,
+        supporting_text=transcript_text,
+        project_text=project_text,
+    )
+
+
+def transcript_authenticity_risk_score(transcript_text: str, essay_text: str = "", project_text: str = "") -> float:
+    """Estimate advisory authenticity risk for transcript-first candidates."""
+
+    return authenticity_risk_score(
+        primary_text=transcript_text,
+        supporting_text=essay_text,
+        project_text=project_text,
+    )
 
 
 def authenticity_confidence(essay_text: str, transcript_text: str) -> float:

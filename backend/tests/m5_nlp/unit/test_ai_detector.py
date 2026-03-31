@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from backend.app.modules.m5_nlp.ai_detector import ai_writing_risk_score, authenticity_confidence, specificity_score, voice_consistency_score
+from backend.app.modules.m5_nlp.ai_detector import (
+    ai_writing_risk_score,
+    authenticity_confidence,
+    authenticity_risk_score,
+    specificity_score,
+    transcript_authenticity_risk_score,
+    voice_consistency_score,
+)
 
 
 class AIDetectorTests(unittest.TestCase):
@@ -27,6 +34,19 @@ class AIDetectorTests(unittest.TestCase):
         self.assertLessEqual(risk, 1.0)
         self.assertGreaterEqual(confidence, 0.0)
         self.assertLessEqual(confidence, 1.0)
+
+    def test_transcript_authenticity_risk_supports_transcript_only_cases(self) -> None:
+        risk = transcript_authenticity_risk_score(
+            transcript_text="I am passionate and highly motivated to make an impact.",
+            project_text="Built a school scheduling bot with two classmates.",
+        )
+        generic_risk = authenticity_risk_score(
+            primary_text="I am passionate and highly motivated to make an impact.",
+            project_text="",
+        )
+        self.assertGreaterEqual(risk, 0.0)
+        self.assertLessEqual(risk, 1.0)
+        self.assertLess(risk, generic_risk)
 
 
 if __name__ == "__main__":

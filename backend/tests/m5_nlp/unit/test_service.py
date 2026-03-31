@@ -143,6 +143,45 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertNotIn("insufficient_interview_coverage", envelope.data_flags)
         self.assertNotIn("requires_human_review", envelope.data_flags)
 
+    def test_extract_signals_builds_authenticity_signal_for_transcript_only_case(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.86,
+            selected_program="Digital Media and Marketing",
+            video_transcript=(
+                "I want to study digital media because I already record short interviews, edit videos for school events, "
+                "and test ways to reach new audiences. Last semester I helped our debate club publish weekly clips and "
+                "learned how different formats affect engagement."
+            ),
+            project_descriptions=[
+                "Edited weekly club videos and tracked which clips students actually watched."
+            ],
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("authenticity_risk", envelope.signals)
+        self.assertNotIn("ai_writing_risk", envelope.signals)
+        self.assertEqual(envelope.signals["authenticity_risk"].source[0], "video_transcript")
+
+    def test_extract_signals_recovers_initiative_from_video_transcript(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.90,
+            selected_program="Creative Engineering",
+            video_transcript=(
+                "At school I opened two clubs, organized a robotics кружок, and set up a small makerspace so younger "
+                "students could build simple prototypes after class. Later I ran weekly sessions myself and recruited volunteers."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+        score = ScoringService().score_candidate(envelope)
+
+        self.assertIn("agency_signals", envelope.signals)
+        self.assertIn("self_started_projects", envelope.signals)
+        self.assertGreater(score.sub_scores["initiative_agency"], 0.30)
+
     def test_extract_signals_ignores_exam_scores_and_flags_missing_interview_content(self) -> None:
         """Exam-score mentions should not count as interview-quality evidence."""
 

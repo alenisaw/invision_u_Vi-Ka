@@ -88,6 +88,7 @@ SCORING_SIGNALS = [
 ]
 
 MODIFIER_SIGNALS = [
+    "authenticity_risk",
     "essay_transcript_consistency",
     "claims_evidence_match",
     "ai_writing_risk",
@@ -164,7 +165,10 @@ def _label_envelope(envelope: SignalEnvelope, randomizer: random.Random) -> floa
     leadership_boost = 0.04 if sub_scores.get("leadership_potential", 0.0) >= 0.80 else 0.0
     growth_boost = 0.03 if sub_scores.get("growth_trajectory", 0.0) >= 0.75 else 0.0
     learning_boost = 0.02 if sub_scores.get("learning_agility", 0.0) >= 0.78 else 0.0
-    ai_penalty = -0.08 if (get_signal_value(envelope, "ai_writing_risk", 0.0) or 0.0) >= 0.70 else 0.0
+    authenticity_penalty = -0.08 if max(
+        get_signal_value(envelope, "authenticity_risk", 0.0) or 0.0,
+        get_signal_value(envelope, "ai_writing_risk", 0.0) or 0.0,
+    ) >= 0.70 else 0.0
     consistency_penalty = -0.04 if (get_signal_value(envelope, "essay_transcript_consistency", 1.0) or 1.0) <= 0.35 else 0.0
     completeness_penalty = -0.05 if envelope.completeness < 0.45 else 0.0
     noise = randomizer.uniform(-0.03, 0.03)
@@ -174,7 +178,7 @@ def _label_envelope(envelope: SignalEnvelope, randomizer: random.Random) -> floa
         + leadership_boost
         + growth_boost
         + learning_boost
-        + ai_penalty
+        + authenticity_penalty
         + consistency_penalty
         + completeness_penalty
         + noise
@@ -224,5 +228,4 @@ def build_reference_fixtures() -> dict[str, SignalEnvelope]:
         "incomplete": _generate_envelope("incomplete", randomizer),
         "risky": _generate_envelope("risky", randomizer),
     }
-
 

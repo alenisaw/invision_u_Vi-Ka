@@ -255,11 +255,7 @@ class ScoringService:
             signal_name: ExplainabilitySignalContext(**signal.model_dump())
             for signal_name, signal in envelope.signals.items()
         }
-        data_quality_notes = [
-            f"completeness={score.score_breakdown.get('completeness', 0.0):.2f}",
-            f"signal_coverage={score.score_breakdown.get('signal_coverage', 0.0):.2f}",
-            f"mean_signal_confidence={score.score_breakdown.get('mean_signal_confidence', 0.0):.2f}",
-        ]
+        data_quality_notes = self._build_data_quality_notes(score)
 
         return ExplainabilityInput(
             candidate_id=score.candidate_id,
@@ -386,20 +382,46 @@ class ScoringService:
         severity_map = {
             "low_completeness": "critical",
             "no_structured_signals": "critical",
+            "requires_human_review": "critical",
             "possible_ai_use": "warning",
+            "authenticity_or_ai_risk": "warning",
             "low_cross_source_consistency": "warning",
             "weak_claim_support": "warning",
             "voice_inconsistency": "warning",
             "generic_evidence": "advisory",
         }
+        reason_map = {
+            "low_completeness": "The available material is incomplete, so the score should be treated as provisional rather than low-potential by default.",
+            "no_structured_signals": "The pipeline could not recover enough structured evidence to support a reliable automated reading.",
+            "requires_human_review": "One or more hard quality or policy checks already require reviewer intervention.",
+            "possible_ai_use": "The available narrative shows possible AI-assisted or otherwise low-authenticity patterns, so it should be checked manually.",
+            "authenticity_or_ai_risk": "The available narrative shows possible AI-assisted or otherwise low-authenticity patterns, so it should be checked manually.",
+            "low_cross_source_consistency": "Core claims do not align strongly across essay, transcript, and supporting descriptions.",
+            "weak_claim_support": "Some important claims are not backed by concrete examples or project evidence.",
+            "voice_inconsistency": "Written and spoken narratives do not align strongly enough to trust them without review.",
+            "generic_evidence": "The available narrative relies on broad statements more than concrete examples.",
+        }
         return [
             ExplainabilityCautionFlag(
                 flag=flag,
                 severity=severity_map.get(flag, "advisory"),
-                reason="derived from modifier signals or data flags",
+                reason=reason_map.get(flag, "Derived from modifier signals or data quality flags."),
             )
             for flag in caution_flags
         ]
+
+    def _build_data_quality_notes(self, score: CandidateScore) -> list[str]:
+        """Prepare reviewer-facing data quality notes for the explainability handoff."""
+
+        notes = [
+            f"confidence_band={score.confidence_band}",
+            f"signal_coverage={score.score_breakdown.get('signal_coverage', 0.0):.2f}",
+            f"mean_signal_confidence={score.score_breakdown.get('mean_signal_confidence', 0.0):.2f}",
+            f"completeness={score.score_breakdown.get('completeness', 0.0):.2f}",
+        ]
+        if score.manual_review_required and score.score_breakdown.get("completeness", 1.0) < 0.50:
+            notes.append("The case is routed to manual review because the available evidence is incomplete, not because the candidate was automatically judged as weak.")
+        return notes
 
     def _build_top_strengths(self, sub_scores: dict[str, float]) -> list[str]:
         """Return the strongest sub-score labels for UI display."""

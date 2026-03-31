@@ -11,7 +11,14 @@ from dataclasses import dataclass, field
 from app.modules.m6_scoring.program_policy import normalize_program_id
 from app.modules.m6_scoring.schemas import SignalEnvelope, SignalPayload
 
-from .ai_detector import ai_writing_risk_score, authenticity_confidence, specificity_score, voice_consistency_score
+from .ai_detector import (
+    ai_writing_risk_score,
+    authenticity_confidence,
+    authenticity_risk_score,
+    specificity_score,
+    transcript_authenticity_risk_score,
+    voice_consistency_score,
+)
 from .client import GroqTranscriptionClient
 from .embeddings import clamp, tokenize
 from .extractor import HeuristicSignalExtractor
@@ -85,7 +92,7 @@ SIGNAL_GROUP_SPECS = (
     ),
     SignalGroupSpec(
         name="authenticity",
-        signals=("ai_writing_risk", "voice_consistency", "specificity_score"),
+        signals=("authenticity_risk", "ai_writing_risk", "voice_consistency", "specificity_score"),
         source_fields=("essay", "video_transcript", "project_descriptions"),
         purpose="Assess advisory AI-writing risk, voice consistency, and narrative specificity.",
         model_tier="fast",
@@ -344,6 +351,31 @@ class GroupedNLPSignalExtractionService:
                 source=["essay"] + (["video_transcript"] if sources.video_transcript else []),
                 evidence=default_evidence(sources, ["essay", "video_transcript"]),
                 reasoning="ai-writing risk is advisory and based on genericity, specificity, and voice alignment.",
+            )
+
+        if "authenticity_risk" not in signal_map and (sources.essay or sources.video_transcript):
+            if sources.essay:
+                value = authenticity_risk_score(
+                    primary_text=sources.essay,
+                    supporting_text=sources.video_transcript,
+                    project_text=sources.project_descriptions,
+                )
+                source_names = ["essay", "video_transcript", "project_descriptions"]
+                reasoning = "authenticity risk is advisory and combines essay genericity, cross-source alignment, and supporting detail."
+            else:
+                value = transcript_authenticity_risk_score(
+                    transcript_text=sources.video_transcript,
+                    essay_text=sources.essay,
+                    project_text=sources.project_descriptions,
+                )
+                source_names = ["video_transcript", "project_descriptions"]
+                reasoning = "authenticity risk is advisory and combines spoken genericity, supporting detail, and consistency with other safe sources."
+            signal_map["authenticity_risk"] = SignalPayload(
+                value=value,
+                confidence=authenticity_confidence(sources.essay, sources.video_transcript),
+                source=[name for name in source_names if sources.get(name)],
+                evidence=default_evidence(sources, source_names),
+                reasoning=reasoning,
             )
 
     def _decision_making_signal(self, sources: SourceBundle) -> SignalPayload | None:

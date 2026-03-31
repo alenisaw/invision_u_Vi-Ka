@@ -83,9 +83,9 @@ def apply_missing_data_penalty(score: float, completeness: float) -> float:
     """Apply the agreed completeness penalty after score blending."""
 
     if completeness < 0.50:
-        return clamp_score(score * 0.70)
+        return clamp_score(score * 0.82)
     if completeness < 0.75:
-        return clamp_score(score * 0.85)
+        return clamp_score(score * 0.90)
     return clamp_score(score)
 
 
@@ -94,8 +94,12 @@ def derive_caution_flags(envelope: SignalEnvelope) -> list[str]:
 
     caution_flags = list(dict.fromkeys(envelope.data_flags))
 
-    if (get_signal_value(envelope, "ai_writing_risk", 0.0) or 0.0) >= 0.70:
-        caution_flags.append("possible_ai_use")
+    authenticity_risk = max(
+        get_signal_value(envelope, "authenticity_risk", 0.0) or 0.0,
+        get_signal_value(envelope, "ai_writing_risk", 0.0) or 0.0,
+    )
+    if authenticity_risk >= 0.70:
+        caution_flags.append("authenticity_or_ai_risk")
     if (get_signal_value(envelope, "essay_transcript_consistency", 1.0) or 1.0) <= 0.40:
         caution_flags.append("low_cross_source_consistency")
     if (get_signal_value(envelope, "claims_evidence_match", 1.0) or 1.0) <= 0.40:
@@ -120,7 +124,7 @@ def map_recommendation_status(score: float, completeness: float) -> str:
     """Map the score into one of the four primary score categories."""
 
     if completeness < STATUS_THRESHOLDS["declined_completeness_max"]:
-        return "DECLINED"
+        return "WAITLIST"
     if score >= STATUS_THRESHOLDS["strong_recommend_min"]:
         return "STRONG_RECOMMEND"
     if score >= STATUS_THRESHOLDS["recommend_min"]:
@@ -128,5 +132,3 @@ def map_recommendation_status(score: float, completeness: float) -> str:
     if score >= STATUS_THRESHOLDS["waitlist_min"]:
         return "WAITLIST"
     return "DECLINED"
-
-

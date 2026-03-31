@@ -34,6 +34,58 @@ class HeuristicSignalExtractorTests(unittest.TestCase):
         signals = extractor.extract(M5ExtractionRequest(candidate_id=uuid4(), selected_program="Foundation Year"))
         self.assertEqual(signals, {})
 
+    def test_behavioral_cues_capture_indirect_leadership_and_growth(self) -> None:
+        extractor = HeuristicSignalExtractor()
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            selected_program="Creative Engineering",
+            essay_text=(
+                "When our prototype failed, I rebuilt the plan with the team, redistributed tasks, and kept weekly meetings going "
+                "until we delivered a better version."
+            ),
+            video_transcript=(
+                "At first the group was stuck, so I coordinated the work, listened to each teammate, and helped us recover after mistakes."
+            ),
+        )
+
+        signals = extractor.extract(request)
+
+        self.assertIn("leadership_indicators", signals)
+        self.assertIn("growth_trajectory", signals)
+        self.assertGreater(signals["leadership_indicators"].value, 0.40)
+        self.assertGreater(signals["growth_trajectory"].value, 0.40)
+
+    def test_behavioral_cues_work_for_mixed_language_initiative(self) -> None:
+        extractor = HeuristicSignalExtractor()
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            selected_program="Digital Media and Marketing",
+            video_transcript=(
+                "Я сама opened a school media club, found a teacher adviser, and ran weekly sessions where we recorded short interviews."
+            ),
+        )
+
+        signals = extractor.extract(request)
+
+        self.assertIn("agency_signals", signals)
+        self.assertIn("self_started_projects", signals)
+        self.assertGreater(signals["agency_signals"].value, 0.35)
+
+    def test_self_labels_without_examples_do_not_overinflate_scores(self) -> None:
+        extractor = HeuristicSignalExtractor()
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            selected_program="Foundation Year",
+            essay_text=(
+                "I am a leader, very proactive, highly motivated, responsible, and initiative-driven."
+            ),
+        )
+
+        signals = extractor.extract(request)
+
+        self.assertLess(signals["agency_signals"].value, 0.60)
+        self.assertLess(signals["leadership_indicators"].value, 0.60)
+
 
 if __name__ == "__main__":
     unittest.main()
