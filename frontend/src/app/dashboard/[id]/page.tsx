@@ -166,8 +166,10 @@ export default function CandidateDetailPage({
             <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-6">
               <div className="flex flex-col gap-6">
                 <CandidateCard score={detail.score} />
-                <ExplanationBlock explanation={detail.explanation} />
-                {detail.raw_content && <RawContentSection content={detail.raw_content} />}
+                <ExplanationBlock
+                  explanation={detail.explanation}
+                  insertAfterConclusion={detail.raw_content ? <RawContentSection content={detail.raw_content} /> : undefined}
+                />
               </div>
 
               <div className="flex flex-col gap-6">

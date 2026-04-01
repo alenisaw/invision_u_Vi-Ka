@@ -3,9 +3,10 @@ import EvidenceList from "./EvidenceList";
 
 interface ExplanationBlockProps {
   explanation: ExplainabilityReport;
+  insertAfterConclusion?: React.ReactNode;
 }
 
-export default function ExplanationBlock({ explanation }: ExplanationBlockProps) {
+export default function ExplanationBlock({ explanation, insertAfterConclusion }: ExplanationBlockProps) {
   return (
     <div className="flex flex-col gap-5">
       {/* Заключение ИИ / AI Conclusion */}
@@ -15,6 +16,8 @@ export default function ExplanationBlock({ explanation }: ExplanationBlockProps)
           {explanation.summary}
         </p>
       </div>
+
+      {insertAfterConclusion}
 
       {/* Положительные факторы / Positive Factors */}
       {explanation.positive_factors.length > 0 && (
