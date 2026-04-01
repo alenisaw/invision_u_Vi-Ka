@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import logging
 from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from typing import Any
@@ -9,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import encrypt_json
 from app.modules.m2_intake.schemas import CandidateIntakeRequest, CandidateIntakeResponse
 from app.modules.m9_storage import StorageRepository
+
+logger = logging.getLogger(__name__)
 
 
 LANGUAGE_THRESHOLDS: dict[str, float] = {
@@ -22,10 +26,30 @@ class CandidateIntakeService:
     def __init__(self, session: AsyncSession) -> None:
         self.repository = StorageRepository(session)
 
+    @staticmethod
+    def _compute_dedupe_key(payload: CandidateIntakeRequest) -> str:
+        raw = (
+            f"{payload.personal.first_name.strip().lower()}"
+            f"|{payload.personal.last_name.strip().lower()}"
+            f"|{payload.personal.date_of_birth.isoformat()}"
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
     async def intake_candidate(self, payload: CandidateIntakeRequest) -> CandidateIntakeResponse:
+        dedupe_key = self._compute_dedupe_key(payload)
+        existing = await self.repository.find_candidate_by_dedupe_key(dedupe_key)
+        if existing is not None:
+            logger.info(
+                "Dedup: removing previous candidate %s (dedupe_key=%s)",
+                existing.id,
+                dedupe_key[:12],
+            )
+            await self.repository.delete_candidate(existing.id)
+
         candidate = await self.repository.create_candidate(
             selected_program=payload.academic.selected_program,
             pipeline_status="pending",
+            dedupe_key=dedupe_key,
         )
 
         encrypted_snapshot = encrypt_json(self._build_secure_snapshot(payload))

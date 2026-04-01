@@ -43,6 +43,7 @@ class StorageRepository(Generic[ModelT]):
         selected_program: str | None = None,
         pipeline_status: str = "pending",
         intake_id: UUID | None = None,
+        dedupe_key: str | None = None,
     ) -> Candidate:
         candidate = Candidate(
             selected_program=selected_program,
@@ -50,11 +51,24 @@ class StorageRepository(Generic[ModelT]):
         )
         if intake_id is not None:
             candidate.intake_id = intake_id
+        if dedupe_key is not None:
+            candidate.dedupe_key = dedupe_key
 
         self.session.add(candidate)
         await self.session.flush()
         await self.session.refresh(candidate)
         return candidate
+
+    async def find_candidate_by_dedupe_key(self, dedupe_key: str) -> Candidate | None:
+        stmt = select(Candidate).where(Candidate.dedupe_key == dedupe_key)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete_candidate(self, candidate_id: UUID) -> None:
+        candidate = await self.get_candidate_with_related(candidate_id)
+        if candidate is not None:
+            await self.session.delete(candidate)
+            await self.session.flush()
 
     async def get_candidate(self, candidate_id: UUID) -> Candidate | None:
         stmt = select(Candidate).where(Candidate.id == candidate_id)

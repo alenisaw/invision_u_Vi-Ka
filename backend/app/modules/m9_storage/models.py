@@ -29,6 +29,12 @@ class Candidate(Base):
         index=True,
         nullable=False,
     )
+    dedupe_key: Mapped[str | None] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
     selected_program: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     pipeline_status: Mapped[str] = mapped_column(
         String(50),
