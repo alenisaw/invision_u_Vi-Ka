@@ -21,11 +21,6 @@ const PROGRAMS = [
 
 const EXAM_TYPES = ["IELTS", "TOEFL", "Kaztest", ""];
 
-interface TestAnswer {
-  question_id: string;
-  answer: string;
-}
-
 interface FormState {
   first_name: string;
   last_name: string;
@@ -40,7 +35,6 @@ interface FormState {
   video_url: string;
   project_descriptions: string[];
   experience_summary: string;
-  answers: TestAnswer[];
   phone: string;
   telegram: string;
   has_social_benefit: boolean;
@@ -61,7 +55,6 @@ const INITIAL_FORM: FormState = {
   video_url: "",
   project_descriptions: [""],
   experience_summary: "",
-  answers: [{ question_id: "q1", answer: "" }],
   phone: "",
   telegram: "",
   has_social_benefit: false,
@@ -95,9 +88,6 @@ function buildPayload(form: FormState): Record<string, unknown> {
       ...(form.video_url ? { video_url: form.video_url } : {}),
       project_descriptions: form.project_descriptions.filter(Boolean),
       ...(form.experience_summary ? { experience_summary: form.experience_summary } : {}),
-    },
-    internal_test: {
-      answers: form.answers.filter((a) => a.answer.trim()),
     },
     social_status: {
       has_social_benefit: form.has_social_benefit,
@@ -201,27 +191,6 @@ export default function UploadPage() {
     updateField(
       "project_descriptions",
       form.project_descriptions.map((p, i) => (i === idx ? value : p)),
-    );
-  }
-
-  function addAnswer() {
-    updateField("answers", [
-      ...form.answers,
-      { question_id: `q${form.answers.length + 1}`, answer: "" },
-    ]);
-  }
-
-  function removeAnswer(idx: number) {
-    updateField(
-      "answers",
-      form.answers.filter((_, i) => i !== idx),
-    );
-  }
-
-  function updateAnswer(idx: number, field: "question_id" | "answer", value: string) {
-    updateField(
-      "answers",
-      form.answers.map((a, i) => (i === idx ? { ...a, [field]: value } : a)),
     );
   }
 
@@ -366,36 +335,7 @@ export default function UploadPage() {
                   </div>
                 </FormSection>
 
-                {/* Section 4: Internal Test */}
-                <FormSection title="Внутренний тест">
-                  <div className="flex flex-col gap-3">
-                    {form.answers.map((a, i) => (
-                      <div key={i} className="card p-4" style={{ background: "var(--surface-subtle)" }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[0.78rem] font-[700] text-muted">
-                            Вопрос {a.question_id}
-                          </span>
-                          {form.answers.length > 1 && (
-                            <button onClick={() => removeAnswer(i)} className="text-[0.78rem] font-[600]" style={{ color: "var(--brand-coral)" }}>Удалить</button>
-                          )}
-                        </div>
-                        <textarea
-                          value={a.answer}
-                          onChange={(e) => updateAnswer(i, "answer", e.target.value)}
-                          placeholder="Ваш ответ..."
-                          rows={3}
-                          className="px-4 py-2.5 text-[0.86rem] font-[500] resize-y"
-                          style={{ lineHeight: 1.6 }}
-                        />
-                      </div>
-                    ))}
-                    <button onClick={addAnswer} className="text-[0.82rem] font-[700] self-start" style={{ color: "var(--brand-blue)" }}>
-                      + Добавить вопрос
-                    </button>
-                  </div>
-                </FormSection>
-
-                {/* Section 5: Optional */}
+                {/* Section 4: Optional */}
                 <CollapsibleSection title="Дополнительно (необязательно)">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormInput label="Телефон" value={form.phone} onChange={(v) => updateField("phone", v)} placeholder="+7..." />
@@ -465,8 +405,7 @@ export default function UploadPage() {
                   placeholder={`{
   "personal": { "last_name": "...", "first_name": "...", "date_of_birth": "2007-01-01" },
   "academic": { "selected_program": "..." },
-  "content": { "essay_text": "...", "video_url": "..." },
-  "internal_test": { "answers": [...] }
+  "content": { "essay_text": "...", "video_url": "..." }
 }`}
                   rows={16}
                   data-testid="candidate-json-input"
