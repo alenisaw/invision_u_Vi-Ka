@@ -123,7 +123,6 @@ class CandidateIntakeService:
             bool(payload.content.video_url),
             bool(payload.content.project_descriptions),
             bool(payload.content.experience_summary),
-            bool(payload.internal_test.answers),
             bool(payload.contacts.phone),
         ]
         return round(sum(checks) / len(checks), 2)
@@ -135,8 +134,6 @@ class CandidateIntakeService:
             flags.append("missing_essay")
         if not payload.content.video_url:
             flags.append("missing_video")
-        if not payload.internal_test.answers:
-            flags.append("missing_internal_test")
         if not payload.content.project_descriptions:
             flags.append("missing_project_descriptions")
         if self._compute_completeness(payload) < 0.6:
