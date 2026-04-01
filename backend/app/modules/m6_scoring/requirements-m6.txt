@@ -14,5 +14,3 @@ jupyterlab==4.3.4
 matplotlib==3.9.3
 seaborn==0.13.2
 
-# File summary: requirements-m6.txt
-# Keeps the M6 bundle installable without the full backend dependency surface.

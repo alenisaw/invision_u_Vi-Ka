@@ -187,5 +187,3 @@ class HybridScoringModel:
         return loaded
 
 
-# File summary: ml_model.py
-# Implements a compact GBR refinement layer with safe baseline fallback.

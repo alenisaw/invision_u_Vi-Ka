@@ -23,5 +23,3 @@ def rank_scores(scores: list[CandidateScore]) -> list[CandidateScore]:
     return ranked_scores
 
 
-# File summary: ranker.py
-# Keeps batch ordering deterministic and assigns ranking positions.

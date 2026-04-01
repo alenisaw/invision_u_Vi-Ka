@@ -413,5 +413,3 @@ if __name__ == "__main__":
     main()
 
 
-# File summary: evaluation.py
-# Centralizes synthetic evaluation, comparison, export, and CLI entry for M6.

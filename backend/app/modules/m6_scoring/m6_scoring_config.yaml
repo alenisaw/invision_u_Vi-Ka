@@ -267,6 +267,7 @@ shortlist_eligible_statuses:
   - RECOMMEND
 
 modifier_signal_names:
+  - authenticity_risk
   - essay_transcript_consistency
   - claims_evidence_match
   - ai_writing_risk
@@ -280,7 +281,7 @@ critical_data_flags:
   - no_speech_detected
 
 soft_caution_flags:
-  - possible_ai_use
+  - authenticity_or_ai_risk
   - low_cross_source_consistency
   - weak_claim_support
   - voice_inconsistency

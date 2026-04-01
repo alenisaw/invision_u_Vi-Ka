@@ -14,5 +14,3 @@ __all__ = [
     "SignalPayload",
 ]
 
-# File summary: __init__.py
-# Re-exports the compact public surface of the scoring module.

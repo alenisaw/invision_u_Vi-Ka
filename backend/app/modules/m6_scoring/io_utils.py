@@ -54,5 +54,3 @@ def ensure_trusted_report_dir(path: str | Path) -> Path:
     raise ValueError(f"report output path is outside trusted roots: {resolved}")
 
 
-# File summary: io_utils.py
-# Provides repository-bound path validation for model artifacts and report exports.

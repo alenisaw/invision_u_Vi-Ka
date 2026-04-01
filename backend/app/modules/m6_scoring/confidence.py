@@ -109,5 +109,3 @@ def assess_score_confidence(
     )
 
 
-# File summary: confidence.py
-# Provides coverage, confidence, and conservative uncertainty rules.

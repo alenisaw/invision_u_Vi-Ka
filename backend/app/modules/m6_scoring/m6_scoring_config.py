@@ -196,5 +196,3 @@ SOFT_CAUTION_FLAGS = DEFAULT_POLICY_CONFIG.soft_caution_flags
 STATUS_SUMMARY_TEMPLATES = DEFAULT_POLICY_CONFIG.status_summary_templates
 
 
-# File summary: m6_scoring_config.py
-# Loads the YAML config and exposes typed/default decision policy settings.
