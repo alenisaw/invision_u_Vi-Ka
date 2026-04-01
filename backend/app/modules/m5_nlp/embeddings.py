@@ -1,6 +1,10 @@
+# app/modules/m5_nlp/embeddings.py
 """
-File: embeddings.py
-Purpose: Text normalization and similarity helpers for M5.
+Text normalization and similarity helpers for M5.
+
+Purpose:
+- Provide lightweight lexical similarity when API embeddings are unavailable.
+- Wrap the Jina embeddings API behind a small, testable client.
 """
 
 from __future__ import annotations
@@ -14,9 +18,12 @@ from typing import Any
 import httpx
 
 
-TOKEN_RE = re.compile(r"[A-Za-zА-Яа-яЁё0-9_]+")
+TOKEN_RE = re.compile(r"[A-Za-z\u0400-\u04FF0-9_]+")
 SENTENCE_SPLIT_RE = re.compile(r"[.!?\n\r]+")
-ADMISSIONS_EXAM_RE = re.compile(r"\b(?:ent|unt|ен[тt]|ielts|toefl|duolingo)\b", re.IGNORECASE)
+ADMISSIONS_EXAM_RE = re.compile(
+    r"\b(?:ent|unt|\u0435\u043d\u0442|ielts|toefl|duolingo)\b",
+    re.IGNORECASE,
+)
 DEFAULT_JINA_EMBEDDING_MODEL = "jina-embeddings-v5"
 DEFAULT_JINA_BASE_URL = "https://api.jina.ai/v1/embeddings"
 
@@ -125,7 +132,3 @@ def semantic_similarity(text_a: str, text_b: str, client: JinaEmbeddingsClient |
         return _vector_cosine(vectors[0], vectors[1])
     except Exception:
         return cosine_similarity(text_a, text_b)
-
-
-# File summary: embeddings.py
-# Provides lexical similarity helpers plus optional Jina embeddings for semantic similarity.

@@ -142,5 +142,3 @@ class GroqTranscriptionClient:
         return payload
 
 
-# File summary: client.py
-# Adapts the root transcription script into a reusable Groq client for M5.

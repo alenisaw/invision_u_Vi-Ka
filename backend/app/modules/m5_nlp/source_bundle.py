@@ -133,5 +133,3 @@ def keyword_signal(
     )
 
 
-# File summary: source_bundle.py
-# Centralizes immutable source handling and shared heuristic helper logic for M5.

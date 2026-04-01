@@ -11,7 +11,14 @@ from dataclasses import dataclass, field
 from app.modules.m6_scoring.program_policy import normalize_program_id
 from app.modules.m6_scoring.schemas import SignalEnvelope, SignalPayload
 
-from .ai_detector import ai_writing_risk_score, authenticity_confidence, specificity_score, voice_consistency_score
+from .ai_detector import (
+    ai_writing_risk_score,
+    authenticity_confidence,
+    authenticity_risk_score,
+    specificity_score,
+    transcript_authenticity_risk_score,
+    voice_consistency_score,
+)
 from .client import GroqTranscriptionClient
 from .embeddings import clamp, tokenize
 from .extractor import HeuristicSignalExtractor
@@ -33,7 +40,11 @@ CORE_SIGNAL_NAMES = {
     "ethical_reasoning",
     "program_alignment",
 }
-FOUNDATION_YEAR_MARKERS = ("foundation year", "foundation", "подготовитель")
+FOUNDATION_YEAR_MARKERS = (
+    "foundation year",
+    "foundation",
+    "\u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u0435\u043b\u044c",
+)
 FOUNDATION_INTERVIEW_CRITERIA = {
     "motivation": ("motivation_clarity", "program_alignment"),
     "goals": ("goal_specificity", "future_goals_alignment"),
@@ -81,7 +92,7 @@ SIGNAL_GROUP_SPECS = (
     ),
     SignalGroupSpec(
         name="authenticity",
-        signals=("ai_writing_risk", "voice_consistency", "specificity_score"),
+        signals=("authenticity_risk", "ai_writing_risk", "voice_consistency", "specificity_score"),
         source_fields=("essay", "video_transcript", "project_descriptions"),
         purpose="Assess advisory AI-writing risk, voice consistency, and narrative specificity.",
         model_tier="fast",
@@ -342,6 +353,31 @@ class GroupedNLPSignalExtractionService:
                 reasoning="ai-writing risk is advisory and based on genericity, specificity, and voice alignment.",
             )
 
+        if "authenticity_risk" not in signal_map and (sources.essay or sources.video_transcript):
+            if sources.essay:
+                value = authenticity_risk_score(
+                    primary_text=sources.essay,
+                    supporting_text=sources.video_transcript,
+                    project_text=sources.project_descriptions,
+                )
+                source_names = ["essay", "video_transcript", "project_descriptions"]
+                reasoning = "authenticity risk is advisory and combines essay genericity, cross-source alignment, and supporting detail."
+            else:
+                value = transcript_authenticity_risk_score(
+                    transcript_text=sources.video_transcript,
+                    essay_text=sources.essay,
+                    project_text=sources.project_descriptions,
+                )
+                source_names = ["video_transcript", "project_descriptions"]
+                reasoning = "authenticity risk is advisory and combines spoken genericity, supporting detail, and consistency with other safe sources."
+            signal_map["authenticity_risk"] = SignalPayload(
+                value=value,
+                confidence=authenticity_confidence(sources.essay, sources.video_transcript),
+                source=[name for name in source_names if sources.get(name)],
+                evidence=default_evidence(sources, source_names),
+                reasoning=reasoning,
+            )
+
     def _decision_making_signal(self, sources: SourceBundle) -> SignalPayload | None:
         text = " ".join(part for part in [sources.internal_test_answers, sources.essay, sources.video_transcript] if part)
         if not text:
@@ -398,5 +434,3 @@ class GroupedNLPSignalExtractionService:
         return any(marker in selected_program for marker in FOUNDATION_YEAR_MARKERS)
 
 
-# File summary: signal_extraction_service.py
-# Provides grouped Gemini-backed M5 extraction with deterministic fallback and a stable M6 handoff.
