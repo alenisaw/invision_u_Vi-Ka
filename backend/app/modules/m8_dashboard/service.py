@@ -14,6 +14,7 @@ from app.modules.m8_dashboard.schemas import (
     DashboardCandidateListItem,
     DashboardStatsResponse,
     RawCandidateContent,
+    ReviewerActionItem,
     ReviewerCandidateIdentity,
 )
 from app.modules.m9_storage import Candidate, CandidateExplanation, CandidateScore, StorageRepository
@@ -179,12 +180,26 @@ class DashboardService:
             )
         )
         raw_content = self._extract_raw_content(candidate)
+        audit_logs = [
+            ReviewerActionItem(
+                id=a.id,
+                candidate_id=a.candidate_id,
+                reviewer_id=a.reviewer_id,
+                action_type=a.action_type,
+                previous_status=a.previous_status,
+                new_status=a.new_status,
+                comment=a.comment,
+                created_at=a.created_at,
+            )
+            for a in (candidate.reviewer_actions or [])
+        ]
         return DashboardCandidateDetailResponse(
             candidate_id=identity.candidate_id,
             name=identity.name,
             score=score,
             explanation=explanation,
             raw_content=raw_content,
+            audit_logs=audit_logs,
         )
 
     def _extract_raw_content(self, candidate: Candidate) -> RawCandidateContent | None:
