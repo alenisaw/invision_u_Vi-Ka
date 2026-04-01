@@ -36,12 +36,12 @@ export default function PipelineProgress({ status, currentStep }: PipelineProgre
                       ? "rgba(61, 237, 241, 0.22)"
                       : "rgba(20, 20, 20, 0.06)",
                 color: isError
-                  ? "#ac472e"
+                  ? "#ff8e70"
                   : isCompleted
-                    ? "#415005"
+                    ? "#ffffff"
                     : isCurrent
-                      ? "#0a6a6d"
-                      : "var(--brand-muted)",
+                      ? "#3dedf1"
+                      : "rgba(255, 255, 255, 0.4)",
                 ...(isCurrent
                   ? { animation: "pulse-step 1.2s ease-in-out infinite" }
                   : {}),
