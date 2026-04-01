@@ -122,18 +122,7 @@ export default function CandidateDetailPage({
     );
   }
 
-  const historyLogs = detail.audit_logs || [
-    {
-      id: "1",
-      candidate_id: detail.score.candidate_id,
-      action_type: "OVERRIDE",
-      created_at: new Date().toISOString(),
-      reviewer_id: "admin-reviewer",
-      previous_status: "WAITLIST",
-      new_status: detail.score.recommendation_status,
-      comment: "Кандидат показал отличные результаты на собеседовании. Переводим в приоритетные.",
-    }
-  ];
+  const historyLogs = detail.audit_logs ?? [];
 
   return (
     <>
