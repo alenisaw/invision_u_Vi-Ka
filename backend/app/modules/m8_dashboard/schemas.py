@@ -53,6 +53,15 @@ class DashboardCandidateListItem(ReviewerCandidateIdentity):
     created_at: datetime
 
 
+class RawCandidateContent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    essay_text: str | None = None
+    video_transcript: str | None = None
+    project_descriptions: list[str] = Field(default_factory=list)
+    experience_summary: str | None = None
+
+
 class DashboardCandidateDetailResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -60,6 +69,7 @@ class DashboardCandidateDetailResponse(BaseModel):
     name: str
     score: CandidateScorePayload
     explanation: ExplainabilityReport
+    raw_content: RawCandidateContent | None = None
 
 
 class DashboardShortlistResponse(RootModel[list[DashboardCandidateListItem]]):

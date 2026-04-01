@@ -10,7 +10,7 @@ import ExplanationBlock from "@/components/candidate/ExplanationBlock";
 import OverridePanel from "@/components/candidate/OverridePanel";
 import { ApiError, reviewerApi } from "@/lib/api";
 import { formatDate } from "@/lib/utils"; // Убедись, что импорт formatDate есть
-import type { CandidateDetail, RecommendationStatus } from "@/types";
+import type { CandidateDetail, RawCandidateContent, RecommendationStatus } from "@/types";
 
 export default function CandidateDetailPage({
   params,
@@ -167,6 +167,7 @@ export default function CandidateDetailPage({
               <div className="flex flex-col gap-6">
                 <CandidateCard score={detail.score} />
                 <ExplanationBlock explanation={detail.explanation} />
+                {detail.raw_content && <RawContentSection content={detail.raw_content} />}
               </div>
 
               <div className="flex flex-col gap-6">
@@ -188,6 +189,84 @@ export default function CandidateDetailPage({
   );
 }
 
+
+function RawContentSection({ content }: { content: RawCandidateContent }) {
+  const [open, setOpen] = useState(false);
+
+  const hasAny = content.essay_text || content.video_transcript || content.project_descriptions.length > 0 || content.experience_summary;
+  if (!hasAny) return null;
+
+  return (
+    <div className="card p-6">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full"
+      >
+        <div className="eyebrow">Исходные материалы кандидата</div>
+        <span className="text-[0.82rem] font-[700] text-muted">
+          {open ? "Свернуть" : "Развернуть"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-6 mt-5">
+          {content.essay_text && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Эссе</div>
+              <div
+                className="text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem] whitespace-pre-wrap"
+                style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+              >
+                {content.essay_text}
+              </div>
+            </div>
+          )}
+
+          {content.project_descriptions.length > 0 && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Описание проектов</div>
+              <div className="flex flex-col gap-2">
+                {content.project_descriptions.map((p, i) => (
+                  <div
+                    key={i}
+                    className="text-[0.86rem] font-[500] p-3 rounded-[0.8rem]"
+                    style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+                  >
+                    {p}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {content.experience_summary && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Опыт</div>
+              <div
+                className="text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem]"
+                style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+              >
+                {content.experience_summary}
+              </div>
+            </div>
+          )}
+
+          {content.video_transcript && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Транскрипция видео</div>
+              <div
+                className="text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem] whitespace-pre-wrap"
+                style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+              >
+                {content.video_transcript}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   STRONG_RECOMMEND: "text-[var(--brand-lime)]",

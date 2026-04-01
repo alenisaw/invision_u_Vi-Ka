@@ -13,6 +13,7 @@ from app.modules.m8_dashboard.schemas import (
     DashboardCandidateDetailResponse,
     DashboardCandidateListItem,
     DashboardStatsResponse,
+    RawCandidateContent,
     ReviewerCandidateIdentity,
 )
 from app.modules.m9_storage import Candidate, CandidateExplanation, CandidateScore, StorageRepository
@@ -177,11 +178,25 @@ class DashboardService:
                 score.model_dump(mode="python"),
             )
         )
+        raw_content = self._extract_raw_content(candidate)
         return DashboardCandidateDetailResponse(
             candidate_id=identity.candidate_id,
             name=identity.name,
             score=score,
             explanation=explanation,
+            raw_content=raw_content,
+        )
+
+    def _extract_raw_content(self, candidate: Candidate) -> RawCandidateContent | None:
+        mi = candidate.model_input_record
+        if mi is None:
+            return None
+        project_list = mi.project_descriptions if isinstance(mi.project_descriptions, list) else []
+        return RawCandidateContent(
+            essay_text=mi.essay_text or None,
+            video_transcript=mi.video_transcript or None,
+            project_descriptions=[str(p) for p in project_list if p],
+            experience_summary=mi.experience_summary or None,
         )
 
     def _build_score_payload(

@@ -89,12 +89,20 @@ export interface CandidateListItem {
   created_at: string;
 }
 
+export interface RawCandidateContent {
+  essay_text: string | null;
+  video_transcript: string | null;
+  project_descriptions: string[];
+  experience_summary: string | null;
+}
+
 export interface CandidateDetail {
   candidate_id: string;
   name: string;
   score: CandidateScore;
   explanation: ExplainabilityReport;
-  audit_logs?: ReviewerAction[]; 
+  raw_content?: RawCandidateContent | null;
+  audit_logs?: ReviewerAction[];
 }
 
 export interface ReviewerAction {
