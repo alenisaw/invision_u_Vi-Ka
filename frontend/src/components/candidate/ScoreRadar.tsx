@@ -28,30 +28,30 @@ export default function ScoreRadar({ subScores }: ScoreRadarProps) {
       <div className="eyebrow mb-4">Профиль оценок</div>
       <ResponsiveContainer width="100%" height={320}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="72%">
-          <PolarGrid stroke="rgba(20, 20, 20, 0.08)" />
+          <PolarGrid stroke="var(--brand-line)" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fontWeight: 700, fill: "rgba(20, 20, 20, 0.62)" }}
+            tick={{ fontSize: 11, fontWeight: 700, fill: "var(--brand-muted-strong)" }}
           />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}
-            tick={{ fontSize: 10, fill: "rgba(20, 20, 20, 0.4)" }}
+            tick={{ fontSize: 10, fill: "var(--brand-muted)" }}
           />
           <Radar
             name="Score"
             dataKey="score"
-            stroke="#c1f11d"
-            fill="rgba(193, 241, 29, 0.35)"
-            fillOpacity={0.6}
+            stroke="var(--brand-lime)"
+            fill="var(--brand-lime)"
+            fillOpacity={0.35}
             strokeWidth={2}
           />
           <Tooltip
             contentStyle={{
-              background: "#141414",
-              color: "#ffffff",
+              background: "var(--brand-ink)",
+              color: "var(--brand-paper)",
               border: "none",
-              borderRadius: "0.9rem",
+              borderRadius: "1rem",
               fontSize: "0.82rem",
               fontWeight: 700,
             }}
