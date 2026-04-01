@@ -34,6 +34,7 @@ export interface CandidateScore {
   scoring_version: string;
 }
 
+
 export interface EvidenceItem {
   source: string;
   quote: string;
@@ -93,6 +94,7 @@ export interface CandidateDetail {
   name: string;
   score: CandidateScore;
   explanation: ExplainabilityReport;
+  audit_logs?: ReviewerAction[]; 
 }
 
 export interface ReviewerAction {

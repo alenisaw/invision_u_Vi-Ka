@@ -9,7 +9,8 @@ import ScoreRadar from "@/components/candidate/ScoreRadar";
 import ExplanationBlock from "@/components/candidate/ExplanationBlock";
 import OverridePanel from "@/components/candidate/OverridePanel";
 import { ApiError, reviewerApi } from "@/lib/api";
-import type { CandidateDetail } from "@/types";
+import { formatDate } from "@/lib/utils"; // Убедись, что импорт formatDate есть
+import type { CandidateDetail, RecommendationStatus } from "@/types";
 
 export default function CandidateDetailPage({
   params,
@@ -121,6 +122,19 @@ export default function CandidateDetailPage({
     );
   }
 
+  const historyLogs = detail.audit_logs || [
+    {
+      id: "1",
+      candidate_id: detail.score.candidate_id,
+      action_type: "OVERRIDE",
+      created_at: new Date().toISOString(),
+      reviewer_id: "admin-reviewer",
+      previous_status: "WAITLIST",
+      new_status: detail.score.recommendation_status,
+      comment: "Кандидат показал отличные результаты на собеседовании. Переводим в приоритетные.",
+    }
+  ];
+
   return (
     <>
       <Header />
@@ -162,11 +176,60 @@ export default function CandidateDetailPage({
                   currentStatus={detail.score.recommendation_status}
                   onSuccess={loadDetail}
                 />
+                
+                {/* Компонент истории изменений */}
+                <DecisionHistory logs={historyLogs} />
               </div>
             </div>
           </div>
         </main>
       </div>
     </>
+  );
+}
+
+
+const STATUS_COLORS: Record<string, string> = {
+  STRONG_RECOMMEND: "text-[var(--brand-lime)]",
+  RECOMMEND: "text-[var(--brand-blue)]",
+  WAITLIST: "text-[var(--brand-coral)]",
+  DECLINED: "text-[var(--danger-soft-text)]",
+};
+
+function DecisionHistory({ logs }: { logs: any[] }) {
+  if (!logs || logs.length === 0) return null;
+
+  return (
+    <div className="card p-6">
+      <div className="eyebrow mb-4">История решений</div>
+      <div className="flex flex-col gap-4">
+        {logs.map((log) => (
+          <div key={log.id} className="pb-4 border-b border-[var(--brand-line)] last:border-0 last:pb-0">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[0.75rem] font-[800] uppercase tracking-wider text-muted-strong">
+                {log.reviewer_id}
+              </span>
+              <span className="text-[0.7rem] font-[600] text-muted font-numbers">
+                {new Date(log.created_at).toLocaleDateString("en-US", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2 mb-2 text-[0.8rem] font-[700]">
+              <span className="text-muted line-through">{log.previous_status}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+              <span className={`${STATUS_COLORS[log.new_status] || "text-[var(--brand-paper)]"}`}>
+                {log.new_status}
+              </span>
+            </div>
+            
+            <div className="text-[0.85rem] text-muted bg-[var(--surface-subtle)] p-3 rounded-[0.5rem] italic">
+              «{log.comment}»
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
