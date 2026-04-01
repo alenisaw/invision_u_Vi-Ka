@@ -6,10 +6,9 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import CompareRadar from "@/components/candidate/CompareRadar";
-import PipelineProgress from "@/components/candidate/PipelineProgress";
-import { demoApi } from "@/lib/api";
+import { reviewerApi } from "@/lib/api";
 import { SUB_SCORE_LABELS, formatPercent } from "@/lib/utils";
-import type { PipelineResult, RecommendationStatus } from "@/types";
+import type { CandidateDetail, RecommendationStatus } from "@/types";
 
 const STATUS_CONFIG: Record<RecommendationStatus, { label: string; bg: string; text: string }> = {
   STRONG_RECOMMEND: { 
@@ -37,8 +36,7 @@ const STATUS_CONFIG: Record<RecommendationStatus, { label: string; bg: string; t
 interface CandidateState {
   id: string;
   status: "pending" | "running" | "done" | "error";
-  step: number;
-  result: PipelineResult | null;
+  result: CandidateDetail | null;
   error: string | null;
 }
 
@@ -64,36 +62,26 @@ function ComparePageInner() {
       router.replace("/dashboard");
       return;
     }
-    setStates(ids.map((id) => ({ id, status: "pending", step: 0, result: null, error: null })));
+    setStates(ids.map((id) => ({ id, status: "pending", result: null, error: null })));
   }, [idsParam, router, ids.length]);
 
   useEffect(() => {
     if (states.length === 0 || states.some((s) => s.status !== "pending")) return;
 
-    async function runAll() {
+    async function loadAll() {
       for (let i = 0; i < states.length; i++) {
         setStates((prev) =>
           prev.map((s, j) => (j === i ? { ...s, status: "running" } : s)),
         );
 
-        const stepInterval = setInterval(() => {
-          setStates((prev) =>
-            prev.map((s, j) =>
-              j === i && s.step < 6 ? { ...s, step: s.step + 1 } : s,
-            ),
-          );
-        }, 1500);
-
         try {
-          const result = await demoApi.runFixture(states[i].id);
-          clearInterval(stepInterval);
+          const result = await reviewerApi.getCandidateDetail(states[i].id);
           setStates((prev) =>
             prev.map((s, j) =>
-              j === i ? { ...s, status: "done", step: 7, result } : s,
+              j === i ? { ...s, status: "done", result } : s,
             ),
           );
         } catch (err) {
-          clearInterval(stepInterval);
           setStates((prev) =>
             prev.map((s, j) =>
               j === i
@@ -105,7 +93,7 @@ function ComparePageInner() {
       }
     }
 
-    runAll();
+    loadAll();
   }, [states.length]);
 
   const allDone = states.length > 0 && states.every((s) => s.status === "done");
@@ -129,18 +117,15 @@ function ComparePageInner() {
               </h1>
             </div>
 
-            {/* Прогресс выполнения */}
+            {/* Индикатор загрузки */}
             {!allDone && (
               <div className="flex flex-col gap-4 mb-8">
                 {states.map((s) => (
                   <div key={s.id} className="card p-5">
                     <div className="text-[0.88rem] font-[700] mb-3 text-muted-strong uppercase tracking-wider">
-                      Кандидат: {s.id.slice(0, 8)}...
+                      {s.status === "running" ? "Загрузка..." : s.status === "error" ? `Ошибка: ${s.error}` : "Ожидание..."}
+                      {" "}({s.id.slice(0, 8)}...)
                     </div>
-                    <PipelineProgress
-                      status={s.status === "pending" ? "idle" : s.status === "running" ? "running" : s.status === "done" ? "completed" : "error"}
-                      currentStep={s.step}
-                    />
                   </div>
                 ))}
               </div>
@@ -150,20 +135,20 @@ function ComparePageInner() {
               <div className="flex flex-col gap-8">
                 {/* Радарная диаграмма */}
                 <CompareRadar
-                  candidates={completedResults.map((r, i) => ({
-                    name: `Кандидат ${i + 1}`,
+                  candidates={completedResults.map((r) => ({
+                    name: r.name,
                     subScores: r.score.sub_scores,
                   }))}
                 />
 
-                {/* Карточки с итоговым баллом (Увеличенные) */}
+                {/* Карточки с итоговым баллом */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {completedResults.map((r, i) => {
                     const config = STATUS_CONFIG[r.score.recommendation_status] || STATUS_CONFIG.WAITLIST;
                     return (
                       <div key={states[i].id} className="card p-6 text-center flex flex-col justify-center min-h-[180px]">
-                        <div className="text-[0.72rem] font-[800] text-muted uppercase tracking-[0.15em] mb-3">
-                          ID: {states[i].id.slice(0, 8)}
+                        <div className="text-[0.82rem] font-[800] text-muted-strong mb-3">
+                          {r.name}
                         </div>
                         <div>
                           <span
@@ -192,9 +177,9 @@ function ComparePageInner() {
                       <thead>
                         <tr>
                           <th className="text-left font-[700] py-3 pr-4 text-muted border-b border-[var(--brand-line)]">Параметр</th>
-                          {completedResults.map((r, i) => (
-                            <th key={states[i].id} className="text-center font-[800] py-3 px-4 border-b border-[var(--brand-line)]">
-                              Канд. {i + 1}
+                          {completedResults.map((r) => (
+                            <th key={r.candidate_id} className="text-center font-[800] py-3 px-4 border-b border-[var(--brand-line)]">
+                              {r.name.split(" ")[0]}
                             </th>
                           ))}
                         </tr>
@@ -206,7 +191,7 @@ function ComparePageInner() {
                               {SUB_SCORE_LABELS[key] ?? key}
                             </td>
                             {completedResults.map((r, i) => (
-                              <td key={states[i].id} className="text-center py-4 px-4 font-[700] font-numbers text-[1.05rem]">
+                              <td key={r.candidate_id} className="text-center py-4 px-4 font-[700] font-numbers text-[1.05rem]">
                                 {formatPercent(r.score.sub_scores[key] ?? 0)}
                               </td>
                             ))}
@@ -216,7 +201,7 @@ function ComparePageInner() {
                         <tr className="bg-[var(--brand-ink)] text-[var(--brand-paper)]">
                           <td className="py-4 px-5 font-[800] rounded-l-[0.8rem]">Уверенность ИИ</td>
                           {completedResults.map((r, i) => (
-                            <td key={states[i].id} className="text-center py-4 px-4 font-[800] font-numbers text-[1.1rem] last:rounded-r-[0.8rem]">
+                            <td key={r.candidate_id} className="text-center py-4 px-4 font-[800] font-numbers text-[1.1rem] last:rounded-r-[0.8rem]">
                               {formatPercent(r.score.confidence)}
                             </td>
                           ))}

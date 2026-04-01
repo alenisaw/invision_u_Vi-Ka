@@ -71,6 +71,18 @@ export default function OverridePanel({
       <div className="flex flex-col gap-4">
 
         <div>
+          <label className="text-[0.82rem] font-[700] block mb-2">ID рецензента</label>
+          <input
+            type="text"
+            value={reviewerId}
+            onChange={(e) => setReviewerId(e.target.value)}
+            placeholder="committee-reviewer"
+            data-testid="reviewer-id-input"
+            className="w-full px-4 py-3 text-[0.88rem] font-[500] rounded-[0.8rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] outline-none focus:ring-2 focus:ring-[var(--brand-blue)] transition-all"
+          />
+        </div>
+
+        <div>
           <label className="text-[0.82rem] font-[700] block mb-2">Новый статус</label>
           <select
             value={newStatus}
