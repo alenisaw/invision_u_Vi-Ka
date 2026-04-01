@@ -118,5 +118,3 @@ if __name__ == "__main__":
     main()
 
 
-# File summary: run_evaluation.py
-# Exports a fresh M6 evaluation bundle into backend/tests/m6_scoring/results/latest.

@@ -48,5 +48,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_m6_evaluation.py
-# Covers the synthetic evaluation output surface of M6.

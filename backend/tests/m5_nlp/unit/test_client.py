@@ -24,5 +24,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_client.py
-# Covers trusted media path validation for the M5 transcription client.

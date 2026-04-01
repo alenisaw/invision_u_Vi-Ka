@@ -28,5 +28,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_m6_notebook_bundle.py
-# Covers the comparison output used by the M6 notebook flow.

@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from app.modules.m6_scoring.ml_model import HybridScoringModel
+from app.modules.m6_scoring.schemas import SignalPayload
 from app.modules.m6_scoring.service import ScoringService
 from app.modules.m6_scoring.synthetic_data import build_reference_fixtures
 
@@ -76,8 +77,9 @@ class ScoringServiceTests(unittest.TestCase):
         score = self.service.score_candidate(self.fixtures["incomplete"])
 
         self.assertFalse(score.shortlist_eligible)
-        self.assertEqual(score.recommendation_status, "DECLINED")
-        self.assertIn("low_completeness", score.caution_flags)
+        self.assertTrue(score.manual_review_required)
+        self.assertTrue(score.caution_flags)
+        self.assertIn("incomplete or unstable evidence", score.decision_summary.lower())
 
     def test_risky_profile_keeps_borderline_status_without_forced_manual(self) -> None:
         """Low ASR quality alone should not force manual review after the routing redesign."""
@@ -86,6 +88,26 @@ class ScoringServiceTests(unittest.TestCase):
 
         self.assertIn(score.recommendation_status, {"WAITLIST", "DECLINED"})
         self.assertFalse(score.manual_review_required)
+
+    def test_authenticity_warning_is_unified_under_one_flag(self) -> None:
+        envelope = self.fixtures["balanced"].model_copy(
+            update={
+                "signals": {
+                    **self.fixtures["balanced"].signals,
+                    "authenticity_risk": SignalPayload(
+                        value=0.91,
+                        confidence=0.84,
+                        source=["video_transcript"],
+                        evidence=["[indirect cue] The wording stays generic while concrete support remains weak."],
+                        reasoning="Supported by indirect behavioral evidence.",
+                    ),
+                }
+            }
+        )
+
+        score = self.service.score_candidate(envelope)
+
+        self.assertIn("authenticity_or_ai_risk", score.caution_flags)
 
     def test_model_can_be_saved_and_loaded(self) -> None:
         """The optional ML artifact path should remain usable."""
@@ -121,5 +143,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_m6_scoring.py
-# Covers shape, ranking, and the synthetic training path of M6.
