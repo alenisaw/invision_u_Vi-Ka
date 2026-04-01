@@ -20,12 +20,13 @@ FACTOR_TITLES = {
 }
 
 CAUTION_POLICY: dict[str, tuple[ExplainabilitySeverity, str, str]] = {
-    "possible_ai_use": ("warning", "Possible authenticity mismatch", "Compare essay claims against transcript and internal test answers."),
+    "possible_ai_use": ("warning", "Possible AI or authenticity issue", "Compare the essay, transcript, projects, and internal test answers before trusting the narrative at face value."),
+    "authenticity_or_ai_risk": ("warning", "Possible AI or authenticity issue", "Compare the essay, transcript, projects, and internal test answers before trusting the narrative at face value."),
     "low_cross_source_consistency": ("warning", "Cross-source inconsistency", "Check whether core claims remain stable across essay, transcript, and projects."),
     "weak_claim_support": ("warning", "Weak evidence support", "Review whether major claims are backed by concrete examples."),
     "voice_inconsistency": ("warning", "Written-spoken style mismatch", "Compare the written and spoken narrative before making a final decision."),
     "generic_evidence": ("advisory", "Generic narrative evidence", "Ask for more concrete examples during committee review."),
-    "low_completeness": ("critical", "Insufficient information", "Do not rely on the score without manual review of missing inputs."),
+    "low_completeness": ("critical", "Insufficient information", "Do not treat missing inputs as low potential. Review the case manually before final routing."),
     "no_structured_signals": ("critical", "No structured signal coverage", "Treat the case as under-evidenced and review manually."),
     "requires_human_review": ("critical", "Manual review required", "A reviewer should inspect the case before final routing."),
 }
@@ -36,7 +37,11 @@ def factor_title(factor_name: str) -> str:
 
 
 def factor_summary(factor: ExplainabilityFactor) -> str:
-    return f"{factor_title(factor.factor)} is one of the main positive drivers (score {factor.score:.2f}, contribution {factor.score_contribution:.2f})."
+    return (
+        f"{factor_title(factor.factor)} is one of the main positive drivers "
+        f"(score {factor.score:.2f}, contribution {factor.score_contribution:.2f}), "
+        "so it materially influenced the recommendation rather than serving as background context."
+    )
 
 
 def caution_block(flag: ExplainabilityCautionFlag) -> CautionBlock:
@@ -51,7 +56,3 @@ def caution_block(flag: ExplainabilityCautionFlag) -> CautionBlock:
         summary=flag.reason,
         suggested_action=suggested_action,
     )
-
-
-# File summary: factors.py
-# Maps M6 factors and caution flags into reviewer-facing titles, summaries, and actions.

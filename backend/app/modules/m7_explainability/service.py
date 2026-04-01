@@ -15,24 +15,10 @@ except ImportError:  # pragma: no cover
     HAS_ASYNC_SESSION = False
 
 from ..m6_scoring.schemas import CandidateScore, SignalEnvelope
-from ..m9_storage import StorageRepository
-from .evidence import collect_factor_evidence
+from ..m6_scoring.service import ScoringService
+from .evidence import collect_factor_evidence, collect_factor_signal_contexts
 from .factors import caution_block, factor_summary, factor_title
-from .schemas import (
-    ExplainabilityCautionFlag,
-    ExplainabilityFactor,
-    ExplainabilityInput,
-    ExplainabilityReport,
-    ExplainabilitySignalContext,
-    FactorBlock,
-)
-
-
-class _CompatibilityScoringService:
-    """Test seam kept for compatibility with older M7 service expectations."""
-
-    def score_candidate(self, envelope: SignalEnvelope) -> CandidateScore:
-        raise RuntimeError("ExplainabilityService expects a precomputed CandidateScore.")
+from .schemas import ExplainabilityInput, ExplainabilityReport, FactorBlock
 
 
 class ExplainabilityService:
@@ -40,19 +26,19 @@ class ExplainabilityService:
 
     def __init__(self, session: AsyncSession | None = None) -> None:
         self.session = session
-        self.scoring_service = _CompatibilityScoringService()
-        self.repository = (
-            StorageRepository(session)
-            if HAS_ASYNC_SESSION and isinstance(session, AsyncSession)
-            else None
-        )
+        self.scoring_service = ScoringService()
+        self.repository = None
+        if HAS_ASYNC_SESSION and isinstance(session, AsyncSession):
+            from ..m9_storage import StorageRepository
+
+            self.repository = StorageRepository(session)
 
     def build_report(self, handoff: ExplainabilityInput) -> ExplainabilityReport:
         factor_blocks = [
             FactorBlock(
                 factor=factor.factor,
                 title=factor_title(factor.factor),
-                summary=factor_summary(factor),
+                summary=self._build_factor_summary(handoff, factor),
                 score=factor.score,
                 score_contribution=factor.score_contribution,
                 evidence=collect_factor_evidence(handoff, factor.factor),
@@ -86,7 +72,7 @@ class ExplainabilityService:
     ) -> ExplainabilityReport:
         """Build and persist explainability output from the supplied M6 score."""
 
-        handoff = self._build_handoff_from_score(envelope, score)
+        handoff = self.scoring_service.build_explainability_input(envelope, score)
         report = self.build_report(handoff)
         await self._persist_report(candidate_id, report)
         return report
@@ -127,57 +113,6 @@ class ExplainabilityService:
             },
         )
 
-    def _build_handoff_from_score(self, envelope: SignalEnvelope, score: CandidateScore) -> ExplainabilityInput:
-        positive_factors = [
-            ExplainabilityFactor(
-                factor=sub_score_name,
-                sub_score=sub_score_name,
-                score=sub_score_value,
-                score_contribution=min(score.program_weight_profile.get(sub_score_name, 0.0) * sub_score_value, 0.25),
-            )
-            for sub_score_name, sub_score_value in sorted(
-                score.sub_scores.items(),
-                key=lambda item: item[1] * score.program_weight_profile.get(item[0], 0.0),
-                reverse=True,
-            )[:3]
-        ]
-        caution_flags = [
-            ExplainabilityCautionFlag(
-                flag=flag,
-                severity="critical" if flag in {"low_completeness", "no_structured_signals", "requires_human_review"} else "warning",
-                reason=flag.replace("_", " "),
-            )
-            for flag in score.caution_flags
-        ]
-        signal_context = {
-            signal_name: ExplainabilitySignalContext(**signal.model_dump())
-            for signal_name, signal in envelope.signals.items()
-        }
-        return ExplainabilityInput(
-            candidate_id=score.candidate_id,
-            scoring_version=score.scoring_version,
-            selected_program=score.selected_program,
-            program_id=score.program_id,
-            recommendation_status=score.recommendation_status,
-            review_priority_index=score.review_priority_index,
-            confidence=score.confidence,
-            uncertainty_flag=score.uncertainty_flag,
-            manual_review_required=score.manual_review_required,
-            human_in_loop_required=score.human_in_loop_required,
-            review_recommendation=score.review_recommendation,
-            review_reasons=list(score.review_reasons),
-            sub_scores=dict(score.sub_scores),
-            score_breakdown=dict(score.score_breakdown),
-            positive_factors=positive_factors,
-            caution_flags=caution_flags,
-            signal_context=signal_context,
-            data_quality_notes=[
-                f"confidence_band={score.confidence_band}",
-                f"score_status={score.score_status}",
-                f"shortlist_eligible={score.shortlist_eligible}",
-            ],
-        )
-
     def _build_summary(
         self,
         handoff: ExplainabilityInput,
@@ -185,21 +120,71 @@ class ExplainabilityService:
         caution_blocks: list,
     ) -> str:
         strengths = ", ".join(block.title for block in factor_blocks[:2]) or "moderate signal support"
+        evidence_sources = sorted(
+            {
+                item.source
+                for block in factor_blocks[:2]
+                for item in block.evidence
+                if item.source
+            }
+        )
+        source_clause = (
+            f" Supporting evidence comes primarily from {', '.join(evidence_sources[:2])}."
+            if evidence_sources
+            else ""
+        )
         if handoff.manual_review_required:
-            return f"The candidate shows {strengths}, but the case still requires manual review because of uncertainty or data quality limits."
+            return (
+                f"The candidate shows {strengths}, but the case still requires manual review because the current evidence is incomplete or unstable."
+                f"{source_clause}"
+            )
         if caution_blocks:
-            return f"The candidate shows {strengths}, with caution flags that should be reviewed alongside the score."
-        return f"The candidate shows {strengths}, and the current evidence looks stable enough for standard committee review."
+            caution_titles = ", ".join(block.title for block in caution_blocks[:2])
+            return (
+                f"The candidate shows {strengths}, but reviewers should weigh caution signals such as {caution_titles} before making a final decision."
+                f"{source_clause}"
+            )
+        return f"The candidate shows {strengths}, and the current evidence looks stable enough for standard committee review.{source_clause}"
 
     def _build_reviewer_guidance(self, handoff: ExplainabilityInput, caution_blocks: list) -> str:
         if handoff.manual_review_required:
-            return "Review evidence consistency, input quality, and caution flags before making a final committee decision."
+            return "Review evidence consistency, input quality, and caution flags before making a final committee decision. Incomplete evidence should be treated as insufficient data, not as proof of low potential."
         if caution_blocks:
             return "Use the score as a working signal, but inspect the caution blocks before final routing."
         if handoff.review_recommendation == "FAST_TRACK_REVIEW":
             return "The case is suitable for faster committee review, while still checking the supporting evidence."
         return "Use the explanation bundle as decision support; the final outcome remains with the committee."
 
+    def _build_factor_summary(self, handoff: ExplainabilityInput, factor) -> str:
+        contexts = collect_factor_signal_contexts(handoff, factor.factor)
+        if not contexts:
+            return factor_summary(factor)
 
-# File summary: service.py
-# Builds summary, evidence-backed strengths, caution blocks, and reviewer guidance from M6 output.
+        direct_support = 0
+        indirect_support = 0
+        sources: list[str] = []
+        reason_fragments: list[str] = []
+
+        for _, signal in contexts:
+            if "direct behavioral evidence" in signal.reasoning.lower():
+                direct_support += 1
+            elif "indirect behavioral evidence" in signal.reasoning.lower():
+                indirect_support += 1
+            for source_name in signal.source:
+                if source_name not in sources:
+                    sources.append(source_name)
+            if signal.reasoning and signal.reasoning not in reason_fragments:
+                reason_fragments.append(signal.reasoning)
+
+        support_label = "direct evidence" if direct_support else "indirect evidence"
+        if direct_support and indirect_support:
+            support_label = "direct and indirect evidence"
+        source_label = ", ".join(sources[:3]) if sources else "available narrative sources"
+        rationale = reason_fragments[0] if reason_fragments else factor_summary(factor)
+        return (
+            f"{factor_title(factor.factor)} materially influenced the recommendation "
+            f"(score {factor.score:.2f}, contribution {factor.score_contribution:.2f}). "
+            f"It is supported by {support_label} from {source_label}. {rationale}"
+        )
+
+
