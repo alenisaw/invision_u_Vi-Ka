@@ -179,31 +179,12 @@ export default function UploadPage() {
     }
   }
 
-  async function handleBatchSubmit() {
-    if (!jsonInput.trim()) return;
-    setStatus("running");
-    setPipelineStep(0);
-    try {
-      const parsed = JSON.parse(jsonInput);
-      if (!Array.isArray(parsed)) throw new Error("Ожидается JSON-массив");
-      const result = await pipelineApi.submitBatch(parsed);
-      setStatus("completed");
-      setPipelineStep(PIPELINE_STEP_COUNT);
-      setMessage(`${result.length} кандидатов обработано.`);
-    } catch (e) {
-      setStatus("error");
-      setMessage(e instanceof Error ? e.message : "Ошибка");
-    }
-  }
-
   function handleReset() {
     setStatus("idle");
     setMessage("");
     setCandidateId("");
     setPipelineStep(0);
   }
-
-  // -- Helpers for dynamic lists --
 
   function addProject() {
     updateField("project_descriptions", [...form.project_descriptions, ""]);
@@ -257,7 +238,7 @@ export default function UploadPage() {
             >
               Загрузка кандидата
             </h1>
-            <p className="text-[0.95rem] mb-6" style={{ color: "var(--brand-muted)" }}>
+            <p className="text-[0.95rem] mb-6 text-muted">
               Заполните анкету или загрузите JSON для запуска пайплайна оценки
             </p>
 
@@ -267,11 +248,7 @@ export default function UploadPage() {
                 <button
                   key={t}
                   onClick={() => { setTab(t); handleReset(); }}
-                  className="chip"
-                  style={{
-                    background: tab === t ? "var(--brand-ink)" : "rgba(20, 20, 20, 0.05)",
-                    color: tab === t ? "#fff" : "var(--brand-muted-strong)",
-                  }}
+                  className={`chip ${tab === t ? "is-active" : ""}`}
                 >
                   {t === "form" ? "Анкета" : "JSON"}
                 </button>
@@ -282,7 +259,7 @@ export default function UploadPage() {
             {status !== "idle" && (
               <div className="card card--dark p-5 mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-[0.82rem] font-[700]" style={{ color: "#fff" }}>
+                  <div className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-paper)" }}>
                     {status === "running"
                       ? "Обработка кандидата..."
                       : status === "completed"
@@ -302,10 +279,10 @@ export default function UploadPage() {
                 <PipelineProgress status={status} currentStep={pipelineStep} />
                 {status === "completed" && candidateId && (
                   <div className="flex gap-3 mt-4">
-                    <Link href={`/dashboard/${candidateId}`} className="btn btn--sm" style={{ background: "var(--brand-lime)", color: "#000" }}>
+                    <Link href={`/dashboard/${candidateId}`} className="btn btn--sm" style={{ background: "var(--brand-lime)", color: "var(--brand-ink)", borderColor: "var(--brand-lime)" }}>
                       Открыть карточку
                     </Link>
-                    <Link href="/dashboard" className="btn btn--ghost btn--sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+                    <Link href="/dashboard" className="btn btn--ghost btn--sm" style={{ color: "var(--brand-paper)" }}>
                       Перейти в рейтинг
                     </Link>
                   </div>
@@ -319,9 +296,9 @@ export default function UploadPage() {
                 {/* Section 1: Personal */}
                 <FormSection title="Личные данные" required>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormInput label="Фамилия *" value={form.last_name} onChange={(v) => updateField("last_name", v)} />
-                    <FormInput label="Имя *" value={form.first_name} onChange={(v) => updateField("first_name", v)} />
-                    <FormInput label="Отчество" value={form.patronymic} onChange={(v) => updateField("patronymic", v)} />
+                    <FormInput label="Фамилия *" value={form.last_name} onChange={(v) => updateField("last_name", v)} placeholder="Ахметжанов"/>
+                    <FormInput label="Имя *" value={form.first_name} onChange={(v) => updateField("first_name", v)} placeholder="Данияр" />
+                    <FormInput label="Отчество" value={form.patronymic} onChange={(v) => updateField("patronymic", v)} placeholder="Бахытжанович" />
                     <FormInput label="Дата рождения *" type="date" value={form.date_of_birth} onChange={(v) => updateField("date_of_birth", v)} />
                     <FormSelect label="Пол" value={form.gender} onChange={(v) => updateField("gender", v)} options={[
                       { value: "", label: "Не указан" },
@@ -348,8 +325,8 @@ export default function UploadPage() {
                   <div className="flex flex-col gap-4">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted-strong)" }}>Эссе</label>
-                        <span className="text-[0.76rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                        <label className="text-[0.82rem] font-[700] text-muted-strong">Эссе</label>
+                        <span className="text-[0.76rem] font-[600] text-muted">
                           {wordCount(form.essay_text)} слов
                         </span>
                       </div>
@@ -358,25 +335,25 @@ export default function UploadPage() {
                         onChange={(e) => updateField("essay_text", e.target.value)}
                         placeholder="Напишите мотивационное эссе (3–5 абзацев)..."
                         rows={8}
-                        className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-y"
-                        style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)", lineHeight: 1.7 }}
+                        className="px-4 py-3 text-[0.88rem] font-[500] resize-y"
+                        style={{ lineHeight: 1.7 }}
                       />
                     </div>
-                    <FormInput label="Ссылка на видео-интервью" value={form.video_url} onChange={(v) => updateField("video_url", v)} placeholder="https://..." />
+                    <FormInput label="Ссылка на видео-интервью" type="url" value={form.video_url} onChange={(v) => updateField("video_url", v)} placeholder="https://..." />
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted-strong)" }}>Проекты</label>
+                        <label className="text-[0.82rem] font-[700] text-muted-strong">Проекты</label>
                         <button onClick={addProject} className="text-[0.78rem] font-[700]" style={{ color: "var(--brand-blue)" }}>+ Добавить</button>
                       </div>
                       <div className="flex flex-col gap-2">
                         {form.project_descriptions.map((p, i) => (
                           <div key={i} className="flex gap-2">
                             <input
+                              type="text"
                               value={p}
                               onChange={(e) => updateProject(i, e.target.value)}
                               placeholder={`Проект ${i + 1}: описание...`}
-                              className="flex-1 px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none"
-                              style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+                              className="flex-1 px-4 py-2.5 text-[0.86rem] font-[500]"
                             />
                             {form.project_descriptions.length > 1 && (
                               <button onClick={() => removeProject(i)} className="text-[0.82rem] font-[600] px-2" style={{ color: "var(--brand-coral)" }}>×</button>
@@ -393,9 +370,9 @@ export default function UploadPage() {
                 <FormSection title="Внутренний тест">
                   <div className="flex flex-col gap-3">
                     {form.answers.map((a, i) => (
-                      <div key={i} className="card p-4" style={{ background: "rgba(20,20,20,0.02)" }}>
+                      <div key={i} className="card p-4" style={{ background: "var(--surface-subtle)" }}>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[0.78rem] font-[700]" style={{ color: "var(--brand-muted)" }}>
+                          <span className="text-[0.78rem] font-[700] text-muted">
                             Вопрос {a.question_id}
                           </span>
                           {form.answers.length > 1 && (
@@ -407,8 +384,8 @@ export default function UploadPage() {
                           onChange={(e) => updateAnswer(i, "answer", e.target.value)}
                           placeholder="Ваш ответ..."
                           rows={3}
-                          className="w-full px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none resize-y"
-                          style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)", lineHeight: 1.6 }}
+                          className="px-4 py-2.5 text-[0.86rem] font-[500] resize-y"
+                          style={{ lineHeight: 1.6 }}
                         />
                       </div>
                     ))}
@@ -429,17 +406,17 @@ export default function UploadPage() {
                           type="checkbox"
                           checked={form.has_social_benefit}
                           onChange={(e) => updateField("has_social_benefit", e.target.checked)}
-                          className="accent-[#3dedf1] w-4 h-4"
+                          className="accent-[var(--brand-blue)] w-4 h-4"
                         />
                         Социальный статус
                       </label>
                       {form.has_social_benefit && (
                         <input
+                          type="text"
                           value={form.benefit_type}
                           onChange={(e) => updateField("benefit_type", e.target.value)}
                           placeholder="Тип льготы..."
-                          className="flex-1 px-3 py-2 rounded-[1rem] text-[0.84rem] font-[500] outline-none"
-                          style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+                          className="flex-1 px-3 py-2 text-[0.84rem] font-[500]"
                         />
                       )}
                     </div>
@@ -450,15 +427,14 @@ export default function UploadPage() {
                 <div className="mt-4 mb-2">
                   <button
                     onClick={() => setShowPreview(!showPreview)}
-                    className="text-[0.82rem] font-[700]"
-                    style={{ color: "var(--brand-muted)" }}
+                    className="text-[0.82rem] font-[700] text-muted"
                   >
                     {showPreview ? "Скрыть JSON" : "Показать JSON"}
                   </button>
                   {showPreview && (
                     <pre
                       className="mt-2 px-4 py-3 rounded-[1rem] text-[0.78rem] font-mono overflow-x-auto max-h-[300px] overflow-y-auto"
-                      style={{ background: "rgba(20, 20, 20, 0.04)", border: "1px solid rgba(20, 20, 20, 0.06)" }}
+                      style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
                     >
                       {JSON.stringify(buildPayload(form), null, 2)}
                     </pre>
@@ -471,11 +447,7 @@ export default function UploadPage() {
                     onClick={handleFormSubmit}
                     disabled={!isFormValid || status === "running"}
                     data-testid="submit-candidate-button"
-                    className="btn btn--dark"
-                    style={{
-                      opacity: !isFormValid || status === "running" ? 0.4 : 1,
-                      cursor: !isFormValid || status === "running" ? "not-allowed" : "pointer",
-                    }}
+                    className="btn btn--dark disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Отправить на оценку
                   </button>
@@ -498,32 +470,17 @@ export default function UploadPage() {
 }`}
                   rows={16}
                   data-testid="candidate-json-input"
-                  className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-y font-mono"
-                  style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)", lineHeight: 1.6 }}
+                  className="px-4 py-3 text-[0.88rem] font-[500] resize-y font-mono"
+                  style={{ lineHeight: 1.6 }}
                 />
                 <div className="flex gap-3 mt-5">
                   <button
                     onClick={handleJsonSubmit}
                     disabled={!jsonInput.trim() || status === "running"}
                     data-testid="submit-json-button"
-                    className="btn btn--dark"
-                    style={{
-                      opacity: !jsonInput.trim() || status === "running" ? 0.4 : 1,
-                      cursor: !jsonInput.trim() || status === "running" ? "not-allowed" : "pointer",
-                    }}
+                    className="btn btn--dark disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Отправить
-                  </button>
-                  <button
-                    onClick={handleBatchSubmit}
-                    disabled={!jsonInput.trim() || status === "running"}
-                    className="btn"
-                    style={{
-                      opacity: !jsonInput.trim() || status === "running" ? 0.4 : 1,
-                      cursor: !jsonInput.trim() || status === "running" ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    Пакетная отправка
                   </button>
                 </div>
               </div>
@@ -542,7 +499,7 @@ function FormSection({ title, required, children }: { title: string; required?: 
     <div className="card p-5 mb-4">
       <div className="flex items-center gap-2 mb-4">
         <div className="eyebrow">{title}</div>
-        {required && <span className="text-[0.7rem] font-[700] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255, 142, 112, 0.14)", color: "#ac472e" }}>обязательно</span>}
+        {required && <span className="text-[0.7rem] font-[700] px-1.5 py-0.5 rounded-full" style={{ background: "var(--danger-soft-bg)", color: "var(--danger-soft-text)" }}>обязательно</span>}
       </div>
       {children}
     </div>
@@ -558,7 +515,7 @@ function FormInput({ label, value, onChange, type = "text", placeholder }: {
 }) {
   return (
     <div>
-      <label className="block text-[0.82rem] font-[700] mb-1.5" style={{ color: "var(--brand-muted-strong)" }}>
+      <label className="block text-[0.82rem] font-[700] mb-1.5 text-muted-strong">
         {label}
       </label>
       <input
@@ -566,8 +523,7 @@ function FormInput({ label, value, onChange, type = "text", placeholder }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none"
-        style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+        className="px-4 py-2.5 text-[0.86rem] font-[500]"
         {...(type === "number" ? { step: "0.5", min: "0", max: "120" } : {})}
       />
     </div>
@@ -582,14 +538,13 @@ function FormSelect({ label, value, onChange, options }: {
 }) {
   return (
     <div>
-      <label className="block text-[0.82rem] font-[700] mb-1.5" style={{ color: "var(--brand-muted-strong)" }}>
+      <label className="block text-[0.82rem] font-[700] mb-1.5 text-muted-strong">
         {label}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-2.5 rounded-[1rem] text-[0.86rem] font-[500] outline-none appearance-none"
-        style={{ border: "1px solid rgba(20, 20, 20, 0.1)", background: "rgba(255, 255, 255, 0.82)" }}
+        className="px-4 py-2.5 text-[0.86rem] font-[500]"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -605,7 +560,7 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
     <div className="card p-5 mb-4">
       <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full">
         <div className="eyebrow">{title}</div>
-        <span className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted)" }}>
+        <span className="text-[0.82rem] font-[700] text-muted">
           {open ? "−" : "+"}
         </span>
       </button>

@@ -91,8 +91,6 @@ export const reviewerApi = {
 export const pipelineApi = {
   submitCandidate: (body: unknown) =>
     api.post<PipelineResult>("/api/backend/pipeline/submit", body),
-  submitBatch: (body: unknown[]) =>
-    api.post<PipelineResult[]>("/api/backend/pipeline/batch", body),
 };
 
 export const demoApi = {

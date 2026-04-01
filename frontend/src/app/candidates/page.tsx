@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
@@ -12,221 +12,167 @@ import type { FixtureSummary } from "@/types";
 const PIPELINE_STEP_COUNT = 7;
 const STEP_INTERVAL_MS = 1800;
 
-type RunState = {
-  slug: string;
-  status: "running" | "completed" | "error";
-  step: number;
-  candidateId: string | null;
-  error: string | null;
-};
+const SORT_OPTIONS = [
+  { value: "az", label: "По алфавиту (А-Я)" },
+  { value: "za", label: "По алфавиту (Я-А)" },
+  { value: "program", label: "По программе" },
+];
 
 export default function CandidatesPage() {
   const router = useRouter();
   const [fixtures, setFixtures] = useState<FixtureSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [runState, setRunState] = useState<RunState | null>(null);
+  const [sort, setSort] = useState("az");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const [runState, setRunState] = useState<{slug: string; status: "running" | "completed" | "error" | "idle"; step: number;} | null>(null);
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    demoApi.listFixtures().then(setFixtures).catch(() => {}).finally(() => setLoading(false));
+    demoApi.listFixtures().then(setFixtures).finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return fixtures.filter((f) => {
-      const m = f.meta;
-      return (
-        !q ||
-        m.display_name.toLowerCase().includes(q) ||
-        m.program.toLowerCase().includes(q) ||
-        m.essay_preview.toLowerCase().includes(q)
+    let result = [...fixtures];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(f =>
+        f.meta.display_name.toLowerCase().includes(q) ||
+        f.meta.program.toLowerCase().includes(q)
       );
-    });
-  }, [fixtures, search]);
+    }
 
-  const handleToggleSelect = useCallback((slug: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(slug)) {
-        next.delete(slug);
-      } else if (next.size < 3) {
-        next.add(slug);
+    result.sort((a, b) => {
+      if (sort === "az") {
+        return a.meta.display_name.localeCompare(b.meta.display_name);
       }
-      return next;
-    });
-  }, []);
-
-  const handleRun = useCallback(
-    async (slug: string) => {
-      if (runState?.status === "running") return;
-
-      setRunState({ slug, status: "running", step: 0, candidateId: null, error: null });
-
-      let currentStep = 0;
-      stepTimer.current = setInterval(() => {
-        currentStep += 1;
-        if (currentStep < PIPELINE_STEP_COUNT) {
-          setRunState((prev) => (prev ? { ...prev, step: currentStep } : prev));
-        }
-      }, STEP_INTERVAL_MS);
-
-      try {
-        const result = await demoApi.runFixture(slug);
-        if (stepTimer.current) clearInterval(stepTimer.current);
-        setRunState({
-          slug,
-          status: "completed",
-          step: PIPELINE_STEP_COUNT,
-          candidateId: result.candidate_id,
-          error: null,
-        });
-        setTimeout(() => {
-          router.push(`/dashboard/${result.candidate_id}`);
-        }, 1200);
-      } catch (err) {
-        if (stepTimer.current) clearInterval(stepTimer.current);
-        setRunState((prev) => ({
-          slug,
-          status: "error",
-          step: prev?.step ?? 0,
-          candidateId: null,
-          error: err instanceof Error ? err.message : "Pipeline error",
-        }));
+      if (sort === "za") {
+        return b.meta.display_name.localeCompare(a.meta.display_name);
       }
-    },
-    [runState, router],
-  );
+      if (sort === "program") {
+        return a.meta.program.localeCompare(b.meta.program);
+      }
+      return 0;
+    });
 
-  const handleCompare = () => {
-    if (selected.size < 2) return;
-    const slugs = Array.from(selected).join(",");
-    router.push(`/candidates/compare?slugs=${slugs}`);
-  };
+    return result;
+  }, [fixtures, search, sort]);
 
-  useEffect(() => {
-    return () => {
+  const handleRun = useCallback(async (slug: string) => {
+    if (runState?.status === "running") return;
+    setRunState({ slug, status: "running", step: 0 });
+    let currentStep = 0;
+    stepTimer.current = setInterval(() => {
+      currentStep++;
+      if (currentStep < PIPELINE_STEP_COUNT) setRunState(p => p ? {...p, step: currentStep} : p);
+    }, STEP_INTERVAL_MS);
+
+    try {
+      const res = await demoApi.runFixture(slug);
       if (stepTimer.current) clearInterval(stepTimer.current);
-    };
-  }, []);
+      setRunState({ slug, status: "completed", step: PIPELINE_STEP_COUNT });
+      setTimeout(() => router.push(`/dashboard/${res.candidate_id}`), 1200);
+    } catch {
+      if (stepTimer.current) clearInterval(stepTimer.current);
+      setRunState({ slug, status: "error", step: 0 });
+    }
+  }, [router, runState?.status]);
 
   return (
     <>
       <Header />
       <div className="flex">
         <Sidebar />
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="container-app">
-            <h1
-              className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800] mb-2"
-              style={{ letterSpacing: "-0.04em" }}
-            >
+        <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24 relative">
+          <div className="w-full">
+            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
               Пул кандидатов
             </h1>
-            <p className="text-[0.95rem] mb-6" style={{ color: "var(--brand-muted)" }}>
-              Предзагруженные анкеты для демонстрации полного пайплайна оценки
+            <p className="text-[1rem] mb-10 text-muted">
+              Демонстрация полного пайплайна оценки. Выберите кандидата для тестирования.
             </p>
 
-            {/* Search */}
-            <div className="flex flex-wrap gap-3 mb-6 items-center">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск по имени или программе..."
-                className="px-4 py-2.5 rounded-[1rem] text-[0.88rem] font-[500] outline-none flex-1 min-w-[200px]"
+            {/* Сортировка */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-end gap-6 mb-6">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="chip py-3 px-6 pr-16 font-[700] w-full lg:w-[280px] appearance-none outline-none cursor-pointer transition-all"
                 style={{
-                  border: "1px solid rgba(20, 20, 20, 0.1)",
-                  background: "rgba(255, 255, 255, 0.82)",
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 1.5rem center',
+                  backgroundSize: '1rem',
                 }}
-              />
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Pipeline progress overlay */}
+            {/* Поиск и Переключатель вида */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Поиск по имени или программе..."
+                className="flex-1 px-6 py-4 text-[1rem] font-[600] rounded-[1rem] bg-[var(--surface-subtle)] border border-[var(--brand-line)] outline-none focus:ring-2 focus:ring-[var(--brand-blue)]"
+              />
+              <div className="flex gap-1 p-1.5 rounded-[1.2rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] shrink-0 w-full sm:w-[320px]">
+                <button onClick={() => setViewMode("grid")} className={`flex-1 py-2.5 rounded-[0.9rem] text-[0.9rem] font-[700] transition-all ${viewMode === "grid" ? "bg-[var(--brand-ink)] text-[var(--brand-paper)] shadow-lg" : "text-muted hover:bg-[var(--surface-hover)]"}`}>Сетка</button>
+                <button onClick={() => setViewMode("list")} className={`flex-1 py-2.5 rounded-[0.9rem] text-[0.9rem] font-[700] transition-all ${viewMode === "list" ? "bg-[var(--brand-ink)] text-[var(--brand-paper)] shadow-lg" : "text-muted hover:bg-[var(--surface-hover)]"}`}>Строка</button>
+              </div>
+            </div>
+
+            {/* Прогресс пайплайна */}
             {runState && (
-              <div className="card card--dark p-5 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[0.82rem] font-[700]" style={{ color: "#fff" }}>
-                    {runState.status === "running"
-                      ? `Обработка: ${fixtures.find((f) => f.meta.slug === runState.slug)?.meta.display_name ?? runState.slug}`
-                      : runState.status === "completed"
-                        ? "Готово! Переход к результатам..."
-                        : `Ошибка: ${runState.error}`}
-                  </div>
-                  {runState.status === "error" && (
-                    <button
-                      onClick={() => setRunState(null)}
-                      className="text-[0.78rem] font-[600]"
-                      style={{ color: "rgba(255,255,255,0.6)" }}
-                    >
-                      Закрыть
-                    </button>
-                  )}
+              <div className="card card--dark p-6 mb-8 bg-[#181a1b] border border-[var(--brand-blue)]/30">
+                <div className="text-[0.9rem] font-[700] text-[var(--brand-paper)] mb-4">
+                  {runState.status === "running" ? `Обработка: ${fixtures.find(f => f.meta.slug === runState.slug)?.meta.display_name || "Кандидат"}...` : "Готово!"}
                 </div>
                 <PipelineProgress status={runState.status} currentStep={runState.step} />
               </div>
             )}
 
-            {/* Cards grid */}
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="card p-5 h-[220px] animate-pulse"
-                    style={{ background: "rgba(20, 20, 20, 0.03)" }}
-                  />
-                ))}
+            {/* Сетка / Список */}
+            <div className="w-full overflow-hidden">
+              <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
+                {filtered.map((f) => {
+                  const isProcessing = runState?.slug === f.meta.slug && runState.status === "running";
+                  const isDisabled = runState?.status === "running" && runState.slug !== f.meta.slug;
+
+                  return (
+                    <div key={f.meta.slug} className="relative group h-full flex flex-col">
+                      <div className="flex-1 transition-all duration-300 rounded-[1.2rem] flex flex-col">
+                        <div className="flex-1 h-full">
+                           <DemoCard
+                             meta={f.meta}
+                             onRun={handleRun}
+                             viewMode={viewMode}
+                             isRunning={isProcessing}
+                             isDisabled={isDisabled}
+                           />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map((f) => (
-                  <DemoCard
-                    key={f.meta.slug}
-                    meta={f.meta}
-                    onRun={handleRun}
-                    onToggleSelect={handleToggleSelect}
-                    isRunning={runState?.slug === f.meta.slug && runState.status === "running"}
-                    isSelected={selected.has(f.meta.slug)}
-                    isDisabled={runState?.status === "running" && runState.slug !== f.meta.slug}
-                  />
-                ))}
-              </div>
-            )}
+            </div>
 
             {filtered.length === 0 && !loading && (
-              <p className="text-center text-[0.92rem] font-[500] py-12" style={{ color: "var(--brand-muted)" }}>
+              <div className="text-center py-20 text-muted font-[700] text-[1.1rem]">
                 Кандидаты не найдены
-              </p>
+              </div>
             )}
           </div>
         </main>
       </div>
-
-      {/* Sticky compare footer */}
-      {selected.size >= 2 && (
-        <div
-          className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-4 px-6 py-4"
-          style={{
-            background: "rgba(20, 20, 20, 0.95)",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <span className="text-[0.88rem] font-[600]" style={{ color: "rgba(255,255,255,0.7)" }}>
-            Выбрано {selected.size} из 3
-          </span>
-          <button onClick={handleCompare} className="btn" style={{ background: "var(--brand-blue)", color: "#000" }}>
-            Сравнить кандидатов
-          </button>
-          <button
-            onClick={() => setSelected(new Set())}
-            className="text-[0.82rem] font-[600]"
-            style={{ color: "rgba(255,255,255,0.5)" }}
-          >
-            Сбросить
-          </button>
-        </div>
-      )}
     </>
   );
 }
