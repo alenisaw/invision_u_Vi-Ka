@@ -144,9 +144,9 @@ export default function DashboardPage() {
 
       {selected.size >= 2 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-8 px-6 py-5 bg-[#111213] border-t border-[var(--brand-line)] backdrop-blur-xl">
-          <span className="text-[1rem] font-[800] text-[var(--brand-ink)]">SELECTED {selected.size} / 3</span>
-          <button onClick={() => { const ids = Array.from(selected).join(","); router.push(`/dashboard/compare?ids=${ids}`); }} className="btn py-3 px-10 text-[0.95rem] font-[800]" style={{ background: "var(--brand-blue)", color: "var(--brand-ink)" }}>Compare</button>
-          <button onClick={() => setSelected(new Set())} className="text-[0.9rem] font-[700] text-[var(--brand-ink)] opacity-60 hover:opacity-100 transition-opacity">Reset</button>
+          <span className="text-[1rem] font-[800] text-[var(--brand-ink)]">ВЫБРАНО {selected.size} / 3</span>
+          <button onClick={() => { const ids = Array.from(selected).join(","); router.push(`/dashboard/compare?ids=${ids}`); }} className="btn py-3 px-10 text-[0.95rem] font-[800]" style={{ background: "var(--brand-blue)", color: "var(--brand-ink)" }}>Сравнить</button>
+          <button onClick={() => setSelected(new Set())} className="text-[0.9rem] font-[700] text-[var(--brand-ink)] opacity-60 hover:opacity-100 transition-opacity">Сбросить</button>
         </div>
       )}
     </>

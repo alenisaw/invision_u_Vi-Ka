@@ -1,10 +1,6 @@
-# app/modules/m0_demo/schemas.py
 """
-Schema models for demo fixtures.
-
-Purpose:
-- Describe demo metadata returned by the API.
-- Keep fixture payload contracts explicit and typed.
+File: schemas.py
+Purpose: Demo module API contracts.
 """
 
 from __future__ import annotations

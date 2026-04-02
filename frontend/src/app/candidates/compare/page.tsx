@@ -7,9 +7,9 @@ import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import CompareRadar from "@/components/candidate/CompareRadar";
 import PipelineProgress from "@/components/candidate/PipelineProgress";
-import { demoApi, pipelineApi, reviewerApi } from "@/lib/api";
+import { demoApi } from "@/lib/api";
 import { SUB_SCORE_LABELS, formatPercent } from "@/lib/utils";
-import type { CandidateDetail } from "@/types";
+import type { PipelineResult } from "@/types";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   STRONG_RECOMMEND: { bg: "rgba(193, 241, 29, 0.18)", color: "#415005" },
@@ -22,7 +22,7 @@ interface SlugState {
   slug: string;
   status: "pending" | "running" | "done" | "error";
   step: number;
-  result: CandidateDetail | null;
+  result: PipelineResult | null;
   error: string | null;
 }
 
@@ -68,12 +68,7 @@ function ComparePageInner() {
         }, 1500);
 
         try {
-          const queued = await demoApi.runFixture(states[i].slug);
-          await pipelineApi.waitForCandidateCompletion(queued.candidate_id, {
-            intervalMs: 1500,
-            timeoutMs: 180000,
-          });
-          const result = await reviewerApi.getCandidateDetail(queued.candidate_id);
+          const result = await demoApi.runFixture(states[i].slug);
           clearInterval(stepInterval);
           setStates((prev) =>
             prev.map((s, j) =>

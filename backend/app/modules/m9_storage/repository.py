@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.audit import AUDIT_SIGNATURE_VERSION, build_audit_event_hash
-from app.core.config import get_settings
 from app.modules.m9_storage.models import (
     AuditLog,
     Candidate,
@@ -19,9 +16,6 @@ from app.modules.m9_storage.models import (
     CandidatePII,
     CandidateScore,
     NLPSignal,
-    PipelineJob,
-    PipelineJobEvent,
-    PipelineStageRun,
     Program,
     ReviewerAction,
 )
@@ -54,7 +48,6 @@ class StorageRepository(Generic[ModelT]):
         candidate = Candidate(
             selected_program=selected_program,
             pipeline_status=pipeline_status,
-            dedupe_key=dedupe_key,
         )
         if intake_id is not None:
             candidate.intake_id = intake_id
@@ -82,11 +75,6 @@ class StorageRepository(Generic[ModelT]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_candidate_by_dedupe_key(self, dedupe_key: str) -> Candidate | None:
-        stmt = select(Candidate).where(Candidate.dedupe_key == dedupe_key)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
     async def get_candidate_with_related(self, candidate_id: UUID) -> Candidate | None:
         stmt = (
             select(Candidate)
@@ -99,7 +87,6 @@ class StorageRepository(Generic[ModelT]):
                 selectinload(Candidate.score_record),
                 selectinload(Candidate.explanation_record),
                 selectinload(Candidate.reviewer_actions),
-                selectinload(Candidate.pipeline_jobs),
             )
         )
         result = await self.session.execute(stmt)
@@ -121,272 +108,6 @@ class StorageRepository(Generic[ModelT]):
         await self.session.flush()
         await self.session.refresh(candidate)
         return candidate
-
-    async def create_pipeline_job(
-        self,
-        *,
-        candidate_id: UUID,
-        job_type: str = "candidate_submission",
-        status: str = "queued",
-        current_stage: str | None = None,
-        execution_mode: str = "async",
-        requested_by: str = "system",
-        attempt_count: int = 0,
-        payload_schema_version: str | None = None,
-        payload_encrypted: bytes | None = None,
-    ) -> PipelineJob:
-        job = PipelineJob(
-            candidate_id=candidate_id,
-            job_type=job_type,
-            status=status,
-            current_stage=current_stage,
-            execution_mode=execution_mode,
-            requested_by=requested_by,
-            attempt_count=attempt_count,
-            payload_schema_version=payload_schema_version,
-            payload_encrypted=payload_encrypted,
-        )
-        self.session.add(job)
-        await self.session.flush()
-        await self.session.refresh(job)
-        return job
-
-    async def get_pipeline_job(self, job_id: UUID) -> PipelineJob | None:
-        stmt = select(PipelineJob).where(PipelineJob.id == job_id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def get_pipeline_job_with_related(self, job_id: UUID) -> PipelineJob | None:
-        stmt = (
-            select(PipelineJob)
-            .where(PipelineJob.id == job_id)
-            .options(
-                selectinload(PipelineJob.stage_runs),
-                selectinload(PipelineJob.events),
-                selectinload(PipelineJob.candidate),
-            )
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def get_latest_pipeline_job_for_candidate(
-        self,
-        candidate_id: UUID,
-    ) -> PipelineJob | None:
-        stmt = (
-            select(PipelineJob)
-            .where(PipelineJob.candidate_id == candidate_id)
-            .options(
-                selectinload(PipelineJob.stage_runs),
-                selectinload(PipelineJob.events),
-            )
-            .order_by(PipelineJob.created_at.desc())
-            .limit(1)
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def update_pipeline_job(
-        self,
-        job_id: UUID,
-        **values: Any,
-    ) -> PipelineJob | None:
-        job = await self.get_pipeline_job(job_id)
-        if job is None:
-            return None
-
-        for field_name, value in values.items():
-            setattr(job, field_name, value)
-
-        await self.session.flush()
-        await self.session.refresh(job)
-        return job
-
-    async def create_pipeline_stage_run(
-        self,
-        *,
-        job_id: UUID,
-        stage_name: str,
-        status: str = "queued",
-        attempt_count: int = 0,
-        started_at: Any | None = None,
-        finished_at: Any | None = None,
-        duration_ms: int | None = None,
-        error_code: str | None = None,
-        error_message: str | None = None,
-        output_ref: dict[str, Any] | None = None,
-    ) -> PipelineStageRun:
-        stage_run = PipelineStageRun(
-            job_id=job_id,
-            stage_name=stage_name,
-            status=status,
-            attempt_count=attempt_count,
-            started_at=started_at,
-            finished_at=finished_at,
-            duration_ms=duration_ms,
-            error_code=error_code,
-            error_message=error_message,
-            output_ref=output_ref or {},
-        )
-        self.session.add(stage_run)
-        await self.session.flush()
-        await self.session.refresh(stage_run)
-        return stage_run
-
-    async def get_pipeline_stage_run(
-        self,
-        job_id: UUID,
-        stage_name: str,
-    ) -> PipelineStageRun | None:
-        stmt = select(PipelineStageRun).where(
-            PipelineStageRun.job_id == job_id,
-            PipelineStageRun.stage_name == stage_name,
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def update_pipeline_stage_run(
-        self,
-        job_id: UUID,
-        stage_name: str,
-        **values: Any,
-    ) -> PipelineStageRun | None:
-        stage_run = await self.get_pipeline_stage_run(job_id, stage_name)
-        if stage_run is None:
-            return None
-
-        for field_name, value in values.items():
-            setattr(stage_run, field_name, value)
-
-        await self.session.flush()
-        await self.session.refresh(stage_run)
-        return stage_run
-
-    async def list_pipeline_stage_runs(self, job_id: UUID) -> list[PipelineStageRun]:
-        stmt = (
-            select(PipelineStageRun)
-            .where(PipelineStageRun.job_id == job_id)
-            .order_by(PipelineStageRun.created_at.asc())
-        )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def create_pipeline_job_event(
-        self,
-        *,
-        job_id: UUID,
-        event_type: str,
-        stage_name: str | None = None,
-        status: str | None = None,
-        payload: dict[str, Any] | None = None,
-    ) -> PipelineJobEvent:
-        event = PipelineJobEvent(
-            job_id=job_id,
-            event_type=event_type,
-            stage_name=stage_name,
-            status=status,
-            payload=payload or {},
-        )
-        self.session.add(event)
-        await self.session.flush()
-        await self.session.refresh(event)
-        return event
-
-    async def list_pipeline_job_events(self, job_id: UUID) -> list[PipelineJobEvent]:
-        stmt = (
-            select(PipelineJobEvent)
-            .where(PipelineJobEvent.job_id == job_id)
-            .order_by(PipelineJobEvent.created_at.asc())
-        )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def count_pipeline_jobs_by_status(self) -> dict[str, int]:
-        stmt = select(PipelineJob.status, func.count(PipelineJob.id)).group_by(PipelineJob.status)
-        result = await self.session.execute(stmt)
-        return {str(status): int(count) for status, count in result.all()}
-
-    async def count_pipeline_jobs_by_stage(self) -> list[dict[str, object]]:
-        stmt = (
-            select(
-                PipelineJob.current_stage,
-                PipelineJob.status,
-                func.count(PipelineJob.id),
-            )
-            .group_by(PipelineJob.current_stage, PipelineJob.status)
-            .order_by(PipelineJob.current_stage.asc(), PipelineJob.status.asc())
-        )
-        result = await self.session.execute(stmt)
-        return [
-            {
-                "current_stage": None if current_stage is None else str(current_stage),
-                "status": str(status),
-                "count": int(count),
-            }
-            for current_stage, status, count in result.all()
-        ]
-
-    async def get_pipeline_stage_metrics(self) -> list[dict[str, object]]:
-        stmt = select(PipelineStageRun).order_by(PipelineStageRun.stage_name.asc())
-        result = await self.session.execute(stmt)
-        stage_runs = list(result.scalars().all())
-        grouped: dict[str, list[PipelineStageRun]] = {}
-        for stage_run in stage_runs:
-            grouped.setdefault(str(stage_run.stage_name), []).append(stage_run)
-
-        metrics: list[dict[str, object]] = []
-        for stage_name in sorted(grouped):
-            runs = grouped[stage_name]
-            total_runs = len(runs)
-            completed_runs = sum(1 for run in runs if run.status == "completed")
-            failed_runs = sum(1 for run in runs if run.status == "failed")
-            manual_review_runs = sum(
-                1 for run in runs if run.status == "requires_manual_review"
-            )
-            running_runs = sum(1 for run in runs if run.status == "running")
-            queued_runs = sum(1 for run in runs if run.status == "queued")
-            retry_scheduled_runs = sum(
-                1 for run in runs if run.status == "retry_scheduled"
-            )
-            retry_observations = sum(max(0, int(run.attempt_count) - 1) for run in runs)
-            durations = sorted(
-                int(run.duration_ms)
-                for run in runs
-                if run.duration_ms is not None and run.duration_ms >= 0
-            )
-            avg_duration_ms = (
-                None
-                if not durations
-                else round(sum(durations) / len(durations), 2)
-            )
-            p95_duration_ms = None
-            if durations:
-                percentile_index = max(0, int(round((len(durations) - 1) * 0.95)))
-                p95_duration_ms = durations[percentile_index]
-
-            metrics.append(
-                {
-                    "stage_name": stage_name,
-                    "total_runs": total_runs,
-                    "completed_runs": completed_runs,
-                    "failed_runs": failed_runs,
-                    "manual_review_runs": manual_review_runs,
-                    "running_runs": running_runs,
-                    "queued_runs": queued_runs,
-                    "retry_scheduled_runs": retry_scheduled_runs,
-                    "retry_observations": retry_observations,
-                    "failure_rate": 0.0
-                    if total_runs == 0
-                    else round(failed_runs / total_runs, 4),
-                    "manual_review_rate": 0.0
-                    if total_runs == 0
-                    else round(manual_review_runs / total_runs, 4),
-                    "avg_duration_ms": avg_duration_ms,
-                    "p95_duration_ms": p95_duration_ms,
-                    "max_duration_ms": None if not durations else durations[-1],
-                }
-            )
-        return metrics
 
     async def upsert_candidate_pii(self, candidate_id: UUID, encrypted_data: bytes) -> CandidatePII:
         return await self._upsert_singleton(
@@ -487,32 +208,12 @@ class StorageRepository(Generic[ModelT]):
         entity_id: UUID | None = None,
         details: dict[str, Any] | None = None,
     ) -> AuditLog:
-        latest_audit_log = await self.get_latest_signed_audit_log()
-        created_at = datetime.now(timezone.utc)
-        sequence_no = 1 if latest_audit_log is None or latest_audit_log.sequence_no is None else latest_audit_log.sequence_no + 1
-        prev_hash = None if latest_audit_log is None else latest_audit_log.event_hash
-        event_hash = build_audit_event_hash(
-            secret=get_settings().effective_audit_signing_key,
-            sequence_no=sequence_no,
-            prev_hash=prev_hash,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            action=action,
-            actor=actor,
-            details=details or {},
-            created_at=created_at,
-        )
         audit_log = AuditLog(
             entity_type=entity_type,
             entity_id=entity_id,
             action=action,
             actor=actor,
             details=details or {},
-            sequence_no=sequence_no,
-            prev_hash=prev_hash,
-            event_hash=event_hash,
-            signature_version=AUDIT_SIGNATURE_VERSION,
-            created_at=created_at,
         )
         self.session.add(audit_log)
         await self.session.flush()
@@ -521,26 +222,6 @@ class StorageRepository(Generic[ModelT]):
 
     async def list_audit_logs(self, limit: int = 100) -> list[AuditLog]:
         stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def get_latest_signed_audit_log(self) -> AuditLog | None:
-        stmt = (
-            select(AuditLog)
-            .where(AuditLog.sequence_no.is_not(None))
-            .order_by(AuditLog.sequence_no.desc())
-            .limit(1)
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def list_signed_audit_logs(self, limit: int = 1000) -> list[AuditLog]:
-        stmt = (
-            select(AuditLog)
-            .where(AuditLog.sequence_no.is_not(None))
-            .order_by(AuditLog.sequence_no.asc())
-            .limit(limit)
-        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

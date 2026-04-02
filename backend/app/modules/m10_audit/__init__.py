@@ -1,1 +1,1 @@
-"""Audit and reviewer action module."""
+"""Placeholder package for the future M10 audit module."""

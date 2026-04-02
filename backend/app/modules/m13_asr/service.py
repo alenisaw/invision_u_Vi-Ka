@@ -5,7 +5,6 @@ Purpose: Main orchestration layer for the M13 ASR module.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from .downloader import cleanup_paths, resolve_request_media
@@ -55,12 +54,9 @@ class ASRService:
         finally:
             cleanup_paths(resolved_media.cleanup_paths)
 
-    async def transcribe_async(self, request: ASRRequest) -> ASRTranscriptResult:
-        """Run the blocking ASR path in a worker thread to protect the event loop."""
-
-        return await asyncio.to_thread(self.transcribe, request)
-
 
 asr_service = ASRService()
 
 
+# File summary: service.py
+# Exposes the compact M13 service API used by the main pipeline.

@@ -71,7 +71,7 @@ class GroqWhisperTranscriber:
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = ASR_MODEL_NAME,
+        model: str | None = None,
         timeout_s: float = 90.0,
     ) -> None:
         self.api_key = (
@@ -82,7 +82,7 @@ class GroqWhisperTranscriber:
             or ""
         ).strip()
         self.base_url = (base_url or os.getenv("M13_ASR_BASE_URL") or ASR_API_BASE_URL).rstrip("/")
-        self.model = model
+        self.model = (model or os.getenv("M13_ASR_MODEL") or ASR_MODEL_NAME).strip()
         self.timeout_s = timeout_s
 
     @property
@@ -215,3 +215,5 @@ class GroqWhisperTranscriber:
         }
 
 
+# File summary: transcriber.py
+# Calls Groq Whisper Large V3 Turbo via API and normalizes transcript segments.

@@ -16,7 +16,6 @@ const PROGRAMS = [
   "Креативная инженерия",
   "Социология инноваций и лидерства",
   "Стратегии государственного управления и развития",
-  "General Admissions",
 ];
 
 const EXAM_TYPES = ["IELTS", "TOEFL", "Kaztest", ""];

@@ -23,7 +23,7 @@
 
 ## Overview
 
-This document consolidates the functional documentation for all backend modules. It separates module-level responsibilities from the higher-level architecture and API documents so that each concern stays in one clear place.
+This document consolidates the functional documentation for all active backend modules. It separates module-level responsibilities from the higher-level architecture and API documents so each concern stays in one place.
 
 ---
 
@@ -52,7 +52,6 @@ flowchart LR
     M1 --> M5
     M1 --> M6
     M1 --> M7
-    M1 --> M10
     M2 --> M9
     M3 --> M9
     M4 --> M9
@@ -60,26 +59,23 @@ flowchart LR
     M6 --> M9
     M7 --> M9
     M8 --> M9
+    M10 --> M9
+    M13 --> M3
     M13 --> M9
-    M13 --> M5
-    M5 --> M6
-    M6 --> M7
-    M7 --> M8
-    M8 --> M10
 ```
 
 ---
 
 ## M0 Demo
 
-Provides pre-built candidate fixtures for hackathon demonstration. Loads realistic candidate payloads from JSON files and runs them through the existing pipeline without any modifications to M2-M7 modules.
+Provides pre-built candidate fixtures for demonstration. Loads realistic payloads from JSON files and runs them through the live synchronous pipeline.
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m0_demo/fixtures/*.json` | 14 pre-built candidate payloads covering all programs |
+| `backend/app/modules/m0_demo/fixtures/*.json` | pre-built candidate payloads covering multiple programs |
 | `backend/app/modules/m0_demo/schemas.py` | `FixtureMeta`, `FixtureSummary`, `FixtureDetail` contracts |
-| `backend/app/modules/m0_demo/service.py` | Fixture loading, caching, and payload parsing |
-| `backend/app/modules/m0_demo/router.py` | Demo API endpoints: list, detail, and pipeline run |
+| `backend/app/modules/m0_demo/service.py` | fixture loading, caching, and payload parsing |
+| `backend/app/modules/m0_demo/router.py` | demo API endpoints: list, detail, pipeline run |
 
 ---
 
@@ -87,34 +83,34 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 ### Purpose
 
-`M1` is the public backend entry point. It exposes HTTP endpoints, coordinates the active pipeline, and returns normalized API envelopes.
+`M1` is the public backend entry point for full-pipeline submission and direct scoring operations.
 
 ### Functional Scope
 
-- exposes intake endpoints;
-- exposes full pipeline submission endpoints;
-- exposes direct M6 scoring endpoints;
-- coordinates the implemented module order;
-- normalizes API success and error responses.
+- exposes synchronous full-pipeline submission endpoints
+- exposes sequential batch submission
+- exposes direct M6 scoring and evaluation endpoints
+- coordinates the implemented module order
+- normalizes API success and error responses
 
 ### Inputs
 
-- raw candidate submission payloads;
-- canonical `SignalEnvelope` for direct scoring routes;
-- batch lists for sequential batch processing.
+- raw candidate submission payloads
+- canonical `SignalEnvelope` for direct scoring routes
+- batch lists for sequential processing
 
 ### Outputs
 
-- intake responses with candidate identifiers;
-- pipeline responses with score and explanation payloads;
-- direct scoring and evaluation responses.
+- pipeline responses with score and completeness payloads
+- direct scoring results
+- synthetic training and evaluation responses
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m1_gateway/router.py` | Public routes |
-| `backend/app/modules/m1_gateway/orchestrator.py` | Full pipeline orchestration |
+| `backend/app/modules/m1_gateway/router.py` | public pipeline and scoring routes |
+| `backend/app/modules/m1_gateway/orchestrator.py` | full synchronous pipeline orchestration |
 
 ---
 
@@ -126,31 +122,19 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 ### Functional Scope
 
-- validates candidate payload structure;
-- computes initial completeness;
-- extracts administrative eligibility signals;
-- persists the initial intake record;
-- returns `candidate_id` and intake state.
-
-### Inputs
-
-- raw application form data;
-- selected program;
-- optional content references such as essay and video link.
-
-### Outputs
-
-- intake record identifier;
-- intake completeness;
-- initial eligibility and data flags.
+- validates candidate payload structure
+- computes initial completeness
+- extracts administrative eligibility signals
+- persists the initial intake record
+- returns `candidate_id` and intake state
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m2_intake/schemas.py` | Intake contracts |
-| `backend/app/modules/m2_intake/service.py` | Validation and persistence |
-| `backend/app/modules/m2_intake/router.py` | Intake endpoint |
+| `backend/app/modules/m2_intake/schemas.py` | intake contracts |
+| `backend/app/modules/m2_intake/service.py` | validation and persistence |
+| `backend/app/modules/m2_intake/router.py` | intake endpoint |
 
 ---
 
@@ -158,34 +142,23 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 ### Purpose
 
-`M3` enforces privacy separation and produces the safe model-facing payload used by the AI and ML modules.
+`M3` enforces privacy separation and produces the safe model-facing payload used by AI and ML modules.
 
 ### Functional Scope
 
-- separates candidate input into three layers;
-- keeps PII in Layer 1 only;
-- stores operational metadata in Layer 2;
-- produces redacted model-safe content in Layer 3;
-- redacts explicit identifiers from text.
-
-### Inputs
-
-- raw candidate payload;
-- ASR transcript and quality flags when available.
-
-### Outputs
-
-- Layer 1 secure PII vault payload;
-- Layer 2 operational metadata payload;
-- Layer 3 safe model input payload.
+- separates candidate input into three layers
+- keeps PII in Layer 1 only
+- stores operational metadata in Layer 2
+- produces redacted model-safe content in Layer 3
+- redacts explicit identifiers from text
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m3_privacy/redactor.py` | Text redaction |
-| `backend/app/modules/m3_privacy/separator.py` | Layer split logic |
-| `backend/app/modules/m3_privacy/service.py` | Persistence and orchestration |
+| `backend/app/modules/m3_privacy/redactor.py` | text redaction |
+| `backend/app/modules/m3_privacy/separator.py` | layer split logic |
+| `backend/app/modules/m3_privacy/service.py` | persistence and orchestration |
 
 ---
 
@@ -197,27 +170,17 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 ### Functional Scope
 
-- combines Layer 2 and Layer 3 into one profile;
-- propagates completeness and data flags;
-- includes ASR metadata for downstream modules;
-- provides a normalized object for NLP and scoring stages.
-
-### Inputs
-
-- Layer 2 operational metadata;
-- Layer 3 safe model input.
-
-### Outputs
-
-- canonical `CandidateProfile`.
+- combines Layer 2 and Layer 3 into one profile
+- propagates completeness and data flags
+- provides a normalized object for NLP and scoring stages
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m4_profile/schemas.py` | Candidate profile schema |
-| `backend/app/modules/m4_profile/assembler.py` | Profile assembly |
-| `backend/app/modules/m4_profile/service.py` | Profile coordination |
+| `backend/app/modules/m4_profile/schemas.py` | candidate profile schema |
+| `backend/app/modules/m4_profile/assembler.py` | profile assembly |
+| `backend/app/modules/m4_profile/service.py` | profile coordination |
 
 ---
 
@@ -229,41 +192,25 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 ### Functional Scope
 
-- normalizes safe inputs into reusable source bundles;
-- calls Gemini for grouped signal extraction;
-- applies heuristic fallback extraction when necessary;
-- uses embeddings and consistency checks as advisory support;
-- emits a canonical `SignalEnvelope` for `M6`.
-
-### Inputs
-
-- candidate id;
-- selected program;
-- essay text;
-- redacted transcript;
-- internal test answers;
-- project descriptions;
-- experience summary;
-- completeness and data flags.
-
-### Outputs
-
-- `SignalEnvelope`;
-- signal-level `value`, `confidence`, `source`, `evidence`, and `reasoning`;
-- `program_id` normalization for scoring.
+- normalizes safe inputs into reusable source bundles
+- calls Groq first for grouped signal extraction and can fall back to Gemini when configured
+- applies heuristic fallback extraction when necessary
+- uses local Hugging Face embeddings and authenticity checks as advisory support
+- emits a canonical `SignalEnvelope` for `M6`
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m5_nlp/schemas.py` | Request schema and validation |
-| `backend/app/modules/m5_nlp/source_bundle.py` | Shared safe-source assembly |
-| `backend/app/modules/m5_nlp/gemini_client.py` | Gemini provider integration |
-| `backend/app/modules/m5_nlp/extractor.py` | Heuristic fallback extraction |
-| `backend/app/modules/m5_nlp/signal_extraction_service.py` | Grouped extraction flow |
-| `backend/app/modules/m5_nlp/embeddings.py` | Similarity and embedding utilities |
-| `backend/app/modules/m5_nlp/ai_detector.py` | Advisory authenticity checks |
-| `backend/app/modules/m5_nlp/client.py` | Safe local-media transcription fallback |
+| `backend/app/modules/m5_nlp/schemas.py` | request schema and validation |
+| `backend/app/modules/m5_nlp/client.py` | safe local-media transcription fallback client |
+| `backend/app/modules/m5_nlp/gemini_client.py` | optional Gemini provider integration |
+| `backend/app/modules/m5_nlp/groq_llm_client.py` | primary Groq-backed LLM integration |
+| `backend/app/modules/m5_nlp/source_bundle.py` | shared safe-source assembly |
+| `backend/app/modules/m5_nlp/extractor.py` | heuristic fallback extraction |
+| `backend/app/modules/m5_nlp/signal_extraction_service.py` | grouped extraction flow |
+| `backend/app/modules/m5_nlp/embeddings.py` | local embedding and similarity utilities |
+| `backend/app/modules/m5_nlp/ai_detector.py` | advisory authenticity checks |
 
 ---
 
@@ -275,69 +222,32 @@ Provides pre-built candidate fixtures for hackathon demonstration. Loads realist
 
 ### Functional Scope
 
-- computes deterministic sub-scores;
-- computes a rule-based baseline score;
-- refines the score with `GradientBoostingRegressor`;
-- applies program-aware weighting profiles;
-- derives confidence, uncertainty, and review-routing fields;
-- prepares explainability-ready outputs for `M7`.
-
-### Why `program_fit` exists
-
-`program_fit` is the alignment dimension. It measures whether the candidate's stated goals, project examples, interests, and trajectory actually match the selected academic track.
-
-This is important because the system should distinguish:
-
-- a candidate with high general potential;
-- a candidate with high potential for this exact program.
-
-### Why the weights matter
-
-The weights are not arbitrary decoration. They are the policy layer that determines which evidence should matter most when the candidate profile is mixed. The default profile prioritizes:
-
-- leadership potential;
-- growth trajectory;
-- motivation clarity;
-- initiative and learning ability.
-
-Program-aware profiles then rebalance those priorities. For example:
-
-- media and marketing increase the weight of communication clarity;
-- public governance increases ethical reasoning and communication;
-- creative engineering increases initiative, experimentation, and fit.
-
-### Inputs
-
-- canonical `SignalEnvelope`;
-- selected program and canonical `program_id`;
-- completeness and data flags.
-
-### Outputs
-
-- `CandidateScore`;
-- `review_priority_index`;
-- `recommendation_status`;
-- `manual_review_required`;
-- `human_in_loop_required`;
-- `uncertainty_flag`;
-- strengths, risks, and decision summary.
+- computes deterministic sub-scores
+- computes a rule-based baseline score
+- refines the score with `GradientBoostingRegressor`
+- applies program-aware weighting profiles
+- derives confidence, uncertainty, and review-routing fields
+- prepares explainability-ready outputs for `M7`
+- ranks batch results and supports synthetic evaluation tooling
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | Core policy config |
-| `backend/app/modules/m6_scoring/m6_scoring_config.py` | Typed config loader |
-| `backend/app/modules/m6_scoring/program_policy.py` | Program-specific policy lookup |
-| `backend/app/modules/m6_scoring/rules.py` | Baseline sub-score logic |
-| `backend/app/modules/m6_scoring/confidence.py` | Confidence and uncertainty |
-| `backend/app/modules/m6_scoring/decision_policy.py` | Final category and review policy |
+| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | core policy config |
+| `backend/app/modules/m6_scoring/m6_scoring_config.py` | typed config loader |
+| `backend/app/modules/m6_scoring/program_policy.py` | program-specific policy lookup |
+| `backend/app/modules/m6_scoring/rules.py` | baseline sub-score logic |
+| `backend/app/modules/m6_scoring/confidence.py` | confidence and uncertainty |
+| `backend/app/modules/m6_scoring/decision_policy.py` | final category and review policy |
+| `backend/app/modules/m6_scoring/calibration.py` | optional calibration utilities |
 | `backend/app/modules/m6_scoring/ml_model.py` | GBR refinement model |
-| `backend/app/modules/m6_scoring/service.py` | Public scoring service |
-| `backend/app/modules/m6_scoring/evaluation.py` | Evaluation helpers |
-| `backend/app/modules/m6_scoring/optimization.py` | Threshold search |
-| `backend/app/modules/m6_scoring/synthetic_data.py` | Synthetic fixtures |
-| `backend/app/modules/m6_scoring/ranker.py` | Batch ranking |
+| `backend/app/modules/m6_scoring/ranker.py` | batch ranking |
+| `backend/app/modules/m6_scoring/io_utils.py` | report and artifact IO helpers |
+| `backend/app/modules/m6_scoring/service.py` | public scoring service |
+| `backend/app/modules/m6_scoring/evaluation.py` | evaluation helpers |
+| `backend/app/modules/m6_scoring/optimization.py` | threshold search |
+| `backend/app/modules/m6_scoring/synthetic_data.py` | synthetic fixtures |
 
 ---
 
@@ -349,33 +259,20 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Functional Scope
 
-- builds concise candidate summary text;
-- selects top strengths and caution blocks;
-- maps evidence snippets to factors;
-- produces reviewer guidance text;
-- formats auditable explanation output without re-scoring the candidate.
-
-### Inputs
-
-- canonical `SignalEnvelope`;
-- `CandidateScore` from `M6`.
-
-### Outputs
-
-- summary;
-- positive factors;
-- caution blocks;
-- evidence items;
-- reviewer guidance.
+- builds concise candidate summary text
+- selects top strengths and caution blocks
+- maps evidence snippets to factors
+- produces reviewer guidance text
+- formats explanation output without re-scoring the candidate
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m7_explainability/schemas.py` | Explainability contracts |
-| `backend/app/modules/m7_explainability/factors.py` | Factor and caution titles |
-| `backend/app/modules/m7_explainability/evidence.py` | Evidence mapping |
-| `backend/app/modules/m7_explainability/service.py` | Explainability assembly |
+| `backend/app/modules/m7_explainability/schemas.py` | explainability contracts |
+| `backend/app/modules/m7_explainability/factors.py` | factor and caution titles |
+| `backend/app/modules/m7_explainability/evidence.py` | evidence mapping |
+| `backend/app/modules/m7_explainability/service.py` | explainability assembly |
 
 ---
 
@@ -383,21 +280,23 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Purpose
 
-`M8` exposes the reviewer-facing dashboard API.
+`M8` exposes the reviewer-facing read API.
 
 ### Current State
 
-- implemented in this branch;
-- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, and safe reviewer identity projection;
-- requires reviewer API key access before returning reviewer-facing data.
+- implemented in this branch
+- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, and safe reviewer identity projection
+- builds candidate display names by decrypting stored PII inside the backend projection layer
+- includes raw safe content and reviewer action history in detail responses
+- requires reviewer API key access before returning reviewer-facing data
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | Reviewer-facing read routes and override entrypoint |
-| `backend/app/modules/m8_dashboard/service.py` | Safe reviewer projection logic and dashboard aggregation |
-| `backend/app/modules/m8_dashboard/schemas.py` | Reviewer DTOs for stats, lists, detail, and shortlist |
+| `backend/app/modules/m8_dashboard/router.py` | reviewer-facing read routes and override entrypoint |
+| `backend/app/modules/m8_dashboard/service.py` | safe reviewer projection logic and dashboard aggregation |
+| `backend/app/modules/m8_dashboard/schemas.py` | reviewer DTOs for stats, lists, detail, and shortlist |
 
 ---
 
@@ -409,17 +308,17 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Functional Scope
 
-- stores candidate records and layer payloads;
-- stores NLP signals, scores, and explanations;
-- provides repository methods for reads and writes;
-- acts as the persistence backbone for the pipeline.
+- stores candidate records and layer payloads
+- stores NLP signals, scores, explanations, reviewer actions, and audit logs
+- refreshes score rankings after scoring writes
+- exposes repository methods used across the pipeline and reviewer surfaces
 
 ### Files
 
 | File | Responsibility |
 |---|---|
 | `backend/app/modules/m9_storage/models.py` | SQLAlchemy models |
-| `backend/app/modules/m9_storage/repository.py` | Repository methods |
+| `backend/app/modules/m9_storage/repository.py` | repository methods |
 
 ---
 
@@ -431,17 +330,19 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Current State
 
-- implemented in this branch;
-- stores decision overrides, reviewer actions, and pipeline audit events;
-- exposes candidate action endpoints and a reviewer-facing audit feed.
+- implemented in this branch
+- stores overrides, comments, shortlist actions, and pipeline audit entries
+- exposes candidate action endpoints and a reviewer-facing audit feed
+- updates shortlist state and status overrides through the shared persistence layer
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m10_audit/logger.py` | Future audit logging helpers |
-| `backend/app/modules/m10_audit/service.py` | Override workflows, reviewer action writes, and audit feed shaping |
-| `backend/app/modules/m10_audit/router.py` | Reviewer action and audit feed routes |
+| `backend/app/modules/m10_audit/logger.py` | audit logging helpers and future extension point |
+| `backend/app/modules/m10_audit/service.py` | override workflows, reviewer action writes, audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | reviewer action and audit feed routes |
+| `backend/app/modules/m10_audit/schemas.py` | request and response contracts |
 
 ---
 
@@ -453,34 +354,20 @@ Program-aware profiles then rebalance those priorities. For example:
 
 ### Functional Scope
 
-- resolves safe media input;
-- calls Groq `whisper-large-v3-turbo`;
-- normalizes transcript segments;
-- computes confidence and quality flags;
-- emits `requires_human_review` for low-quality transcription cases.
-
-### Inputs
-
-- candidate id;
-- media path or URL;
-- optional language hints.
-
-### Outputs
-
-- transcript text;
-- segment list;
-- confidence values;
-- quality flags;
-- `requires_human_review`.
+- resolves safe media input
+- calls Groq Whisper using the env-selected `M13_ASR_MODEL`
+- normalizes transcript segments
+- computes confidence and quality flags
+- emits `requires_human_review` for low-quality transcription cases
 
 ### Files
 
 | File | Responsibility |
 |---|---|
 | `backend/app/modules/m13_asr/schemas.py` | ASR contracts |
-| `backend/app/modules/m13_asr/downloader.py` | Safe media resolution |
+| `backend/app/modules/m13_asr/downloader.py` | safe media resolution |
 | `backend/app/modules/m13_asr/transcriber.py` | Groq Whisper integration |
-| `backend/app/modules/m13_asr/quality_checker.py` | Quality analysis |
+| `backend/app/modules/m13_asr/quality_checker.py` | quality analysis |
 | `backend/app/modules/m13_asr/service.py` | ASR orchestration |
 
 ---

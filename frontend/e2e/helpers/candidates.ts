@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext } from "@playwright/test";
 
-import type { CandidateDetail, RecommendationStatus } from "../../src/types";
+import type { PipelineResult, RecommendationStatus } from "../../src/types";
 
 export interface TestCandidateFixture {
   payload: Record<string, unknown>;
@@ -48,45 +48,16 @@ export function buildCandidatePayload(prefix: string): TestCandidateFixture {
 export async function submitCandidate(
   request: APIRequestContext,
   payload: Record<string, unknown>,
-): Promise<CandidateDetail> {
-  const response = await request.post("/api/backend/pipeline/submit-async", {
+): Promise<PipelineResult> {
+  const response = await request.post("/api/backend/pipeline/submit", {
     data: payload,
   });
   const body = await response.json();
 
   expect(response.ok(), JSON.stringify(body)).toBeTruthy();
   expect(body.success).toBe(true);
-  const candidateId = body.data.candidate_id as string;
 
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < 180000) {
-    const statusResponse = await request.get(
-      `/api/backend/pipeline/candidates/${candidateId}/status`,
-    );
-    const statusBody = await statusResponse.json();
-
-    expect(statusResponse.ok(), JSON.stringify(statusBody)).toBeTruthy();
-    expect(statusBody.success).toBe(true);
-
-    const pipelineStatus = statusBody.data.pipeline_status as string;
-    if (pipelineStatus === "completed") {
-      const detailResponse = await request.get(
-        `/api/backend/dashboard/candidates/${candidateId}`,
-      );
-      const detailBody = await detailResponse.json();
-      expect(detailResponse.ok(), JSON.stringify(detailBody)).toBeTruthy();
-      expect(detailBody.success).toBe(true);
-      return detailBody.data as CandidateDetail;
-    }
-
-    if (pipelineStatus === "failed" || pipelineStatus === "requires_manual_review") {
-      throw new Error(`Candidate processing finished with status: ${pipelineStatus}`);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
-
-  throw new Error("Timed out while waiting for asynchronous candidate processing.");
+  return body.data as PipelineResult;
 }
 
 export function chooseShortlistOverrideStatus(

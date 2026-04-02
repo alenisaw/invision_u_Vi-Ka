@@ -21,6 +21,7 @@ VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
 AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".mpeg", ".mpga"}
 MEDIA_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 REPO_ROOT = Path(__file__).resolve().parents[4]
+DEFAULT_ASR_MODEL = "whisper-large-v3-turbo"
 DEFAULT_ALLOWED_MEDIA_ROOTS = (
     REPO_ROOT / "backend" / "tests",
     REPO_ROOT / "data",
@@ -57,8 +58,8 @@ def serialize_response(response: Any) -> dict[str, Any]:
 class GroqTranscriptionClient:
     """Thin wrapper around the Groq transcription API."""
 
-    def __init__(self, model: str = "whisper-large-v3-turbo") -> None:
-        self.model = model
+    def __init__(self, model: str | None = None) -> None:
+        self.model = (model or os.getenv("M13_ASR_MODEL") or DEFAULT_ASR_MODEL).strip()
 
     def _resolve_media_path(self, media_path: str | Path) -> Path:
         """Resolve media path and enforce trusted repository-local roots."""
@@ -140,5 +141,4 @@ class GroqTranscriptionClient:
         payload = self.transcribe_file(working_path, language=language)
         payload["text"] = payload.get("text", "")
         return payload
-
 

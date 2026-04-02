@@ -1,154 +1,198 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 
-from app.core.audit import build_audit_event_hash
-from app.modules.m10_audit.schemas import ReviewerActionCreateRequest
+from app.modules.m10_audit.schemas import CandidateOverrideRequest, ReviewerActionCreateRequest
 from app.modules.m10_audit.service import AuditService
 
 
-@pytest.mark.asyncio
-async def test_create_reviewer_action_uses_server_side_identity() -> None:
+def _make_candidate(
+    *,
+    status: str = "WAITLIST",
+    shortlist_eligible: bool = False,
+):
     candidate_id = uuid4()
-    score_record = MagicMock(
-        recommendation_status="WAITLIST",
-        shortlist_eligible=False,
-        score_payload={},
-    )
-    candidate = MagicMock(
+    return SimpleNamespace(
         id=candidate_id,
-        score_record=score_record,
+        score_record=SimpleNamespace(
+            recommendation_status=status,
+            shortlist_eligible=shortlist_eligible,
+            score_payload={
+                "candidate_id": str(candidate_id),
+                "recommendation_status": status,
+                "manual_review_required": True,
+                "review_recommendation": "REQUIRES_MANUAL_REVIEW",
+                "shortlist_eligible": shortlist_eligible,
+            },
+        ),
+        explanation_record=SimpleNamespace(
+            report_payload={
+                "candidate_id": str(candidate_id),
+                "recommendation_status": status,
+                "manual_review_required": True,
+                "review_recommendation": "REQUIRES_MANUAL_REVIEW",
+            }
+        ),
         reviewer_actions=[],
     )
-    action = MagicMock(
-        id=uuid4(),
-        candidate_id=candidate_id,
-        reviewer_id="reviewer.alina",
-        action_type="comment",
-        previous_status="WAITLIST",
-        new_status="WAITLIST",
-        comment="Needs closer review.",
-        created_at=datetime.now(timezone.utc),
-    )
 
+
+def _make_action(candidate_id, **overrides):
+    defaults = {
+        "id": uuid4(),
+        "candidate_id": candidate_id,
+        "reviewer_id": "reviewer-1",
+        "action_type": "comment",
+        "previous_status": "WAITLIST",
+        "new_status": "WAITLIST",
+        "comment": "Looks good.",
+        "created_at": datetime(2026, 3, 29, 12, 0, tzinfo=timezone.utc),
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+@pytest.mark.asyncio
+async def test_override_updates_score_and_explanation_and_writes_audit_trail() -> None:
     service = AuditService(MagicMock())
     service.repository = AsyncMock()
+
+    candidate = _make_candidate(status="WAITLIST", shortlist_eligible=False)
+    action = _make_action(
+        candidate.id,
+        action_type="override",
+        previous_status="WAITLIST",
+        new_status="RECOMMEND",
+        comment="Manual review clears the essay flag.",
+    )
     service.repository.get_candidate_with_related.return_value = candidate
     service.repository.create_reviewer_action.return_value = action
 
-    payload = ReviewerActionCreateRequest(
-        action_type="comment",
-        comment="Needs closer review.",
+    response = await service.override_candidate_decision(
+        candidate.id,
+        CandidateOverrideRequest(
+            reviewer_id="reviewer-1",
+            new_status="RECOMMEND",
+            comment="Manual review clears the essay flag.",
+        ),
     )
+
+    persisted_score = service.repository.upsert_candidate_score.await_args.kwargs
+    assert persisted_score["recommendation_status"] == "RECOMMEND"
+    assert persisted_score["manual_review_required"] is False
+    assert persisted_score["review_recommendation"] == "STANDARD_REVIEW"
+    assert persisted_score["score_payload"]["recommendation_status"] == "RECOMMEND"
+    assert persisted_score["score_payload"]["shortlist_eligible"] is True
+
+    persisted_explanation = service.repository.upsert_candidate_explanation.await_args.kwargs
+    assert persisted_explanation["recommendation_status"] == "RECOMMEND"
+    assert persisted_explanation["report_payload"]["review_recommendation"] == "STANDARD_REVIEW"
+
+    audit_entry = service.repository.create_audit_log.await_args.kwargs
+    assert audit_entry["action"] == "override"
+    assert audit_entry["actor"] == "reviewer-1"
+    assert audit_entry["details"]["new_status"] == "RECOMMEND"
+    assert audit_entry["details"]["shortlist_eligible"] is True
+    service.repository.commit.assert_awaited_once()
+
+    assert response.action_type == "override"
+    assert response.new_status == "RECOMMEND"
+
+
+@pytest.mark.asyncio
+async def test_create_shortlist_action_updates_shortlist_flag() -> None:
+    service = AuditService(MagicMock())
+    service.repository = AsyncMock()
+
+    candidate = _make_candidate(status="RECOMMEND", shortlist_eligible=False)
+    action = _make_action(
+        candidate.id,
+        action_type="shortlist_add",
+        previous_status="RECOMMEND",
+        new_status="RECOMMEND",
+        comment="Add to shortlist after committee sync.",
+    )
+    service.repository.get_candidate_with_related.return_value = candidate
+    service.repository.create_reviewer_action.return_value = action
+
     response = await service.create_reviewer_action(
-        candidate_id,
-        payload,
-        "reviewer.alina",
+        candidate.id,
+        ReviewerActionCreateRequest(
+            reviewer_id="reviewer-2",
+            action_type="shortlist_add",
+            comment="Add to shortlist after committee sync.",
+        ),
     )
 
-    assert response.reviewer_id == "reviewer.alina"
-    service.repository.create_reviewer_action.assert_awaited_once()
-    kwargs = service.repository.create_reviewer_action.await_args.kwargs
-    assert kwargs["reviewer_id"] == "reviewer.alina"
+    persisted_score = service.repository.upsert_candidate_score.await_args.kwargs
+    assert persisted_score["shortlist_eligible"] is True
+    assert persisted_score["score_payload"]["shortlist_eligible"] is True
+
+    audit_entry = service.repository.create_audit_log.await_args.kwargs
+    assert audit_entry["action"] == "shortlist_add"
+    assert audit_entry["details"]["shortlist_eligible"] is True
+    service.repository.commit.assert_awaited_once()
+
+    assert response.action_type == "shortlist_add"
+    assert response.reviewer_id == "reviewer-1"
 
 
 @pytest.mark.asyncio
-async def test_verify_audit_chain_succeeds_for_signed_logs() -> None:
+async def test_list_reviewer_actions_returns_newest_first() -> None:
     service = AuditService(MagicMock())
     service.repository = AsyncMock()
-    created_at = datetime.now(timezone.utc)
-    first_id = uuid4()
-    second_id = uuid4()
 
-    first_hash = build_audit_event_hash(
-        secret="very-secure-pii-encryption-secret-123456",
-        sequence_no=1,
-        prev_hash=None,
-        entity_type="candidate",
-        entity_id=first_id,
-        action="candidate_intake_received",
-        actor="system",
-        details={"candidate_id": str(first_id)},
-        created_at=created_at,
+    candidate = _make_candidate(status="RECOMMEND", shortlist_eligible=True)
+    older = _make_action(
+        candidate.id,
+        created_at=datetime(2026, 3, 29, 10, 0, tzinfo=timezone.utc),
+        comment="Older note.",
     )
-    second_hash = build_audit_event_hash(
-        secret="very-secure-pii-encryption-secret-123456",
-        sequence_no=2,
-        prev_hash=first_hash,
-        entity_type="candidate",
-        entity_id=second_id,
-        action="override",
-        actor="reviewer.alina",
-        details={"candidate_id": str(second_id)},
-        created_at=created_at,
+    newer = _make_action(
+        candidate.id,
+        created_at=datetime(2026, 3, 29, 13, 0, tzinfo=timezone.utc),
+        comment="Newer note.",
     )
-    service.repository.list_signed_audit_logs.return_value = [
-        MagicMock(
-            sequence_no=1,
-            prev_hash=None,
-            event_hash=first_hash,
-            entity_type="candidate",
-            entity_id=first_id,
-            action="candidate_intake_received",
-            actor="system",
-            details={"candidate_id": str(first_id)},
-            created_at=created_at,
-        ),
-        MagicMock(
-            sequence_no=2,
-            prev_hash=first_hash,
-            event_hash=second_hash,
-            entity_type="candidate",
-            entity_id=second_id,
-            action="override",
-            actor="reviewer.alina",
-            details={"candidate_id": str(second_id)},
-            created_at=created_at,
-        ),
-    ]
+    candidate.reviewer_actions = [older, newer]
+    service.repository.get_candidate_with_related.return_value = candidate
 
-    result = await service.verify_audit_chain(limit=100)
+    actions = await service.list_reviewer_actions(candidate.id)
 
-    assert result.verified is True
-    assert result.verified_count == 2
+    assert [item.comment for item in actions] == ["Newer note.", "Older note."]
 
 
 @pytest.mark.asyncio
-async def test_verify_audit_chain_detects_tampering() -> None:
+async def test_list_audit_feed_flattens_audit_log_details() -> None:
     service = AuditService(MagicMock())
     service.repository = AsyncMock()
-    created_at = datetime.now(timezone.utc)
+
     candidate_id = uuid4()
-    signed_hash = build_audit_event_hash(
-        secret="very-secure-pii-encryption-secret-123456",
-        sequence_no=1,
-        prev_hash=None,
-        entity_type="candidate",
-        entity_id=candidate_id,
-        action="override",
-        actor="reviewer.alina",
-        details={"candidate_id": str(candidate_id)},
-        created_at=created_at,
-    )
-    service.repository.list_signed_audit_logs.return_value = [
-        MagicMock(
-            sequence_no=1,
-            prev_hash=None,
-            event_hash=signed_hash,
+    service.repository.list_audit_logs.return_value = [
+        SimpleNamespace(
+            id=uuid4(),
             entity_type="candidate",
             entity_id=candidate_id,
             action="override",
-            actor="reviewer.alina",
-            details={"candidate_id": str(candidate_id), "comment": "tampered"},
-            created_at=created_at,
+            actor="reviewer-1",
+            details={
+                "reviewer_id": "reviewer-1",
+                "previous_status": "WAITLIST",
+                "new_status": "RECOMMEND",
+                "comment": "Manual review complete.",
+            },
+            created_at=datetime(2026, 3, 29, 14, 0, tzinfo=timezone.utc),
         )
     ]
 
-    result = await service.verify_audit_chain(limit=100)
+    feed = await service.list_audit_feed(limit=10)
 
-    assert result.verified is False
-    assert result.failed_sequence_no == 1
+    assert len(feed) == 1
+    assert feed[0].candidate_id == candidate_id
+    assert feed[0].action_type == "override"
+    assert feed[0].reviewer_id == "reviewer-1"
+    assert feed[0].new_status == "RECOMMEND"

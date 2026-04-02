@@ -1,11 +1,13 @@
 # Frontend
 
-Фронтенд проекта `inVision U` на `Next.js 14`.
+Фронтенд `inVision U` на `Next.js 14` для reviewer workflow: рейтинг, карточка кандидата, сравнение, ручная загрузка, демо-кандидаты, shortlist и аудит.
 
 ## Что нужно
 
 - `Node.js` 18+
 - `npm`
+- доступный backend API
+- доступный `PostgreSQL`, если запускаются e2e и локальный backend
 
 ## Быстрый запуск
 
@@ -15,20 +17,38 @@ npm install
 npm run dev
 ```
 
-После запуска приложение будет доступно по адресу [http://localhost:3000](http://localhost:3000).
+Приложение поднимается на [http://localhost:3000](http://localhost:3000).
+Маршрут `/` перенаправляет на `/dashboard`.
 
 ## Подключение к backend
 
-По умолчанию фронтенд ожидает API на `http://localhost:8000`.
+По умолчанию frontend работает с backend на `http://localhost:8000`.
 
-Если нужен другой адрес, создай файл `.env.local` в папке `frontend`:
+Если нужен другой адрес, создай `.env.local` в папке `frontend`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
+BACKEND_URL=http://localhost:8000
 REVIEWER_API_KEY=change-me-reviewer-key
 ```
 
-`REVIEWER_API_KEY` используется только на серверной стороне Next.js для proxy-маршрута `/api/backend/*`, поэтому reviewer key не уходит в браузер.
+Что важно:
+
+- browser-запросы идут через встроенный proxy `frontend/src/app/api/backend/[...path]/route.ts`
+- proxy проксирует `/api/backend/*` в backend `/api/v1/*`
+- `REVIEWER_API_KEY` серверно прокидывается как `X-API-Key` только для reviewer-маршрутов `dashboard/*` и `audit/*`
+- reviewer key не попадает в браузерный bundle
+
+## Основные страницы
+
+- `/dashboard` — общий рейтинг и фильтрация кандидатов
+- `/dashboard/[id]` — детальная карточка кандидата, explainability и override
+- `/dashboard/compare` — сравнение выбранных кандидатов по `ids`
+- `/candidates` — демо-пул фикстур
+- `/candidates/compare` — сравнение демо-кандидатов по `slugs`
+- `/upload` — ручная загрузка формы или JSON и запуск pipeline
+- `/shortlist` — shortlist view
+- `/audit` — журнал reviewer-действий
 
 ## Полезные команды
 
@@ -36,44 +56,50 @@ REVIEWER_API_KEY=change-me-reviewer-key
 npm run dev
 npm run build
 npm run start
+npm run lint
 npm run test:e2e
+npm run test:e2e:headed
 npm run test:e2e:install
 ```
 
 ## Docker
 
-Полный стек теперь можно поднять из корня репозитория:
+Полный стек можно поднять из корня репозитория:
 
 ```bash
 cd ..
 ./scripts/stack.sh up
 ```
 
-После старта:
+После старта доступны:
 
-- фронтенд: `http://localhost:3000`
+- frontend: `http://localhost:3000`
 - backend: `http://localhost:8000`
+- postgres: `localhost:5432`
 
-## Примечание
+## E2E
 
-Reviewer-экраны используют живые backend-данные через встроенный proxy.
+Playwright-конфиг находится в `frontend/playwright.config.ts` и сам поднимает:
 
-Для smoke e2e:
+- backend через `python3 -m alembic upgrade head && python3 -m uvicorn app.main:app ...`
+- frontend через `npm run dev -- --hostname 127.0.0.1 --port 3000`
 
-1. Подними Postgres.
-2. Убедись, что `backend` зависимости установлены и миграции могут примениться.
-3. Установи браузер для Playwright:
+Перед запуском smoke e2e:
+
+1. Подними `PostgreSQL`.
+2. Убедись, что backend-зависимости установлены и миграции могут примениться.
+3. Установи браузер:
 
 ```bash
 cd frontend
 npm run test:e2e:install
 ```
 
-4. Запусти smoke e2e:
+4. Запусти тесты:
 
 ```bash
 cd frontend
 npm run test:e2e
 ```
 
-Playwright сам поднимет `backend` и `frontend`, но ожидает доступный Postgres на стандартных переменных окружения backend.
+Если `API_KEY` не задан, Playwright использует локальный дефолт `test-reviewer-key`.

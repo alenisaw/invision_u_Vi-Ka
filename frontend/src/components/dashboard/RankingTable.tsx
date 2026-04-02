@@ -36,10 +36,9 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
               <th className="eyebrow px-5 py-4">Кандидат</th>
               <th className="eyebrow px-5 py-4">Программа</th>
               <th className="eyebrow px-5 py-4">Балл RPI</th>
-              <th className="eyebrow px-5 py-4">Уверенность</th>
+              <th className="eyebrow px-5 py-4 text-center">Уверенность</th> {/* Добавлено text-center */}
               <th className="eyebrow px-5 py-4">Статус</th>
               <th className="eyebrow px-5 py-4">Сильные стороны</th>
-              {/* Расширяем колонку даты */}
               <th className="eyebrow px-5 py-4 w-[140px]">Дата</th> 
             </tr>
           </thead>
@@ -103,7 +102,7 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
                     </span>
                   </div>
                 </td>
-                <td className="px-5 py-[0.95rem]">
+                <td className="px-5 py-[0.95rem] text-center"> {/* Добавлено text-center */}
                   <span className="text-[0.82rem] font-[700] text-muted-strong font-numbers">
                     {formatPercent(candidate.confidence)}
                   </span>
@@ -130,7 +129,6 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
                     )}
                   </div>
                 </td>
-                {/* Запрещаем дате переноситься на новые строки */}
                 <td className="px-5 py-[0.95rem] whitespace-nowrap">
                   <span className="text-[0.82rem] text-muted font-numbers">
                     {formatDate(candidate.created_at)}

@@ -1,6 +1,6 @@
 """
 File: signal_extraction_service.py
-Purpose: Grouped M5 NLP extraction with Gemini-backed prompts and heuristic fallback.
+Purpose: Grouped M5 NLP extraction with Groq/Gemini LLM support and heuristic fallback.
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ class GroupedExtractionResult:
 
 
 class GroupedNLPSignalExtractionService:
-    """Architecture-aligned M5 service with grouped extraction and heuristic fallback."""
+    """Architecture-aligned M5 service with grouped extraction and provider-aware fallback."""
 
     def __init__(
         self,
@@ -183,7 +183,7 @@ class GroupedNLPSignalExtractionService:
             group_result = self._extract_one_group(spec=spec, request=request, sources=sources, heuristic_signals=heuristic_signals)
             grouped_results.append(group_result)
             merged_signals.update(group_result.signals)
-            llm_used = llm_used or group_result.backend == "gemini"
+            llm_used = llm_used or group_result.backend != "heuristic"
 
         data_flags = self._finalize_data_flags(
             request=request,
@@ -235,18 +235,19 @@ class GroupedNLPSignalExtractionService:
         fallback_signals = {signal_name: heuristic_signals[signal_name] for signal_name in spec.signals if signal_name in heuristic_signals}
         notes: list[str] = []
         if self.enable_llm and available_sources:
+            provider_name = self._llm_backend_name()
             try:
                 llm_signals = self.llm_client.extract_group(spec=spec, request_candidate_id=str(request.candidate_id), sources=sources)
                 merged = self._merge_group_signals(spec, llm_signals, fallback_signals, list(available_sources), sources)
                 return SignalGroupResult(
                     group_name=spec.name,
-                    backend="gemini",
+                    backend=provider_name,
                     signals=merged,
                     source_fields=available_sources,
                     notes=tuple(notes),
                 )
             except Exception as exc:  # pragma: no cover
-                logger.warning("M5 Gemini fallback for group %s: %s", spec.name, exc.__class__.__name__)
+                logger.warning("M5 %s fallback for group %s: %s", provider_name, spec.name, exc.__class__.__name__)
                 notes.append(f"llm_fallback:{exc.__class__.__name__}")
         return SignalGroupResult(
             group_name=spec.name,
@@ -255,6 +256,13 @@ class GroupedNLPSignalExtractionService:
             source_fields=available_sources,
             notes=tuple(notes),
         )
+
+    def _llm_backend_name(self) -> str:
+        if isinstance(self.llm_client, GroqSignalClient):
+            return "groq"
+        if isinstance(self.llm_client, GeminiSignalClient):
+            return "gemini"
+        return "llm"
 
     def _merge_group_signals(
         self,
@@ -432,5 +440,4 @@ class GroupedNLPSignalExtractionService:
     def _is_foundation_year_request(request: M5ExtractionRequest) -> bool:
         selected_program = request.selected_program.strip().lower()
         return any(marker in selected_program for marker in FOUNDATION_YEAR_MARKERS)
-
 

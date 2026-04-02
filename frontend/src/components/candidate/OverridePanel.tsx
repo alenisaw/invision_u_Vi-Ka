@@ -5,10 +5,10 @@ import { reviewerApi } from "@/lib/api";
 import type { RecommendationStatus } from "@/types";
 
 const STATUS_OPTIONS: { value: RecommendationStatus; label: string }[] = [
-  { value: "STRONG_RECOMMEND", label: "Сильная рекомендация" },
-  { value: "RECOMMEND", label: "Рекомендован" },
-  { value: "WAITLIST", label: "Лист ожидания" },
-  { value: "DECLINED", label: "Отклонен" },
+  { value: "STRONG_RECOMMEND", label: "Приоритетные" },
+  { value: "RECOMMEND", label: "Рекомендованные" },
+  { value: "WAITLIST", label: "В Лист ожидания" },
+  { value: "DECLINED", label: "Отклоненные" },
 ];
 
 interface OverridePanelProps {

@@ -1,35 +1,40 @@
-# Справочник API
+# API
 
 ---
 
 ## Структура документа
 
 - [Обзор](#обзор)
-- [Формат ответа](#формат-ответа)
-- [Системные методы](#системные-методы)
-- [Демо-методы](#демо-методы)
-- [Методы приема заявок](#методы-приема-заявок)
-- [Асинхронные методы конвейера](#асинхронные-методы-конвейера)
-- [Диаграмма 1. Асинхронный путь обработки заявки](#диаграмма-1-асинхронный-путь-обработки-заявки)
-- [Методы прямого скоринга](#методы-прямого-скоринга)
-- [Методы проверяющего и аудита](#методы-проверяющего-и-аудита)
-- [Диаграмма 2. Поверхность работы проверяющего](#диаграмма-2-поверхность-работы-проверяющего)
+- [Response Envelope](#response-envelope)
+- [Системные endpoint'ы](#системные-endpointы)
+- [Demo endpoint'ы](#demo-endpointы)
+- [Candidate intake endpoint'ы](#candidate-intake-endpointы)
+- [Pipeline endpoint'ы](#pipeline-endpointы)
+- [Диаграмма 1. Flow полного pipeline](#диаграмма-1-flow-полного-pipeline)
+- [Direct scoring endpoint'ы](#direct-scoring-endpointы)
+- [Reviewer endpoint'ы](#reviewer-endpointы)
+- [Диаграмма 2. Reviewer workflow surface](#диаграмма-2-reviewer-workflow-surface)
 - [Канонические контракты](#канонические-контракты)
 
 ---
 
 ## Обзор
 
-Документ описывает только те методы API, которые реально реализованы в текущей ветке.
-Публичный путь обработки теперь асинхронный: сервер принимает заявку, создает фоновую задачу, сразу возвращает `candidate_id` и `job_id`, а тяжелые этапы выполняются воркерами.
+Этот документ перечисляет endpoint'ы, которые реально реализованы в текущей ветке.
 
-Базовый адрес:
+Базовый backend URL:
 
 `http://localhost:8000`
 
+Базовый frontend proxy URL:
+
+`http://localhost:3000/api/backend/*`
+
+Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. Для `dashboard/*` и `audit/*` он автоматически добавляет `X-API-Key`, если на сервере frontend задан `REVIEWER_API_KEY`.
+
 ---
 
-## Формат ответа
+## Response Envelope
 
 Успешный ответ:
 
@@ -39,13 +44,13 @@
   "data": {},
   "error": null,
   "meta": {
-    "timestamp": "2026-03-30T10:00:00Z",
+    "timestamp": "2026-03-29T12:00:00Z",
     "version": "1.0.0"
   }
 }
 ```
 
-Ответ с ошибкой:
+Ошибка:
 
 ```json
 {
@@ -53,66 +58,61 @@
   "data": null,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Неверный payload",
+    "message": "Invalid payload",
     "details": {}
   },
   "meta": {
-    "timestamp": "2026-03-30T10:00:00Z",
+    "timestamp": "2026-03-29T12:00:00Z",
     "version": "1.0.0"
   }
 }
 ```
 
-Тот же формат используется для ошибок валидации, ошибок доступа, ответов `404` и операционных сбоев.
+Одна и та же envelope-форма используется и для non-2xx ответов.
 
 ---
 
-## Системные методы
+## Системные endpoint'ы
 
 ### `GET /`
 
-Возвращает общую информацию о приложении.
+Возвращает метаданные приложения.
 
 ### `GET /health`
 
-Возвращает короткий ответ о состоянии сервиса.
+Возвращает облегченный health response.
 
 ---
 
-## Демо-методы
+## Demo endpoint'ы
 
 ### `GET /api/v1/demo/candidates`
 
-Возвращает список доступных демо-кандидатов с краткими метаданными.
+Возвращает список доступных demo-fixture кандидатов.
 
 ### `GET /api/v1/demo/candidates/{slug}`
 
-Возвращает одного демо-кандидата и полный payload его заявки.
+Возвращает одну fixture вместе с полным payload.
 
 ### `POST /api/v1/demo/candidates/{slug}/run`
 
-Ставит выбранный демо-кейс в ту же асинхронную очередь, которая используется для реальных заявок.
+Берет fixture и прогоняет ее через живой синхронный pipeline.
 
-Пример ответа:
-
-```json
-{
-  "candidate_id": "c0e5ce38-6b8b-4f51-a16d-3d5e35501d9b",
-  "job_id": "57a558a0-23ba-4311-a4ce-91b812a31c9a",
-  "pipeline_status": "queued",
-  "job_status": "queued",
-  "current_stage": "privacy",
-  "message": "Pipeline job accepted and queued."
-}
-```
+Структура ответа совпадает с `POST /api/v1/pipeline/submit`.
 
 ---
 
-## Методы приема заявок
+## Candidate intake endpoint'ы
 
 ### `POST /api/v1/candidates/intake`
 
-Проверяет структуру заявки, создает запись кандидата, сохраняет защищенные персональные данные и служебные метаданные, после чего возвращает `candidate_id`.
+Валидирует анкету кандидата, создает запись, сохраняет encrypted PII и metadata и возвращает `candidate_id`.
+
+Ключевые поля ответа:
+
+- `candidate_id`
+- `pipeline_status`
+- `message`
 
 Пример запроса:
 
@@ -143,148 +143,79 @@
 
 ---
 
-## Асинхронные методы конвейера
+## Pipeline endpoint'ы
 
-### `POST /api/v1/pipeline/submit-async`
+### `POST /api/v1/pipeline/submit`
 
-Принимает одну заявку, создает устойчивую задачу конвейера и сразу возвращает ответ.
+Запускает реализованный backend flow:
 
-Порядок этапов:
+`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
 
-`privacy -> asr -> profile -> nlp -> scoring -> explainability`
+Ответ включает:
 
-Пример ответа:
+- `candidate_id`
+- `pipeline_status`
+- `score`
+- `completeness`
+- `data_flags`
 
-```json
-{
-  "candidate_id": "c0e5ce38-6b8b-4f51-a16d-3d5e35501d9b",
-  "job_id": "57a558a0-23ba-4311-a4ce-91b812a31c9a",
-  "pipeline_status": "queued",
-  "job_status": "queued",
-  "current_stage": "privacy",
-  "message": "Pipeline job accepted and queued."
-}
-```
+### `POST /api/v1/pipeline/batch`
 
-### `POST /api/v1/pipeline/submit-async/batch`
-
-Принимает до `50` заявок и создает отдельную задачу для каждой из них.
-
-### `GET /api/v1/pipeline/jobs/{job_id}`
-
-Возвращает текущее состояние задачи вместе с историей запусков этапов.
-
-Основные поля:
-
-- `status`
-- `current_stage`
-- `attempt_count`
-- `error_code`
-- `error_message`
-- `stage_runs`
-
-### `GET /api/v1/pipeline/jobs/{job_id}/events`
-
-Возвращает ленту событий по задаче.
-
-Типичные события:
-
-- `job_queued`
-- `stage_started`
-- `stage_completed`
-- `stage_failed`
-- `job_completed`
-- `job_failed`
-- `job_requires_manual_review`
-
-### `GET /api/v1/pipeline/candidates/{candidate_id}/status`
-
-Возвращает статус обработки кандидата и снимок последней фоновой задачи.
-
-### `GET /api/v1/pipeline/queue/metrics`
-
-Служебный метод для проверяющего.
-
-Возвращает глубину очереди, счетчики по этапам, сведения о повторах, долю ошибок, долю ручной проверки и агрегаты по времени выполнения.
-
-### `GET /api/v1/pipeline/ops/jobs/dead-letter`
-
-Служебный метод для просмотра задач, ушедших в dead-letter.
-
-### `GET /api/v1/pipeline/ops/jobs/delayed`
-
-Служебный метод для просмотра задач, ожидающих повторного запуска.
-
-### `GET /api/v1/pipeline/ops/jobs/{job_id}/inspection`
-
-Служебный метод для диагностики одной задачи: где она находится, можно ли ее повторить и в каком состоянии находятся попытки.
-
-### `POST /api/v1/pipeline/ops/jobs/{job_id}/retry`
-
-Служебный метод для ручного возврата неудачной задачи в очередь.
+Запускает тот же flow для списка payload'ов. Сейчас batch-обработка идет последовательно внутри API-процесса.
 
 ---
 
-## Диаграмма 1. Асинхронный путь обработки заявки
+## Диаграмма 1. Flow полного pipeline
 
 ```mermaid
 sequenceDiagram
     actor Client
-    participant Gateway as "M1 Gateway"
-    participant Queue as "Redis Queue"
-    participant Worker as "Pipeline Worker"
-    participant Intake as "M2"
-    participant Privacy as "M3"
-    participant ASR as "M13"
-    participant Profile as "M4"
-    participant NLP as "M5"
-    participant Score as "M6"
-    participant Explain as "M7"
-    participant DB as "Postgres"
+    participant Gateway as M1 Gateway
+    participant Intake as M2
+    participant ASR as M13
+    participant Privacy as M3
+    participant Profile as M4
+    participant NLP as M5
+    participant Score as M6
+    participant Explain as M7
 
-    Client->>Gateway: POST /api/v1/pipeline/submit-async
-    Gateway->>DB: create candidate and pipeline job
-    Gateway->>Queue: enqueue job_id
-    Gateway-->>Client: candidate_id + job_id
-    Worker->>Queue: reserve job
-    Worker->>DB: mark running stage
-    Worker->>Privacy: build privacy layers
-    Worker->>ASR: transcribe media if needed
-    Worker->>Profile: build candidate profile
-    Worker->>NLP: extract signals
-    Worker->>Score: compute score
-    Worker->>Explain: build reviewer explanation
-    Worker->>DB: persist outputs and mark completed
-    Client->>Gateway: GET /api/v1/pipeline/jobs/{job_id}
-    Gateway-->>Client: job status and stage runs
+    Client->>Gateway: POST /api/v1/pipeline/submit
+    Gateway->>Intake: validate and create candidate
+    Gateway->>ASR: optional transcription
+    Gateway->>Privacy: split into layers
+    Gateway->>Profile: build profile
+    Gateway->>NLP: extract signals
+    Gateway->>Score: compute score
+    Gateway->>Explain: build explanation
+    Gateway-->>Client: pipeline result
 ```
 
 ---
 
-## Методы прямого скоринга
+## Direct scoring endpoint'ы
 
 ### `POST /api/v1/pipeline/score-signals`
 
-Считает оценку для одного кандидата по каноническому `SignalEnvelope`.
+Считает score одного кандидата из канонического `SignalEnvelope`.
 
 ### `POST /api/v1/pipeline/score-signals/batch`
 
-Считает оценки и ранжирование для массива объектов `SignalEnvelope`.
+Считает score и ranking для пачки `SignalEnvelope`.
 
 ### `POST /api/v1/pipeline/score-signals/train-synthetic`
 
-Обучает уточняющий слой на синтетических данных.
+Тренирует scoring refinement layer на synthetic data.
 
-Параметры:
+Query parameters:
 
 - `sample_count`
 - `seed`
 
 ### `POST /api/v1/pipeline/score-signals/evaluate-synthetic`
 
-Запускает контрольную оценку `M6` на синтетической выборке.
+Гоняет synthetic holdout evaluation для `M6`.
 
-Параметры:
+Query parameters:
 
 - `train_sample_count`
 - `test_sample_count`
@@ -292,78 +223,101 @@ sequenceDiagram
 
 ---
 
-## Методы проверяющего и аудита
+## Reviewer endpoint'ы
+
+Все endpoint'ы в этом разделе требуют `X-API-Key`.
 
 ### `GET /api/v1/dashboard/stats`
 
-Возвращает сводные показатели панели проверяющего.
+Возвращает dashboard summary metrics:
+
+- `total_candidates`
+- `processed`
+- `shortlisted`
+- `pending_review`
+- `avg_confidence`
+- `by_status`
 
 ### `GET /api/v1/dashboard/candidates`
 
-Возвращает строки рейтинга для проверки.
+Возвращает ranking list reviewer-facing кандидатов с безопасно спроецированными именами.
 
 ### `GET /api/v1/dashboard/candidates/{candidate_id}`
 
-Возвращает полную карточку кандидата для проверяющего.
+Возвращает полную reviewer detail view:
+
+- candidate identity
+- `score`
+- `explanation`
+- `raw_content`
+- `audit_logs`
 
 ### `POST /api/v1/dashboard/candidates/{candidate_id}/override`
 
-Создает ручное переопределение статуса кандидата.
+Переопределяет recommendation status и записывает audit entry.
 
-Идентификатор проверяющего определяется на сервере из контекста авторизации.
+Тело запроса:
+
+```json
+{
+  "reviewer_id": "committee-reviewer",
+  "new_status": "RECOMMEND",
+  "comment": "Manual adjustment after committee review"
+}
+```
 
 ### `GET /api/v1/dashboard/shortlist`
 
-Возвращает кандидатов, попавших в shortlist.
+Возвращает текущий shortlist на основе сохраненного score state.
 
 ### `POST /api/v1/dashboard/candidates/{candidate_id}/actions`
 
-Создает действие проверяющего без смены статуса, например комментарий или изменение shortlist.
+Создает reviewer action без override, например:
+
+- `comment`
+- `shortlist_add`
+- `shortlist_remove`
 
 ### `GET /api/v1/dashboard/candidates/{candidate_id}/actions`
 
-Возвращает историю действий проверяющего по кандидату.
+Возвращает историю reviewer actions для одного кандидата.
 
-### `GET /api/v1/audit/feed`
+### `GET /api/v1/audit/feed?limit=100`
 
-Возвращает ленту аудита.
-
-### `GET /api/v1/audit/verify`
-
-Проверяет целостность tamper-evident audit chain.
+Возвращает глобальный audit feed в порядке от новых к старым.
 
 ---
 
-## Диаграмма 2. Поверхность работы проверяющего
+## Диаграмма 2. Reviewer workflow surface
 
 ```mermaid
 flowchart TD
-    Queue["Метрики очереди"]
-    Ranking["Рейтинг кандидатов"]
-    Detail["Карточка кандидата"]
-    Explain["Объяснение результата"]
-    Override["Ручное переопределение"]
-    Actions["Действия проверяющего"]
-    Audit["Лента аудита"]
-    Verify["Проверка цепочки аудита"]
+    Browser["Browser UI"]
+    Proxy["Next.js Proxy"]
+    Stats["Dashboard Stats"]
+    List["Candidate Ranking"]
+    Detail["Candidate Detail"]
+    Override["Override Action"]
+    Actions["Reviewer Actions"]
+    Audit["Audit Feed"]
 
-    Queue --> Ranking
-    Ranking --> Detail
-    Detail --> Explain
+    Browser --> Proxy
+    Proxy --> Stats
+    Proxy --> List
+    Proxy --> Detail
     Detail --> Override
     Detail --> Actions
     Override --> Audit
     Actions --> Audit
-    Audit --> Verify
 ```
 
 ---
 
 ## Канонические контракты
 
-### Выход `M5`
+### Выход M5
 
-`M5` возвращает `SignalEnvelope` со следующими полями:
+`M5` отдает `SignalEnvelope` с полями:
 
 - `candidate_id`
 - `signal_schema_version`
@@ -374,7 +328,7 @@ flowchart TD
 - `data_flags`
 - `signals`
 
-Каждый сигнал содержит:
+Каждый signal содержит:
 
 - `value`
 - `confidence`
@@ -382,31 +336,33 @@ flowchart TD
 - `evidence`
 - `reasoning`
 
-### Выход `M6`
+### Выход M6
 
-`M6` возвращает `CandidateScore` с основными категориями рекомендации:
+`M6` отдает `CandidateScore` с четырьмя основными recommendation category:
 
 - `STRONG_RECOMMEND`
 - `RECOMMEND`
 - `WAITLIST`
 - `DECLINED`
 
-Поля маршрутизации проверки отделены:
+Отдельные review-routing поля:
 
 - `manual_review_required`
 - `human_in_loop_required`
 - `uncertainty_flag`
 - `review_recommendation`
+- `ranking_position`
+- `shortlist_eligible`
 
-### Выход `M7`
+### Выход M7
 
-`M7` возвращает материалы для проверяющего:
+`M7` отдает reviewer-facing explainability-контент:
 
 - `summary`
 - `positive_factors`
 - `caution_blocks`
-- `evidence_items`
 - `reviewer_guidance`
+- `data_quality_notes`
 
 ---
 

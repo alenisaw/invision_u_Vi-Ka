@@ -55,6 +55,7 @@ test("creates an override and exposes it in shortlist and audit", async ({
   const comment = `Smoke override ${candidate.uniqueKey}`;
 
   await page.goto(`/dashboard/${result.candidate_id}`);
+  await page.getByTestId("reviewer-id-input").fill("e2e-reviewer");
   await page.getByTestId("override-status-select").selectOption(targetStatus);
   await page.getByTestId("override-comment-input").fill(comment);
   await page.getByTestId("submit-override-button").click();
@@ -67,6 +68,6 @@ test("creates an override and exposes it in shortlist and audit", async ({
   await expect(page.getByText(candidate.fullName)).toBeVisible();
 
   await page.goto("/audit");
-  await expect(page.getByText("reviewer_api_client")).toBeVisible();
+  await expect(page.getByText("e2e-reviewer")).toBeVisible();
   await expect(page.getByText(comment)).toBeVisible();
 });

@@ -6,6 +6,7 @@
 
 - [Обзор](#обзор)
 - [Диаграмма 1. Карта взаимодействия модулей](#диаграмма-1-карта-взаимодействия-модулей)
+- [M0 Demo](#m0-demo)
 - [M1 Gateway](#m1-gateway)
 - [M2 Intake](#m2-intake)
 - [M3 Privacy](#m3-privacy)
@@ -22,7 +23,7 @@
 
 ## Обзор
 
-Этот документ собирает полное функциональное описание серверных модулей в одном месте. Он отделяет модульную документацию от общей архитектуры и API, чтобы описание каждого блока не смешивалось с системным уровнем.
+Этот документ собирает функциональную документацию по всем активным backend-модулям. Архитектурные и API-детали вынесены в отдельные документы, а здесь остается модульный уровень.
 
 ---
 
@@ -30,6 +31,7 @@
 
 ```mermaid
 flowchart LR
+    M0["M0 Demo"]
     M1["M1 Gateway"]
     M2["M2 Intake"]
     M13["M13 ASR"]
@@ -42,6 +44,7 @@ flowchart LR
     M9["M9 Storage"]
     M10["M10 Audit"]
 
+    M0 --> M1
     M1 --> M2
     M1 --> M13
     M1 --> M3
@@ -49,7 +52,6 @@ flowchart LR
     M1 --> M5
     M1 --> M6
     M1 --> M7
-    M1 --> M10
     M2 --> M9
     M3 --> M9
     M4 --> M9
@@ -57,13 +59,23 @@ flowchart LR
     M6 --> M9
     M7 --> M9
     M8 --> M9
+    M10 --> M9
+    M13 --> M3
     M13 --> M9
-    M13 --> M5
-    M5 --> M6
-    M6 --> M7
-    M7 --> M8
-    M8 --> M10
 ```
+
+---
+
+## M0 Demo
+
+Дает заранее подготовленные фикстуры кандидатов для demo. Загружает реалистичные JSON payload'ы и прогоняет их через живой синхронный pipeline.
+
+| Файл | Назначение |
+|---|---|
+| `backend/app/modules/m0_demo/fixtures/*.json` | готовые payload'ы кандидатов под разные программы |
+| `backend/app/modules/m0_demo/schemas.py` | контракты `FixtureMeta`, `FixtureSummary`, `FixtureDetail` |
+| `backend/app/modules/m0_demo/service.py` | загрузка, кэширование и парсинг fixture |
+| `backend/app/modules/m0_demo/router.py` | demo API: list, detail и pipeline run |
 
 ---
 
@@ -71,34 +83,22 @@ flowchart LR
 
 ### Назначение
 
-`M1` является публичной серверной точкой входа. Он публикует HTTP-методы, координирует активный конвейер и возвращает унифицированные ответы API.
+`M1` — публичная входная точка backend для полного pipeline и direct scoring operations.
 
-### Функциональная зона
+### Функциональная область
 
-- публикует методы приема заявок;
-- публикует методы запуска полного конвейера;
-- публикует методы прямого скоринга M6;
-- координирует порядок вызова модулей;
-- нормализует успешные и ошибочные ответы API.
-
-### Вход
-
-- сырые данные заявок;
-- канонический `SignalEnvelope` для прямого скоринга;
-- массивы заявок для последовательной пакетной обработки.
-
-### Выход
-
-- ответы приема заявок с идентификаторами кандидатов;
-- ответы полного конвейера со скорингом и объяснениями;
-- ответы прямого скоринга и оценки.
+- отдает synchronous full-pipeline endpoint'ы
+- отдает sequential batch submission
+- отдает direct M6 scoring и evaluation endpoint'ы
+- координирует фактический порядок модулей
+- нормализует success/error API envelope
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m1_gateway/router.py` | Публичные маршруты |
-| `backend/app/modules/m1_gateway/orchestrator.py` | Координация всего конвейера |
+| `backend/app/modules/m1_gateway/router.py` | публичные pipeline/scoring route |
+| `backend/app/modules/m1_gateway/orchestrator.py` | синхронная оркестрация полного pipeline |
 
 ---
 
@@ -106,35 +106,23 @@ flowchart LR
 
 ### Назначение
 
-`M2` проверяет входящую заявку и создает первичную запись кандидата, на которую затем опирается весь конвейер.
+`M2` валидирует входную анкету и создает исходную candidate-запись, на которую затем опирается весь pipeline.
 
-### Функциональная зона
+### Функциональная область
 
-- проверяет структуру заявки;
-- рассчитывает начальную полноту данных;
-- извлекает административные признаки допустимости;
-- сохраняет начальную запись;
-- возвращает `candidate_id` и состояние приема.
-
-### Вход
-
-- сырые данные формы;
-- выбранная программа;
-- ссылки на контент, включая эссе и видео.
-
-### Выход
-
-- идентификатор записи приема;
-- полнота данных;
-- первичные флаги допустимости и качества.
+- валидирует структуру payload
+- считает initial completeness
+- извлекает административные eligibility-сигналы
+- сохраняет исходную запись intake
+- возвращает `candidate_id` и intake state
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m2_intake/schemas.py` | Контракты приема заявки |
-| `backend/app/modules/m2_intake/service.py` | Проверка и сохранение |
-| `backend/app/modules/m2_intake/router.py` | Конечная точка приема |
+| `backend/app/modules/m2_intake/schemas.py` | intake-контракты |
+| `backend/app/modules/m2_intake/service.py` | валидация и persistence |
+| `backend/app/modules/m2_intake/router.py` | intake endpoint |
 
 ---
 
@@ -142,34 +130,23 @@ flowchart LR
 
 ### Назначение
 
-`M3` обеспечивает разделение данных по уровням доступа и формирует безопасный вход для моделей.
+`M3` — privacy boundary системы. Он разделяет данные кандидата и формирует безопасный model-facing payload.
 
-### Функциональная зона
+### Функциональная область
 
-- разделяет данные кандидата на три слоя;
-- оставляет персональные данные только в первом слое;
-- переносит служебные сведения во второй слой;
-- формирует очищенное содержимое для моделей в третьем слое;
-- скрывает явные идентификаторы в тексте.
-
-### Вход
-
-- сырые данные кандидата;
-- расшифровка ASR и флаги качества, если они доступны.
-
-### Выход
-
-- первый слой с защищенными персональными данными;
-- второй слой со служебной метаинформацией;
-- третий слой с безопасными для моделей данными.
+- делит входные данные на три слоя
+- держит PII только в Layer 1
+- сохраняет operational metadata в Layer 2
+- формирует redacted model-safe content в Layer 3
+- вырезает явные идентификаторы из текста
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m3_privacy/redactor.py` | Очистка текста от персональных данных |
-| `backend/app/modules/m3_privacy/separator.py` | Логика разделения по слоям |
-| `backend/app/modules/m3_privacy/service.py` | Сохранение и координация слоев |
+| `backend/app/modules/m3_privacy/redactor.py` | text redaction |
+| `backend/app/modules/m3_privacy/separator.py` | логика разделения на слои |
+| `backend/app/modules/m3_privacy/service.py` | persistence и orchestration |
 
 ---
 
@@ -177,31 +154,21 @@ flowchart LR
 
 ### Назначение
 
-`M4` собирает единый `CandidateProfile` из безопасных материалов и служебной метаинформации.
+`M4` собирает единый `CandidateProfile` из privacy-safe данных и operational metadata.
 
-### Функциональная зона
+### Функциональная область
 
-- объединяет второй и третий слой в один профиль;
-- переносит полноту данных и технические флаги;
-- включает метаданные ASR для следующих модулей;
-- отдает нормализованный объект для NLP и скоринга.
-
-### Вход
-
-- второй слой со служебной метаинформацией;
-- третий слой с безопасным содержимым.
-
-### Выход
-
-- канонический `CandidateProfile`.
+- объединяет Layer 2 и Layer 3 в один профиль
+- прокидывает completeness и data flags
+- дает нормализованный объект для NLP и scoring stages
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m4_profile/schemas.py` | Схема профиля кандидата |
-| `backend/app/modules/m4_profile/assembler.py` | Сборка профиля |
-| `backend/app/modules/m4_profile/service.py` | Координация сборки профиля |
+| `backend/app/modules/m4_profile/schemas.py` | schema профиля |
+| `backend/app/modules/m4_profile/assembler.py` | сборка профиля |
+| `backend/app/modules/m4_profile/service.py` | coordination и storage integration |
 
 ---
 
@@ -209,45 +176,29 @@ flowchart LR
 
 ### Назначение
 
-`M5` извлекает структурированные сигналы решений из безопасного текста, расшифровки интервью, ответов внутреннего теста и описаний проектов.
+`M5` извлекает структурированные decision signals из safe text, transcript, internal test answers и project descriptions.
 
-### Функциональная зона
+### Функциональная область
 
-- нормализует безопасные входы в переиспользуемые наборы источников;
-- вызывает Gemini для группового извлечения сигналов;
-- использует резервное эвристическое извлечение при необходимости;
-- применяет эмбеддинги и проверки согласованности как вспомогательный слой;
-- формирует канонический `SignalEnvelope` для `M6`.
-
-### Вход
-
-- candidate id;
-- selected program;
-- essay text;
-- redacted transcript;
-- internal test answers;
-- project descriptions;
-- experience summary;
-- completeness и data flags.
-
-### Выход
-
-- `SignalEnvelope`;
-- значения сигналов, уверенность, источники, доказательства и краткие обоснования;
-- нормализованный `program_id` для скоринга.
+- нормализует safe input в reusable source bundles
+- сначала вызывает Groq для grouped signal extraction и может откатиться на Gemini при конфигурации `GEMINI_API_KEY`
+- включает heuristic fallback extraction
+- использует embeddings и authenticity checks как advisory-помощь
+- отдает канонический `SignalEnvelope` для `M6`
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m5_nlp/schemas.py` | Валидация запроса и ограничений |
-| `backend/app/modules/m5_nlp/source_bundle.py` | Сбор безопасных текстовых источников |
-| `backend/app/modules/m5_nlp/gemini_client.py` | Интеграция с Gemini |
-| `backend/app/modules/m5_nlp/extractor.py` | Резервное эвристическое извлечение |
-| `backend/app/modules/m5_nlp/signal_extraction_service.py` | Координация извлечения сигналов |
-| `backend/app/modules/m5_nlp/embeddings.py` | Семантическое сравнение и эмбеддинги |
-| `backend/app/modules/m5_nlp/ai_detector.py` | Вспомогательные проверки на неаутентичность |
-| `backend/app/modules/m5_nlp/client.py` | Безопасный резервный путь локальной расшифровки |
+| `backend/app/modules/m5_nlp/schemas.py` | request schema и validation |
+| `backend/app/modules/m5_nlp/client.py` | safe local-media transcription fallback client |
+| `backend/app/modules/m5_nlp/gemini_client.py` | optional Gemini integration |
+| `backend/app/modules/m5_nlp/groq_llm_client.py` | primary Groq-backed integration |
+| `backend/app/modules/m5_nlp/source_bundle.py` | сборка safe-source |
+| `backend/app/modules/m5_nlp/extractor.py` | heuristic fallback extraction |
+| `backend/app/modules/m5_nlp/signal_extraction_service.py` | grouped extraction flow |
+| `backend/app/modules/m5_nlp/embeddings.py` | local embedding и similarity utilities |
+| `backend/app/modules/m5_nlp/ai_detector.py` | advisory authenticity checks |
 
 ---
 
@@ -255,69 +206,36 @@ flowchart LR
 
 ### Назначение
 
-`M6` преобразует структурированные сигналы в итоговый балл приоритетности, категорию рекомендации, поля ранжирования и правила маршрутизации на проверку.
+`M6` переводит структурированные сигналы в review-priority score, recommendation category, ranking fields и review-routing output.
 
-### Функциональная зона
+### Функциональная область
 
-- рассчитывает детерминированные промежуточные оценки;
-- рассчитывает базовый балл по правилам;
-- уточняет балл через `GradientBoostingRegressor`;
-- применяет профили весов по программам;
-- формирует уверенность, неопределенность и поля направления на проверку;
-- готовит поля для объяснений в `M7`.
-
-### Зачем нужен `program_fit`
-
-`program_fit` отвечает за соответствие между направлением кандидата и выбранной программой. Он показывает, совпадают ли цели, проекты, интересы и примеры кандидата с программой, на которую он подается.
-
-Это нужно, чтобы система различала:
-
-- сильного кандидата в целом;
-- сильного кандидата именно для этой программы.
-
-### Почему важны веса
-
-Веса в `M6` определяют, какие измерения сильнее влияют на итоговый балл. Базовый профиль выше всего оценивает:
-
-- лидерский потенциал;
-- траекторию роста;
-- ясность мотивации;
-- инициативность и способность учиться.
-
-Дальше профили по программам смещают акцент под контекст направления. Например, для медиа выше значимость ясности коммуникации, а для государственного управления выше значимость этического мышления.
-
-### Вход
-
-- канонический `SignalEnvelope`;
-- выбранная программа и канонический `program_id`;
-- полнота данных и технические флаги.
-
-### Выход
-
-- `CandidateScore`;
-- `review_priority_index`;
-- `recommendation_status`;
-- `manual_review_required`;
-- `human_in_loop_required`;
-- `uncertainty_flag`;
-- сильные стороны, риски и краткое итоговое пояснение.
+- считает детерминированные sub-score
+- считает rule-based baseline
+- уточняет score через `GradientBoostingRegressor`
+- применяет program-aware weighting profiles
+- выводит confidence, uncertainty и review-routing поля
+- готовит explainability-ready output для `M7`
+- ранжирует batch results и поддерживает synthetic evaluation tooling
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | Основная конфигурация правил и весов |
-| `backend/app/modules/m6_scoring/m6_scoring_config.py` | Типизированная загрузка конфигурации |
-| `backend/app/modules/m6_scoring/program_policy.py` | Подбор профиля по программе |
-| `backend/app/modules/m6_scoring/rules.py` | Базовая логика промежуточных оценок |
-| `backend/app/modules/m6_scoring/confidence.py` | Уверенность и неопределенность |
-| `backend/app/modules/m6_scoring/decision_policy.py` | Финальные рекомендации и правила проверки |
-| `backend/app/modules/m6_scoring/ml_model.py` | Уточняющая модель GBR |
-| `backend/app/modules/m6_scoring/service.py` | Координация скоринга |
-| `backend/app/modules/m6_scoring/evaluation.py` | Средства оценки |
-| `backend/app/modules/m6_scoring/optimization.py` | Подбор порогов |
-| `backend/app/modules/m6_scoring/synthetic_data.py` | Синтетические примеры |
-| `backend/app/modules/m6_scoring/ranker.py` | Пакетное ранжирование |
+| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | core policy config |
+| `backend/app/modules/m6_scoring/m6_scoring_config.py` | typed config loader |
+| `backend/app/modules/m6_scoring/program_policy.py` | program-specific policy lookup |
+| `backend/app/modules/m6_scoring/rules.py` | baseline sub-score logic |
+| `backend/app/modules/m6_scoring/confidence.py` | confidence и uncertainty |
+| `backend/app/modules/m6_scoring/decision_policy.py` | final category и review policy |
+| `backend/app/modules/m6_scoring/calibration.py` | optional calibration utilities |
+| `backend/app/modules/m6_scoring/ml_model.py` | GBR refinement model |
+| `backend/app/modules/m6_scoring/ranker.py` | batch ranking |
+| `backend/app/modules/m6_scoring/io_utils.py` | report/artifact IO helpers |
+| `backend/app/modules/m6_scoring/service.py` | публичный scoring service |
+| `backend/app/modules/m6_scoring/evaluation.py` | evaluation helpers |
+| `backend/app/modules/m6_scoring/optimization.py` | threshold search |
+| `backend/app/modules/m6_scoring/synthetic_data.py` | synthetic fixtures |
 
 ---
 
@@ -325,37 +243,24 @@ flowchart LR
 
 ### Назначение
 
-`M7` преобразует `SignalEnvelope + CandidateScore` в понятные объяснения для проверяющего, которые можно показывать в интерфейсе или отчете.
+`M7` переводит `SignalEnvelope + CandidateScore` в reviewer-facing explanation, который показывается в dashboard и detail views.
 
-### Функциональная зона
+### Функциональная область
 
-- собирает краткое описание кандидата;
-- выбирает главные сильные стороны и предупреждающие блоки;
-- связывает доказательства с факторами;
-- формирует рекомендации для проверяющего;
-- готовит проверяемый результат без повторного скоринга.
-
-### Вход
-
-- канонический `SignalEnvelope`;
-- `CandidateScore` из `M6`.
-
-### Выход
-
-- summary;
-- positive factors;
-- caution blocks;
-- evidence items;
-- reviewer guidance.
+- собирает concise summary
+- отбирает positive factors и caution blocks
+- связывает evidence snippets с факторами
+- формирует reviewer guidance
+- форматирует explanation без повторного scoring
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m7_explainability/schemas.py` | Контракты объяснений |
-| `backend/app/modules/m7_explainability/factors.py` | Названия факторов и предупреждений |
-| `backend/app/modules/m7_explainability/evidence.py` | Связь факторов с доказательствами |
-| `backend/app/modules/m7_explainability/service.py` | Сборка объяснения |
+| `backend/app/modules/m7_explainability/schemas.py` | explainability contracts |
+| `backend/app/modules/m7_explainability/factors.py` | titles и caution policy |
+| `backend/app/modules/m7_explainability/evidence.py` | evidence mapping |
+| `backend/app/modules/m7_explainability/service.py` | explainability assembly |
 
 ---
 
@@ -363,20 +268,23 @@ flowchart LR
 
 ### Назначение
 
-`M8` зарезервирован под API проверяющего интерфейса.
+`M8` отдает reviewer-facing read API.
 
 ### Текущее состояние
 
-- в этой ветке это только заготовка;
-- в будущем должен отдавать списки ранжирования, карточки кандидатов и действия проверяющего.
+- реализован в текущей ветке
+- отдает dashboard stats, ranking list, candidate detail, shortlist и safe reviewer projection
+- строит отображаемое имя кандидата через backend-дешифровку PII внутри projection layer
+- включает raw safe content и историю reviewer actions в detail-response
+- требует reviewer API key для доступа
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | Будущие маршруты интерфейса |
-| `backend/app/modules/m8_dashboard/service.py` | Будущая логика интерфейса |
-| `backend/app/modules/m8_dashboard/schemas.py` | Будущие контракты интерфейса |
+| `backend/app/modules/m8_dashboard/router.py` | reviewer read route и override entrypoint |
+| `backend/app/modules/m8_dashboard/service.py` | safe projection logic и dashboard aggregation |
+| `backend/app/modules/m8_dashboard/schemas.py` | DTO для stats, list, detail и shortlist |
 
 ---
 
@@ -384,21 +292,21 @@ flowchart LR
 
 ### Назначение
 
-`M9` предоставляет слой хранения и доступа к данным, который используют активные модули.
+`M9` — общий repository/persistence слой для активных модулей.
 
-### Функциональная зона
+### Функциональная область
 
-- хранит записи кандидатов и слои данных;
-- хранит сигналы NLP, оценки и объяснения;
-- предоставляет методы чтения и записи;
-- служит опорой хранения для всего конвейера.
+- хранит candidate records и layer payload'ы
+- хранит NLP signals, scores, explanations, reviewer actions и audit logs
+- обновляет ranking после scoring write
+- отдает repository methods для pipeline и reviewer surfaces
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m9_storage/models.py` | SQLAlchemy-модели |
-| `backend/app/modules/m9_storage/repository.py` | Методы доступа к данным |
+| `backend/app/modules/m9_storage/models.py` | SQLAlchemy models |
+| `backend/app/modules/m9_storage/repository.py` | repository methods |
 
 ---
 
@@ -406,20 +314,23 @@ flowchart LR
 
 ### Назначение
 
-`M10` зарезервирован под журналы аудита и отслеживание действий проверяющего.
+`M10` отвечает за audit logging и traceability reviewer-действий.
 
 ### Текущее состояние
 
-- в этой ветке это только заготовка;
-- в будущем должен хранить изменения решений, действия проверяющих и события конвейера.
+- реализован в текущей ветке
+- хранит overrides, comments, shortlist actions и pipeline audit events
+- отдает candidate action endpoint'ы и reviewer-facing audit feed
+- обновляет shortlist state и status overrides через общий persistence layer
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m10_audit/logger.py` | Будущие средства журналирования |
-| `backend/app/modules/m10_audit/service.py` | Будущий сервис аудита |
-| `backend/app/modules/m10_audit/router.py` | Будущие маршруты аудита |
+| `backend/app/modules/m10_audit/logger.py` | audit logging helper и future extension point |
+| `backend/app/modules/m10_audit/service.py` | override workflow, reviewer action writes, audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | reviewer action и audit feed route |
+| `backend/app/modules/m10_audit/schemas.py` | request/response contracts |
 
 ---
 
@@ -427,39 +338,25 @@ flowchart LR
 
 ### Назначение
 
-`M13` расшифровывает аудио или видео интервью и формирует показатели качества расшифровки для остального конвейера.
+`M13` транскрибирует аудио/видео интервью и возвращает transcript quality markers для остального pipeline.
 
-### Функциональная зона
+### Функциональная область
 
-- безопасно принимает медиавход;
-- вызывает Groq `whisper-large-v3-turbo`;
-- нормализует сегменты расшифровки;
-- рассчитывает уверенность и флаги качества;
-- выставляет `requires_human_review` для низкокачественной расшифровки.
-
-### Вход
-
-- candidate id;
-- media path или URL;
-- дополнительные языковые подсказки.
-
-### Выход
-
-- текст расшифровки;
-- список сегментов;
-- значения уверенности;
-- флаги качества;
-- `requires_human_review`.
+- безопасно резолвит media input
+- вызывает Groq Whisper через env-выбранную модель `M13_ASR_MODEL`
+- нормализует transcript segments
+- считает confidence и quality flags
+- выставляет `requires_human_review` при низком качестве транскрибации
 
 ### Файлы
 
-| Файл | Ответственность |
+| Файл | Назначение |
 |---|---|
-| `backend/app/modules/m13_asr/schemas.py` | Контракты ASR |
-| `backend/app/modules/m13_asr/downloader.py` | Безопасная работа с медиавходом |
-| `backend/app/modules/m13_asr/transcriber.py` | Интеграция с Groq Whisper |
-| `backend/app/modules/m13_asr/quality_checker.py` | Оценка качества расшифровки |
-| `backend/app/modules/m13_asr/service.py` | Координация расшифровки |
+| `backend/app/modules/m13_asr/schemas.py` | ASR contracts |
+| `backend/app/modules/m13_asr/downloader.py` | safe media resolution |
+| `backend/app/modules/m13_asr/transcriber.py` | Groq Whisper integration |
+| `backend/app/modules/m13_asr/quality_checker.py` | quality analysis |
+| `backend/app/modules/m13_asr/service.py` | ASR orchestration |
 
 ---
 

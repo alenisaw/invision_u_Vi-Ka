@@ -3,8 +3,8 @@
 Text normalization and similarity helpers for M5.
 
 Purpose:
-- Provide lightweight lexical similarity when API embeddings are unavailable.
-- Wrap the Jina embeddings API behind a small, testable client.
+- Provide lightweight lexical similarity when local embeddings are unavailable.
+- Wrap a local Hugging Face embedding model behind a small, testable client.
 """
 
 from __future__ import annotations
@@ -13,9 +13,8 @@ import math
 import os
 import re
 from collections import Counter
+from functools import lru_cache
 from typing import Any
-
-import httpx
 
 
 TOKEN_RE = re.compile(r"[A-Za-z\u0400-\u04FF0-9_]+")
@@ -24,8 +23,9 @@ ADMISSIONS_EXAM_RE = re.compile(
     r"\b(?:ent|unt|\u0435\u043d\u0442|ielts|toefl|duolingo)\b",
     re.IGNORECASE,
 )
-DEFAULT_JINA_EMBEDDING_MODEL = "jina-embeddings-v5"
-DEFAULT_JINA_BASE_URL = "https://api.jina.ai/v1/embeddings"
+DEFAULT_EMBEDDING_MODEL = "jinaai/jina-embeddings-v5-text-nano"
+DEFAULT_EMBEDDING_TASK = "text-matching"
+DEFAULT_EMBEDDING_DEVICE = "auto"
 
 
 def clamp(value: float) -> float:
@@ -75,35 +75,109 @@ def cosine_similarity(text_a: str, text_b: str) -> float:
     return clamp(numerator / (norm_a * norm_b))
 
 
-class JinaEmbeddingsClient:
-    """Minimal Jina embeddings client with lexical fallback support."""
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None or not raw_value.strip():
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+@lru_cache(maxsize=4)
+def _load_local_embedding_backend(
+    model_name: str,
+    device_name: str,
+    trust_remote_code: bool,
+) -> tuple[Any, str]:
+    try:
+        import torch
+        from transformers import AutoModel
+    except ImportError as exc:  # pragma: no cover - dependency guard
+        raise RuntimeError(
+            "Local embeddings require `transformers`, `torch`, and `peft` from backend/requirements.txt."
+        ) from exc
+
+    resolved_device = device_name or DEFAULT_EMBEDDING_DEVICE
+    if resolved_device == "auto":
+        resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    dtype = torch.bfloat16 if resolved_device.startswith("cuda") else torch.float32
+    try:
+        model = AutoModel.from_pretrained(
+            model_name,
+            trust_remote_code=trust_remote_code,
+            dtype=dtype,
+        )
+    except TypeError:
+        model = AutoModel.from_pretrained(
+            model_name,
+            trust_remote_code=trust_remote_code,
+            torch_dtype=dtype,
+        )
+    if hasattr(model, "to"):
+        model = model.to(device=resolved_device)
+    if hasattr(model, "eval"):
+        model = model.eval()
+    return model, resolved_device
+
+
+def _coerce_embedding_vectors(raw_vectors: Any) -> list[list[float]]:
+    if hasattr(raw_vectors, "tolist"):
+        raw_vectors = raw_vectors.tolist()
+    if isinstance(raw_vectors, tuple):
+        raw_vectors = list(raw_vectors)
+    if not isinstance(raw_vectors, list):
+        return []
+    if raw_vectors and isinstance(raw_vectors[0], (int, float)):
+        return [[float(value) for value in raw_vectors]]
+    vectors: list[list[float]] = []
+    for row in raw_vectors:
+        if isinstance(row, tuple):
+            row = list(row)
+        if isinstance(row, list):
+            vectors.append([float(value) for value in row])
+    return vectors
+
+
+class LocalEmbeddingClient:
+    """Minimal local embedding client with lexical fallback support."""
 
     def __init__(
         self,
-        api_key: str | None = None,
         model: str | None = None,
-        base_url: str | None = None,
-        timeout_s: float = 20.0,
+        task: str | None = None,
+        device: str | None = None,
+        trust_remote_code: bool | None = None,
     ) -> None:
-        self.api_key = (api_key or os.getenv("JINA_API_KEY") or "").strip()
-        self.model = model or os.getenv("EMBEDDING_MODEL") or DEFAULT_JINA_EMBEDDING_MODEL
-        self.base_url = (base_url or os.getenv("JINA_EMBEDDING_BASE_URL") or DEFAULT_JINA_BASE_URL).rstrip("/")
-        self.timeout_s = timeout_s
+        self.model = model or os.getenv("EMBEDDING_MODEL") or DEFAULT_EMBEDDING_MODEL
+        self.task = task or os.getenv("EMBEDDING_TASK") or DEFAULT_EMBEDDING_TASK
+        self.device = (device or os.getenv("EMBEDDING_DEVICE") or DEFAULT_EMBEDDING_DEVICE).strip()
+        self.trust_remote_code = (
+            _env_flag("EMBEDDING_TRUST_REMOTE_CODE", True)
+            if trust_remote_code is None
+            else bool(trust_remote_code)
+        )
 
     @property
     def enabled(self) -> bool:
-        return bool(self.api_key)
+        return bool(self.model)
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
         if not self.enabled:
-            raise RuntimeError("JINA_API_KEY is not set.")
-        payload: dict[str, Any] = {"model": self.model, "input": texts}
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        with httpx.Client(timeout=self.timeout_s) as client:
-            response = client.post(self.base_url, headers=headers, json=payload)
-            response.raise_for_status()
-        raw_items = response.json().get("data", [])
-        return [list(item.get("embedding", [])) for item in raw_items if isinstance(item, dict)]
+            raise RuntimeError("EMBEDDING_MODEL is not set.")
+
+        model, _ = _load_local_embedding_backend(
+            self.model,
+            self.device,
+            self.trust_remote_code,
+        )
+        normalized_texts = [normalize_text(text) for text in texts]
+        raw_vectors = model.encode(texts=normalized_texts, task=self.task)
+        return _coerce_embedding_vectors(raw_vectors)
+
+
+JinaEmbeddingsClient = LocalEmbeddingClient
 
 
 def _vector_cosine(vector_a: list[float], vector_b: list[float]) -> float:
@@ -117,12 +191,12 @@ def _vector_cosine(vector_a: list[float], vector_b: list[float]) -> float:
     return clamp(numerator / (norm_a * norm_b))
 
 
-def semantic_similarity(text_a: str, text_b: str, client: JinaEmbeddingsClient | None = None) -> float:
-    """Prefer Jina embeddings when configured, otherwise fall back to lexical cosine."""
+def semantic_similarity(text_a: str, text_b: str, client: LocalEmbeddingClient | None = None) -> float:
+    """Prefer local embeddings when configured, otherwise fall back to lexical cosine."""
 
     if not text_a or not text_b:
         return 0.0
-    embeddings_client = client or JinaEmbeddingsClient()
+    embeddings_client = client or LocalEmbeddingClient()
     if not embeddings_client.enabled:
         return cosine_similarity(text_a, text_b)
     try:

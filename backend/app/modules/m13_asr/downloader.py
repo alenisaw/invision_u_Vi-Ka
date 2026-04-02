@@ -5,6 +5,7 @@ Purpose: Safe media resolution and optional direct media download for M13.
 
 from __future__ import annotations
 
+import ipaddress
 import mimetypes
 import os
 import shutil
@@ -12,22 +13,25 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 import httpx
-
-from app.core.url_safety import MEDIA_EXTENSIONS, is_direct_media_url, validate_public_video_url
 
 from .schemas import ASRRequest
 
 
+MEDIA_EXTENSIONS = {
+    ".mp4", ".mov", ".mkv", ".avi", ".webm",
+    ".wav", ".mp3", ".m4a", ".ogg", ".flac", ".mpeg", ".mpga",
+}
 MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
-MAX_REDIRECT_HOPS = 5
 REPO_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_ALLOWED_MEDIA_ROOTS = (
     REPO_ROOT / "backend" / "tests",
     REPO_ROOT / "data",
 )
+DEFAULT_ALLOWED_URL_SCHEMES = {"http", "https"}
+BLOCKED_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
 YTDLP_OUTPUT_TEMPLATE = "download.%(ext)s"
 
 
@@ -63,6 +67,25 @@ def _resolve_local_media_path(media_path: str | Path) -> Path:
     raise RuntimeError(f"M13 media path is outside trusted roots: {resolved}")
 
 
+def _validate_media_url(video_url: str) -> None:
+    parsed = urlparse(video_url)
+    if parsed.scheme not in DEFAULT_ALLOWED_URL_SCHEMES:
+        raise RuntimeError(f"unsupported media URL scheme: {parsed.scheme or 'missing'}")
+    if not parsed.netloc:
+        raise RuntimeError("media URL host is missing")
+    if parsed.username or parsed.password:
+        raise RuntimeError("media URL must not contain credentials")
+    hostname = (parsed.hostname or "").strip().lower()
+    if not hostname or hostname in BLOCKED_HOSTNAMES:
+        raise RuntimeError(f"blocked media host: {hostname or 'missing'}")
+    try:
+        ip_addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        ip_addr = None
+    if ip_addr is not None and (ip_addr.is_private or ip_addr.is_loopback or ip_addr.is_link_local):
+        raise RuntimeError(f"blocked private media host: {hostname}")
+
+
 def _suffix_from_response(video_url: str, content_type: str) -> str:
     parsed_path = Path(urlparse(video_url).path)
     if parsed_path.suffix.lower() in MEDIA_EXTENSIONS:
@@ -74,41 +97,28 @@ def _suffix_from_response(video_url: str, content_type: str) -> str:
 
 
 def _looks_like_direct_media_url(video_url: str) -> bool:
-    return is_direct_media_url(video_url)
+    return Path(urlparse(video_url).path).suffix.lower() in MEDIA_EXTENSIONS
 
 
 def _download_media_with_request(video_url: str, timeout_s: float = 60.0) -> ResolvedMedia:
     temp_dir = Path(tempfile.mkdtemp(prefix="m13_media_"))
     try:
-        current_url = validate_public_video_url(video_url)
-        with httpx.Client(timeout=timeout_s, follow_redirects=False) as client:
-            for _ in range(MAX_REDIRECT_HOPS + 1):
-                with client.stream("GET", current_url) as response:
-                    if response.is_redirect:
-                        location = response.headers.get("location", "").strip()
-                        if not location:
-                            raise RuntimeError("redirect response is missing Location header")
-                        current_url = validate_public_video_url(urljoin(current_url, location))
-                        continue
-
-                    response.raise_for_status()
-                    suffix = _suffix_from_response(
-                        current_url,
-                        response.headers.get("content-type", ""),
-                    )
-                    file_path = temp_dir / f"download{suffix}"
-                    total_size = 0
-                    with file_path.open("wb") as file_handle:
-                        for chunk in response.iter_bytes():
-                            if not chunk:
-                                continue
-                            total_size += len(chunk)
-                            if total_size > MAX_DOWNLOAD_BYTES:
-                                raise RuntimeError("media download exceeds M13 size limit")
-                            file_handle.write(chunk)
-                    _validate_media_extension(file_path)
-                    return ResolvedMedia(path=file_path, source_kind="url", cleanup_paths=(temp_dir,))
-            raise RuntimeError("media download exceeded the redirect limit")
+        with httpx.Client(timeout=timeout_s, follow_redirects=True) as client:
+            with client.stream("GET", video_url) as response:
+                response.raise_for_status()
+                suffix = _suffix_from_response(video_url, response.headers.get("content-type", ""))
+                file_path = temp_dir / f"download{suffix}"
+                total_size = 0
+                with file_path.open("wb") as file_handle:
+                    for chunk in response.iter_bytes():
+                        if not chunk:
+                            continue
+                        total_size += len(chunk)
+                        if total_size > MAX_DOWNLOAD_BYTES:
+                            raise RuntimeError("media download exceeds M13 size limit")
+                        file_handle.write(chunk)
+        _validate_media_extension(file_path)
+        return ResolvedMedia(path=file_path, source_kind="url", cleanup_paths=(temp_dir,))
     except Exception:
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise
@@ -156,14 +166,17 @@ def _download_media_with_ytdlp(video_url: str, timeout_s: float = 60.0) -> Resol
 
 
 def _download_media(video_url: str, timeout_s: float = 60.0) -> ResolvedMedia:
-    safe_url = validate_public_video_url(video_url)
+    _validate_media_url(video_url)
     if _looks_like_direct_media_url(video_url):
         try:
-            return _download_media_with_request(safe_url, timeout_s=timeout_s)
+            return _download_media_with_request(video_url, timeout_s=timeout_s)
         except Exception:
-            return _download_media_with_ytdlp(safe_url, timeout_s=timeout_s)
+            return _download_media_with_ytdlp(video_url, timeout_s=timeout_s)
 
-    return _download_media_with_ytdlp(safe_url, timeout_s=timeout_s)
+    try:
+        return _download_media_with_ytdlp(video_url, timeout_s=timeout_s)
+    except Exception:
+        return _download_media_with_request(video_url, timeout_s=timeout_s)
 
 
 def resolve_request_media(request: ASRRequest) -> ResolvedMedia:
@@ -194,3 +207,5 @@ def cleanup_paths(paths: tuple[Path, ...]) -> None:
                 continue
 
 
+# File summary: downloader.py
+# Resolves trusted local media or safely downloads direct media URLs into temp storage.

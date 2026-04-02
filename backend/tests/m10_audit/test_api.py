@@ -59,6 +59,7 @@ def test_override_route_returns_action_payload(
             f"/api/v1/dashboard/candidates/{candidate_id}/override",
             headers={"X-API-Key": "test-reviewer-key"},
             json={
+                "reviewer_id": "reviewer-1",
                 "new_status": "RECOMMEND",
                 "comment": "Manual review clears the flag.",
             },
@@ -90,6 +91,7 @@ def test_override_route_maps_workflow_errors(
             f"/api/v1/dashboard/candidates/{candidate_id}/override",
             headers={"X-API-Key": "test-reviewer-key"},
             json={
+                "reviewer_id": "reviewer-1",
                 "new_status": "WAITLIST",
                 "comment": "No-op override.",
             },
@@ -126,6 +128,7 @@ def test_create_reviewer_action_route_returns_action_payload(
             f"/api/v1/dashboard/candidates/{candidate_id}/actions",
             headers={"X-API-Key": "test-reviewer-key"},
             json={
+                "reviewer_id": "reviewer-2",
                 "action_type": "shortlist_add",
                 "comment": "Add to shortlist.",
             },

@@ -18,3 +18,5 @@ __all__ = [
 ]
 
 
+# File summary: __init__.py
+# Keeps the public M13 import surface explicit and stable.

@@ -31,13 +31,15 @@ export default function CandidateCard({ score }: CandidateCardProps) {
         {Object.entries(score.sub_scores).map(([key, value]) => (
           <div
             key={key}
-            className="flex items-center justify-between px-3 py-2.5 rounded-[1rem]"
+            className="flex items-center justify-between px-3 py-2.5 rounded-[1rem] gap-3" // Добавлен gap-3 для отступа
             style={{ background: "var(--surface-subtle)" }}
           >
-            <span className="text-[0.78rem] font-[600] text-muted-strong">
+            <span className="text-[0.78rem] font-[600] text-muted-strong truncate"> {/* Добавлено truncate для длинного текста */}
               {SUB_SCORE_LABELS[key] ?? key}
             </span>
-            <span className="text-[0.88rem] font-[800]">{formatPercent(value)}</span>
+            <span className="text-[0.88rem] font-[800] text-right"> {/* Добавлено text-right для выравнивания чисел */}
+              {formatPercent(value)}
+            </span>
           </div>
         ))}
       </div>
