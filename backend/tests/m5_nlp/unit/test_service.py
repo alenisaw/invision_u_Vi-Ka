@@ -164,6 +164,45 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertNotIn("ai_writing_risk", envelope.signals)
         self.assertEqual(envelope.signals["authenticity_risk"].source[0], "video_transcript")
 
+    def test_extract_signals_uses_essay_when_video_transcript_absent(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.88,
+            selected_program="Creative Engineering",
+            essay_text=(
+                "I built a prototype lamp, learned from mistakes, and want to study creative engineering so I can "
+                "combine design with practical technology projects."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("motivation_clarity", envelope.signals)
+        self.assertIn("clarity_score", envelope.signals)
+        self.assertEqual(envelope.signals["clarity_score"].source, ["essay"])
+
+    def test_extract_signals_combines_essay_and_video_transcript_when_both_exist(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.91,
+            selected_program="Digital Media and Marketing",
+            essay_text=(
+                "I want to study digital media because I already run a small school content team and I care about "
+                "storytelling that helps local communities."
+            ),
+            video_transcript=(
+                "In the interview I explained how I organize shoots, edit clips, and test what formats people "
+                "actually watch."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("specificity_score", envelope.signals)
+        self.assertIn("essay", envelope.signals["specificity_score"].source)
+        self.assertIn("video_transcript", envelope.signals["specificity_score"].source)
+        self.assertIn("essay_transcript_consistency", envelope.signals)
+
     def test_extract_signals_recovers_initiative_from_video_transcript(self) -> None:
         request = M5ExtractionRequest(
             candidate_id=uuid4(),
@@ -205,4 +244,3 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -27,6 +27,7 @@ services:
       dockerfile: Dockerfile
     container_name: invisionu_backend
     restart: unless-stopped
+    gpus: all
     environment:
       API_KEY: ${API_KEY:-test-reviewer-key}
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:-change-me-to-a-32-byte-minimum-secret-for-development}
@@ -35,6 +36,8 @@ services:
       M13_ASR_MODEL: ${M13_ASR_MODEL:-whisper-large-v3-turbo}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jinaai/jina-embeddings-v5-text-nano}
       EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-cpu}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-invisionu}
