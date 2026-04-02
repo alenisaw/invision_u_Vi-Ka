@@ -12,7 +12,7 @@ M5_SYSTEM_PROMPT = (
     "Use only the provided safe Layer 3 text. "
     "Never infer demographic, social, geographic, or protected attributes. "
     "If there is not enough evidence for a signal, omit it. "
-    "Return JSON only."
+    "Return your response as a single json object."
 )
 
 M5_GROUP_PROMPT_HINTS = {

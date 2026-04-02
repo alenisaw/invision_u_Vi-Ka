@@ -40,7 +40,7 @@ class M5ExtractionRequest(BaseModel):
 
     candidate_id: UUID = Field(default_factory=uuid4)
     signal_schema_version: str = Field(default="v1", min_length=1)
-    m5_model_version: str = Field(default="heuristic-gemini-v1", min_length=1)
+    m5_model_version: str = Field(default="heuristic-v1", min_length=1)
     completeness: float = Field(default=1.0, ge=0.0, le=1.0)
     data_flags: list[str] = Field(default_factory=list)
     selected_program: str = Field(default="", max_length=200)
@@ -80,6 +80,3 @@ class M5ExtractionRequest(BaseModel):
                 normalized.append(text[:3000])
         return normalized[:20]
 
-
-# File summary: schemas.py
-# Defines the request shape for M5 extraction and transcription orchestration.

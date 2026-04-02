@@ -69,5 +69,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_evaluation_bundle.py
-# Covers comparison, fixture reporting, and artifact export for the M6 bundle.

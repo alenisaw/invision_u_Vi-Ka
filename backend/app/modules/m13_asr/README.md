@@ -23,7 +23,7 @@
 The module:
 
 1. resolves safe media input;
-2. transcribes interview audio through Groq Whisper;
+2. transcribes interview audio through Groq Whisper using the env-selected `M13_ASR_MODEL`;
 3. normalizes transcript segments;
 4. computes quality flags and human-review markers;
 5. returns a structured transcript result.
@@ -77,7 +77,7 @@ flowchart LR
 |---|---|
 | `schemas.py` | ASR request and output models |
 | `downloader.py` | safe media resolution and retrieval |
-| `transcriber.py` | Groq Whisper API integration |
+| `transcriber.py` | Groq Whisper API integration with env-driven model selection |
 | `quality_checker.py` | confidence and transcript quality logic |
 | `service.py` | end-to-end ASR orchestration |
 

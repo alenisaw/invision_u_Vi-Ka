@@ -11,6 +11,7 @@ from app.modules.m2_intake.schemas import (
     AcademicInfo,
     CandidateIntakeRequest,
     CandidateIntakeResponse,
+    ContactsInfo,
     ContentInfo,
     InternalTestAnswer,
     InternalTestInfo,
@@ -27,8 +28,12 @@ def _make_payload() -> CandidateIntakeRequest:
             last_name="User",
             date_of_birth=date(2005, 1, 1),
         ),
+        contacts=ContactsInfo(email="test.user@example.com"),
         academic=AcademicInfo(selected_program="CS"),
-        content=ContentInfo(essay_text="A test essay with enough words " * 5),
+        content=ContentInfo(
+            video_url="https://youtube.com/watch?v=payload123",
+            essay_text="A test essay with enough words " * 5,
+        ),
         internal_test=InternalTestInfo(
             answers=[InternalTestAnswer(question_id="q1", answer="answer")]
         ),
@@ -137,6 +142,7 @@ class TestPipelineIntegrations:
                 last_name="User",
                 date_of_birth=date(2005, 1, 1),
             ),
+            contacts=ContactsInfo(email="test.user@example.com"),
             academic=AcademicInfo(selected_program="CS"),
             content=ContentInfo(
                 essay_text="A test essay with enough words " * 5,
@@ -195,3 +201,48 @@ class TestPipelineIntegrations:
         score = _make_fake_score(cid)
 
         await orch._run_explainability(cid, envelope, score)
+
+    @pytest.mark.asyncio
+    async def test_persist_score_stores_reviewer_fields_and_refreshes_rankings(self) -> None:
+        session = MagicMock()
+        orch = PipelineOrchestrator(session)
+        orch.repository = AsyncMock()
+        orch.repository.upsert_candidate_score.return_value = MagicMock(ranking_position=3)
+
+        cid = uuid4()
+        score = CandidateScore(
+            candidate_id=cid,
+            program_id="computer_science",
+            sub_scores={"leadership_potential": 0.7},
+            program_weight_profile={"leadership_potential": 0.2},
+            review_priority_index=0.65,
+            recommendation_status="RECOMMEND",
+            decision_summary="Candidate scored successfully.",
+            confidence=0.8,
+            confidence_band="HIGH",
+            manual_review_required=True,
+            human_in_loop_required=True,
+            uncertainty_flag=True,
+            shortlist_eligible=False,
+            review_recommendation="REQUIRES_MANUAL_REVIEW",
+            review_reasons=["manual review required"],
+            top_strengths=["leadership_potential"],
+            top_risks=["low_signal_coverage"],
+            score_delta_vs_baseline=0.05,
+            caution_flags=["possible_ai_use"],
+            score_breakdown={"baseline_rpi": 0.6},
+            model_family="gbr",
+            scoring_version="m6-v1",
+        )
+
+        await orch._persist_score(cid, score)
+
+        persisted = orch.repository.upsert_candidate_score.await_args.kwargs
+        assert persisted["candidate_id"] == cid
+        assert persisted["manual_review_required"] is True
+        assert persisted["review_recommendation"] == "REQUIRES_MANUAL_REVIEW"
+        assert persisted["top_strengths"] == ["leadership_potential"]
+        assert persisted["score_payload"]["candidate_id"] == str(cid)
+        orch.repository.refresh_score_rankings.assert_awaited_once()
+        orch.repository.update_pipeline_status.assert_awaited_once_with(cid, "scored")
+        assert score.ranking_position == 3

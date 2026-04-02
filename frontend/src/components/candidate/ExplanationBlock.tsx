@@ -1,42 +1,51 @@
 import type { ExplainabilityReport } from "@/types";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { localizeLabel, localizeSeverity } from "@/lib/i18n";
 import EvidenceList from "./EvidenceList";
 
 interface ExplanationBlockProps {
   explanation: ExplainabilityReport;
+  insertAfterConclusion?: React.ReactNode;
 }
 
-export default function ExplanationBlock({ explanation }: ExplanationBlockProps) {
+export default function ExplanationBlock({
+  explanation,
+  insertAfterConclusion,
+}: ExplanationBlockProps) {
+  const { locale, t } = useLocale();
+
   return (
     <div className="flex flex-col gap-5">
       <div className="card p-6">
-        <div className="eyebrow mb-3">Заключение ИИ</div>
-        <p className="text-[0.95rem] font-[500] leading-[1.5]" style={{ color: "var(--brand-muted-strong)" }}>
+        <div className="eyebrow mb-3">{t("explanation.title")}</div>
+        <p className="text-[0.95rem] font-[500] leading-relaxed text-muted-strong">
           {explanation.summary}
         </p>
       </div>
 
+      {insertAfterConclusion}
+
       {explanation.positive_factors.length > 0 && (
         <div className="card p-6">
-          <div className="eyebrow mb-4">Положительные факторы</div>
+          <div className="eyebrow mb-5">{t("explanation.positive")}</div>
           <div className="flex flex-col gap-4">
             {explanation.positive_factors.map((factor) => (
               <div
                 key={factor.factor}
-                className="rounded-[var(--radius-md)] p-4"
-                style={{ background: "rgba(193, 241, 29, 0.08)" }}
+                className="rounded-[1rem] p-5 bg-[var(--brand-lime)]/10"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-[0.92rem] font-[800]">{factor.title}</h4>
-                  <span className="badge badge--lime text-[0.72rem]">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-3">
+                  <h4 className="text-[0.95rem] font-[800] leading-tight">
+                    {localizeLabel(factor.factor, locale) || factor.title}
+                  </h4>
+                  <span className="badge badge--lime text-[0.76rem] font-numbers shrink-0">
                     +{(factor.score_contribution * 100).toFixed(0)}%
                   </span>
                 </div>
-                <p className="text-[0.82rem] mb-3" style={{ color: "var(--brand-muted-strong)" }}>
+                <p className="text-[0.85rem] mb-4 text-muted-strong leading-relaxed">
                   {factor.summary}
                 </p>
-                {factor.evidence.length > 0 && (
-                  <EvidenceList evidence={factor.evidence} />
-                )}
+                {factor.evidence.length > 0 && <EvidenceList evidence={factor.evidence} />}
               </div>
             ))}
           </div>
@@ -45,48 +54,30 @@ export default function ExplanationBlock({ explanation }: ExplanationBlockProps)
 
       {explanation.caution_blocks.length > 0 && (
         <div className="card p-6">
-          <div className="eyebrow mb-4">Предупреждения</div>
-          <div className="flex flex-col gap-3">
+          <div className="eyebrow mb-5">{t("explanation.cautions")}</div>
+          <div className="flex flex-col gap-4">
             {explanation.caution_blocks.map((caution) => (
               <div
                 key={caution.flag}
-                className="rounded-[var(--radius-md)] p-4"
-                style={{ background: "rgba(255, 142, 112, 0.08)" }}
+                className="rounded-[1rem] p-5 bg-[var(--brand-coral)]/10"
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="badge badge--coral text-[0.72rem]">{caution.severity}</span>
-                  <h4 className="text-[0.92rem] font-[800]">{caution.title}</h4>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="badge badge--coral text-[0.72rem] shrink-0 uppercase">
+                    {localizeSeverity(caution.severity, locale)}
+                  </span>
+                  <h4 className="text-[0.95rem] font-[800] leading-tight">
+                    {localizeLabel(caution.flag, locale) || caution.title}
+                  </h4>
                 </div>
-                <p className="text-[0.82rem] mb-2" style={{ color: "var(--brand-muted-strong)" }}>
+                <p className="text-[0.85rem] mb-3 text-muted-strong leading-relaxed">
                   {caution.summary}
                 </p>
-                <p className="text-[0.78rem] font-[700]" style={{ color: "var(--brand-coral)" }}>
-                  Действие: {caution.suggested_action}
+                <p className="text-[0.82rem] font-[700] text-[var(--brand-coral)] mt-2 bg-[var(--brand-coral)]/10 inline-block px-3 py-1.5 rounded-[0.5rem]">
+                  {t("explanation.check", { action: caution.suggested_action })}
                 </p>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      <div className="card p-6">
-        <div className="eyebrow mb-3">Рекомендации рецензенту</div>
-        <p className="text-[0.88rem] font-[600]" style={{ color: "var(--brand-muted-strong)" }}>
-          {explanation.reviewer_guidance}
-        </p>
-      </div>
-
-      {explanation.data_quality_notes.length > 0 && (
-        <div className="card p-6">
-          <div className="eyebrow mb-3">Качество данных</div>
-          <ul className="flex flex-col gap-2">
-            {explanation.data_quality_notes.map((note) => (
-              <li key={note} className="flex items-center gap-2 text-[0.82rem]" style={{ color: "var(--brand-muted-strong)" }}>
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--brand-blue)" }} />
-                {note}
-              </li>
-            ))}
-          </ul>
         </div>
       )}
     </div>

@@ -40,5 +40,3 @@ def get_program_weight_profile(program_id: str | None) -> dict[str, float]:
     return dict(profile)
 
 
-# File summary: program_policy.py
-# Normalizes selected programs and exposes explicit program-aware scoring weight profiles.

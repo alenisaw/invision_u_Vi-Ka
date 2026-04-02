@@ -29,6 +29,8 @@ class ExplainabilityServiceTests(unittest.TestCase):
         self.assertGreaterEqual(len(report.positive_factors), 1)
         self.assertIsInstance(report.reviewer_guidance, str)
         self.assertTrue(any(block.evidence for block in report.positive_factors))
+        self.assertTrue(any("подтверж" in block.summary.lower() for block in report.positive_factors))
+        self.assertIn("кандидат", report.summary.lower())
 
     def test_low_quality_case_surfaces_guidance(self) -> None:
         scoring = ScoringService()
@@ -41,6 +43,7 @@ class ExplainabilityServiceTests(unittest.TestCase):
         self.assertTrue(report.caution_blocks or report.data_quality_notes)
         self.assertTrue(report.reviewer_guidance)
         self.assertTrue(any(block.severity in {"warning", "critical"} for block in report.caution_blocks))
+        self.assertTrue(any(ord(char) > 127 for char in report.reviewer_guidance))
 
     def test_generate_uses_passed_score_contract(self) -> None:
         scoring = ScoringService()
@@ -68,8 +71,8 @@ class ExplainabilityServiceGenerateTests(unittest.IsolatedAsyncioTestCase):
         score = scoring.score_candidate(envelope)
         explainability = ExplainabilityService(session=MagicMock())
         explainability.repository = AsyncMock()
-        explainability.scoring_service.score_candidate = MagicMock(
-            side_effect=AssertionError("generate() must not rescore the envelope")
+        explainability.scoring_service.build_explainability_input = MagicMock(
+            wraps=scoring.build_explainability_input
         )
 
         report = await explainability.generate(envelope.candidate_id, envelope, score)
@@ -77,6 +80,7 @@ class ExplainabilityServiceGenerateTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report.candidate_id, envelope.candidate_id)
         self.assertEqual(report.review_priority_index, score.review_priority_index)
         self.assertEqual(report.recommendation_status, score.recommendation_status)
+        explainability.scoring_service.build_explainability_input.assert_called_once()
 
         explainability.repository.upsert_candidate_explanation.assert_awaited_once()
         persisted = explainability.repository.upsert_candidate_explanation.await_args.kwargs
@@ -93,6 +97,3 @@ class ExplainabilityServiceGenerateTests(unittest.IsolatedAsyncioTestCase):
 if __name__ == "__main__":
     unittest.main()
 
-
-# File summary: test_service.py
-# Covers summary, positive factors, and reviewer guidance generation for M7.

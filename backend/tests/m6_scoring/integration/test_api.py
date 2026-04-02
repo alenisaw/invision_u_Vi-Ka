@@ -76,5 +76,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-# File summary: test_m1_m6_api.py
-# Covers the health route and direct gateway access to M6 scoring.

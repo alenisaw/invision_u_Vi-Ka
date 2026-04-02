@@ -25,5 +25,3 @@ __all__ = [
     "FactorBlock",
 ]
 
-# File summary: __init__.py
-# Re-exports the prepared handoff models for the future M7 module.

@@ -39,7 +39,7 @@ This folder keeps everything needed to validate the `M6` module in one place:
 Run the full M6 test bundle:
 
 ```bash
-python -m unittest discover -s backend/tests/m6_scoring -p "test_*.py"
+cd backend && python -m pytest tests/m6_scoring -q
 ```
 
 Run a synthetic evaluation and export artifacts:

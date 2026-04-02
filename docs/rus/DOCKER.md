@@ -1,4 +1,4 @@
-# Руководство по Docker
+# Docker Guide
 
 ---
 
@@ -6,15 +6,15 @@
 
 - [Назначение](#назначение)
 - [Docker-артефакты репозитория](#docker-артефакты-репозитория)
-- [Шаблон всего репозитория](#шаблон-всего-репозитория)
-- [Диаграмма 1. Контейнерная топология](#диаграмма-1-контейнерная-топология)
-- [Контейнер для оценки M6](#контейнер-для-оценки-m6)
+- [Основной стек репозитория](#основной-стек-репозитория)
+- [Диаграмма 1. Топология контейнеров](#диаграмма-1-топология-контейнеров)
+- [Контейнер для M6](#контейнер-для-m6)
 
 ---
 
 ## Назначение
 
-Этот документ описывает Docker-артефакты, которые сейчас есть в репозитории, и объясняет, для чего они нужны.
+Этот документ описывает Docker-артефакты, которые реально присутствуют в текущей ветке репозитория, и то, как они используются.
 
 ---
 
@@ -22,67 +22,76 @@
 
 | Файл | Назначение |
 |---|---|
-| `backend/Dockerfile` | Образ серверного приложения на базе `python:3.11-slim` |
-| `backend/app/modules/m6_scoring/Dockerfile.m6` | Отдельный образ для скоринга и оценки M6 |
-| `docker-compose.template.yml` | Общий шаблон Docker Compose для всего репозитория |
-| `docker-compose.m6.yml` | Отдельный compose-файл для оценки и notebook-сценариев M6 |
+| `backend/Dockerfile` | образ backend-приложения |
+| `frontend/Dockerfile` | production-образ Next.js frontend |
+| `docker-compose.yml` | основной локальный стек `postgres + backend + frontend` |
+| `docker-compose.template.yml` | более старый scaffold с placeholder-сервисами |
+| `docker-compose.m6.yml` | отдельный compose для evaluation и notebook workflow модуля `M6` |
+| `scripts/stack.sh` | обертка над compose-командами (`up`, `down`, `reset`, `logs`) |
 
 ---
 
-## Шаблон всего репозитория
+## Основной стек репозитория
 
-Основной шаблон всего репозитория:
+Основной рабочий стек в текущем репозитории:
 
-- `docker-compose.template.yml`
+- `docker-compose.yml`
 
-Он включает:
+Он поднимает:
 
 - `postgres`
 - `backend`
-- `frontend_placeholder`
-- `m8_dashboard_placeholder`
-- `m10_audit_placeholder`
+- `frontend`
 
-Этот файл является стартовым шаблоном, а не готовым production-манифестом.
+Текущее поведение:
+
+- `backend` на старте прогоняет Alembic migration и затем запускает `uvicorn`
+- `backend` получает model-конфигурацию через env: `M5_LLM_MODEL`, `M13_ASR_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DEVICE`
+- `frontend` получает `BACKEND_URL` и `REVIEWER_API_KEY` через env-переменные
+- reviewer-экраны работают через Next.js proxy, который серверно добавляет `X-API-Key`
+- для основного LLM + ASR path достаточно `GROQ_API_KEY`; локальные embeddings не требуют Jina API key
+- локальная embedding-модель скачивается с Hugging Face при первом использовании и затем переиспользуется из локального cache
+- стек предназначен для локальной интеграции, демо и smoke-проверок
+
+Типовые команды:
+
+```bash
+./scripts/stack.sh up
+./scripts/stack.sh down
+./scripts/stack.sh reset
+./scripts/stack.sh logs
+```
+
+`docker-compose.template.yml` остается в репозитории как старый шаблон, но основным стеком сейчас не является.
 
 ---
 
-## Диаграмма 1. Контейнерная топология
+## Диаграмма 1. Топология контейнеров
 
 ```mermaid
 flowchart LR
-    Frontend["frontend placeholder"]
-    Backend["backend service"]
+    Frontend["frontend"]
+    Backend["backend"]
     DB["postgres"]
-    M8["m8_dashboard_placeholder"]
-    M10["m10_audit_placeholder"]
-    Net["invisionu_net"]
 
     Frontend --> Backend
-    M8 --> Backend
-    M10 --> Backend
     Backend --> DB
-    Frontend --- Net
-    Backend --- Net
-    DB --- Net
-    M8 --- Net
-    M10 --- Net
 ```
 
 ---
 
-## Контейнер для оценки M6
+## Контейнер для M6
 
-Для `M6` существует отдельный контейнерный сценарий:
+Для `M6` по-прежнему есть отдельный контейнерный workflow:
 
 - `backend/app/modules/m6_scoring/Dockerfile.m6`
 - `docker-compose.m6.yml`
 
-Он нужен для:
+Он используется для:
 
-- синтетической оценки;
-- доступа к notebook;
-- изолированных экспериментов со скорингом.
+- synthetic evaluation
+- локального notebook-доступа на порту `8888`
+- изолированных scoring-экспериментов без запуска полного frontend-стека
 
 ---
 

@@ -5,7 +5,7 @@ Purpose: Evidence selection helpers for M7 explainability output.
 
 from __future__ import annotations
 
-from .schemas import EvidenceItem, ExplainabilityInput
+from .schemas import EvidenceItem, ExplainabilityInput, ExplainabilitySignalContext
 
 
 FACTOR_SIGNAL_MAP = {
@@ -42,5 +42,21 @@ def collect_factor_evidence(handoff: ExplainabilityInput, factor_name: str, limi
     return evidence_items
 
 
-# File summary: evidence.py
-# Selects short, source-backed evidence snippets for reviewer-facing explanation blocks.
+def collect_factor_signal_contexts(
+    handoff: ExplainabilityInput,
+    factor_name: str,
+    limit: int = 2,
+) -> list[tuple[str, ExplainabilitySignalContext]]:
+    """Collect the most relevant signal contexts for one factor."""
+
+    contexts: list[tuple[str, ExplainabilitySignalContext]] = []
+    preferred_signals = FACTOR_SIGNAL_MAP.get(factor_name, ())
+    for signal_name in preferred_signals:
+        signal = handoff.signal_context.get(signal_name)
+        if signal is None:
+            continue
+        contexts.append((signal_name, signal))
+        if len(contexts) >= limit:
+            return contexts
+    return contexts
+

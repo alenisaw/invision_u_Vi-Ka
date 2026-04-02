@@ -20,14 +20,23 @@
 
 ## System Overview
 
-The inVision U candidate selection system is a modular backend pipeline for admissions decision support. It validates submissions, separates sensitive data, prepares safe model input, extracts structured signals, computes explainable scores, and produces reviewer-facing explanations for the admissions committee.
+The inVision U candidate selection system is a modular monolith for admissions decision support. The current repository contains both the FastAPI backend and the Next.js reviewer frontend.
+
+The live branch currently operates as a synchronous request-response pipeline:
+
+- candidate submissions are accepted through `M2` or routed through the full `M1` pipeline
+- optional interview transcription is performed in `M13`
+- privacy separation happens before model-facing processing in `M3`
+- `M4`, `M5`, `M6`, and `M7` assemble profile, signals, score, and explanation
+- reviewer-facing reads and writes are exposed through `M8` and `M10`
+- all state is persisted in PostgreSQL
 
 The platform is intentionally human-centered:
 
-- it does not make a final autonomous admissions decision;
-- it exposes confidence, uncertainty, and review-routing fields;
-- it isolates sensitive data before model-facing processing;
-- it keeps scoring and explainability auditable.
+- it does not make a final autonomous admissions decision
+- it exposes confidence, uncertainty, and review-routing fields
+- it isolates sensitive data before model-facing processing
+- it keeps overrides and reviewer actions auditable
 
 ---
 
@@ -36,41 +45,50 @@ The platform is intentionally human-centered:
 ```mermaid
 flowchart LR
     Candidate["Candidate Input"]
+    Demo["M0 Demo Fixtures"]
     Frontend["Next.js Frontend"]
-    M1["M1 API Gateway"]
-    M2["M2 Intake"]
-    M3["M3 Privacy and Normalization"]
+    Proxy["Next.js Proxy /api/backend/*"]
+    Gateway["M1 Gateway"]
+    Intake["M2 Intake"]
+    Privacy["M3 Privacy"]
     L1["Layer 1: PII Vault"]
     L2["Layer 2: Operational Metadata"]
     L3["Layer 3: Model Input"]
-    M4["M4 Candidate Profile"]
-    M5["M5 NLP Signal Extraction"]
-    M13["M13 ASR Transcription"]
-    M6["M6 Scoring and Ranking"]
-    M7["M7 Explainability"]
-    M8["M8 Reviewer Dashboard API"]
-    M10["M10 Audit Service"]
+    Profile["M4 Profile"]
+    NLP["M5 NLP"]
+    ASR["M13 ASR"]
+    Score["M6 Scoring"]
+    Explain["M7 Explainability"]
+    Dashboard["M8 Dashboard"]
+    Audit["M10 Audit"]
+    DB["PostgreSQL"]
     Reviewer["Reviewer"]
 
     Candidate --> Frontend
-    Frontend --> M1
-    M1 --> M2
-    M2 --> M3
-    M3 --> L1
-    M3 --> L2
-    M3 --> L3
-    L3 --> M4
-    M4 --> M5
-    L3 --> M13
-    M13 --> M5
-    M5 --> M6
-    M6 --> M7
-    M7 --> M8
-    M8 --> Frontend
+    Demo --> Gateway
+    Frontend --> Proxy
+    Proxy --> Gateway
+    Gateway --> Intake
+    Intake --> Privacy
+    Privacy --> L1
+    Privacy --> L2
+    Privacy --> L3
+    L3 --> Profile
+    Gateway --> ASR
+    Profile --> NLP
+    ASR --> Privacy
+    NLP --> Score
+    Score --> Explain
+    Dashboard --> Frontend
     Reviewer --> Frontend
-    M1 --> M10
-    M6 --> M10
-    M8 --> M10
+    Gateway --> DB
+    Privacy --> DB
+    Profile --> DB
+    NLP --> DB
+    Score --> DB
+    Explain --> DB
+    Dashboard --> DB
+    Audit --> DB
 ```
 
 ---
@@ -83,15 +101,19 @@ Personally identifiable information is isolated before any model-facing processi
 
 ### Explainability First
 
-Scores must remain inspectable. Evidence, factors, caution flags, and routing logic are surfaced to reviewers.
+Scores remain inspectable. Evidence, positive factors, caution blocks, and routing logic are surfaced to reviewers.
 
 ### Human in the Loop
 
 Recommendation categories are advisory. Review-routing fields such as `manual_review_required`, `human_in_loop_required`, and `review_recommendation` keep the reviewer in control.
 
-### Program-Aware, Not Demographic-Aware
+### Synchronous Orchestration
 
-The system adapts to the selected academic track using policy-defined weights while excluding sensitive and proxy demographic fields from scoring.
+The current branch runs the main pipeline synchronously inside the API process. There is no Redis queue or detached worker layer in the live compose stack.
+
+### Reviewer-Safe Access
+
+Reviewer routes require `X-API-Key`. The Next.js proxy injects the header server-side for `dashboard/*` and `audit/*` routes so browser code does not carry the reviewer key directly.
 
 ---
 
@@ -99,13 +121,16 @@ The system adapts to the selected academic track using policy-defined weights wh
 
 The implemented backend flow in the current branch is:
 
+0. `M0 Demo` provides pre-built candidate fixtures for demonstration purposes.
 1. `M2 Intake` validates candidate submission payloads and creates the initial candidate record.
-2. `M13 ASR` transcribes interview media and emits transcript-quality markers.
+2. `M13 ASR` optionally transcribes interview media when `video_url` is present.
 3. `M3 Privacy` separates input into secure PII, operational metadata, and safe model input.
 4. `M4 Profile` assembles a unified `CandidateProfile`.
 5. `M5 NLP` extracts a canonical `SignalEnvelope`.
 6. `M6 Scoring` computes program-aware scores, ranking fields, and reviewer-routing output.
-7. `M7 Explainability` formats summary, positive factors, caution blocks, and evidence.
+7. `M7 Explainability` formats summary, positive factors, caution blocks, and reviewer guidance.
+8. `M8 Dashboard` exposes reviewer-facing reads over persisted scores, explanations, raw safe content, and shortlist state.
+9. `M10 Audit` stores overrides, reviewer actions, and audit feed entries.
 
 ---
 
@@ -125,113 +150,53 @@ Use the dedicated module catalog for full module-level functionality, inputs, ou
 
 ---
 
+### `M0 Demo`
+
+Provides pre-built candidate fixtures for demonstration and smoke flows. Fixtures are stored as JSON and can be listed, inspected, or run through the live pipeline.
+
 ### `M1 Gateway`
 
-Owns public API routing and orchestrates the full backend flow.
-
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m1_gateway/router.py` | Public API endpoints for intake, pipeline submission, and direct scoring |
-| `backend/app/modules/m1_gateway/orchestrator.py` | Step-by-step orchestration across M2, M13, M3, M4, M5, M6, and M7 |
+Owns the public pipeline routes. It exposes full candidate submission, sequential batch submission, and direct scoring/evaluation endpoints.
 
 ### `M2 Intake`
 
-Validates incoming candidate payloads, computes initial completeness, and persists the intake record.
-
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m2_intake/schemas.py` | Intake request and response contracts |
-| `backend/app/modules/m2_intake/service.py` | Validation, completeness checks, eligibility checks, and initial persistence |
-| `backend/app/modules/m2_intake/router.py` | Candidate intake endpoint |
+Validates incoming candidate payloads, computes early completeness and eligibility fields, and persists the initial candidate anchor record.
 
 ### `M3 Privacy`
 
 Separates candidate data into three layers and redacts sensitive information from model-facing content.
 
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m3_privacy/redactor.py` | Text-level PII redaction helpers |
-| `backend/app/modules/m3_privacy/separator.py` | Three-layer separation logic |
-| `backend/app/modules/m3_privacy/service.py` | Persistence of separated layers |
-
 ### `M4 Profile`
 
-Builds the unified `CandidateProfile` consumed by ASR, NLP, and scoring flows.
-
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m4_profile/schemas.py` | Candidate profile models |
-| `backend/app/modules/m4_profile/assembler.py` | Assembly logic for profile fields and flags |
-| `backend/app/modules/m4_profile/service.py` | Profile retrieval and persistence coordination |
+Builds the unified `CandidateProfile` consumed by NLP and scoring flows.
 
 ### `M5 NLP`
 
 Extracts structured decision signals from safe candidate text and transcript content.
 
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m5_nlp/schemas.py` | `M5ExtractionRequest` and safe request validation |
-| `backend/app/modules/m5_nlp/source_bundle.py` | Shared normalized source handling |
-| `backend/app/modules/m5_nlp/gemini_client.py` | Gemini extraction client |
-| `backend/app/modules/m5_nlp/extractor.py` | Deterministic heuristic extractor |
-| `backend/app/modules/m5_nlp/signal_extraction_service.py` | Grouped extraction orchestration |
-| `backend/app/modules/m5_nlp/embeddings.py` | Similarity and embeddings helpers |
-| `backend/app/modules/m5_nlp/ai_detector.py` | Advisory authenticity and consistency heuristics |
-
 ### `M6 Scoring`
 
-Computes sub-scores, recommendation categories, ranking fields, confidence, uncertainty, and human-in-the-loop routing.
-
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m6_scoring/m6_scoring_config.yaml` | Central policy, thresholds, and program profiles |
-| `backend/app/modules/m6_scoring/rules.py` | Deterministic baseline sub-score logic |
-| `backend/app/modules/m6_scoring/confidence.py` | Confidence and uncertainty calculations |
-| `backend/app/modules/m6_scoring/decision_policy.py` | Final category and review routing |
-| `backend/app/modules/m6_scoring/ml_model.py` | `GradientBoostingRegressor` refinement layer |
-| `backend/app/modules/m6_scoring/service.py` | Public scoring orchestration |
-| `backend/app/modules/m6_scoring/evaluation.py` | Synthetic evaluation helpers |
-| `backend/app/modules/m6_scoring/optimization.py` | Decision-policy search and tuning |
+Computes sub-scores, recommendation categories, ranking fields, confidence, uncertainty, and review-routing output.
 
 ### `M7 Explainability`
 
-Formats reviewer-facing explanation output from `SignalEnvelope + CandidateScore`.
-
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m7_explainability/schemas.py` | Explainability input and output contracts |
-| `backend/app/modules/m7_explainability/factors.py` | Factor titles and caution policy |
-| `backend/app/modules/m7_explainability/evidence.py` | Evidence selection and factor mapping |
-| `backend/app/modules/m7_explainability/service.py` | Explanation report construction |
+Builds deterministic reviewer-facing explanation output from `SignalEnvelope + CandidateScore`.
 
 ### `M8 Dashboard`
 
-Reserved placeholder for future reviewer dashboard API work.
+Reviewer-facing read API for stats, ranking lists, candidate detail, shortlist views, and the live candidate pool split into `raw` and `processed` stages. Candidate names are derived from decrypted PII inside the backend projection layer rather than exposed as raw snapshots.
 
 ### `M9 Storage`
 
 Repository and persistence layer used by active modules.
 
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m9_storage/models.py` | SQLAlchemy models |
-| `backend/app/modules/m9_storage/repository.py` | Storage repository methods |
-
 ### `M10 Audit`
 
-Reserved placeholder for future audit workflows.
+Reviewer write and traceability layer for overrides, comments, shortlist actions, and audit feed access.
 
 ### `M13 ASR`
 
-Transcribes interview media and exposes transcript quality markers.
-
-| File | Responsibility |
-|---|---|
-| `backend/app/modules/m13_asr/schemas.py` | ASR contracts |
-| `backend/app/modules/m13_asr/downloader.py` | Safe media resolution |
-| `backend/app/modules/m13_asr/transcriber.py` | Groq Whisper API integration |
-| `backend/app/modules/m13_asr/quality_checker.py` | Confidence and quality-flag logic |
-| `backend/app/modules/m13_asr/service.py` | End-to-end ASR orchestration |
+Transcribes interview media and exposes transcript quality markers used by downstream stages.
 
 ---
 
@@ -241,21 +206,22 @@ Transcribes interview media and exposes transcript quality markers.
 
 | Module | Model | Role |
 |---|---|---|
-| `M5` | `gemini-2.5-flash` | Structured signal extraction |
-| `M7` | `gemini-3.1-flash-lite-preview` | Fast explainability generation |
+| `M5` | `meta-llama/llama-4-scout-17b-16e-instruct` | primary grouped structured signal extraction through Groq |
+| `M5` | heuristic extractor | deterministic fallback extraction |
+| `M7` | deterministic formatter | explainability report construction from persisted M6 output |
 
 ### ASR
 
 | Module | Model | Role |
 |---|---|---|
-| `M13` | `whisper-large-v3-turbo` | Interview transcription and segment analysis |
+| `M13` | env-selected Groq Whisper model (`whisper-large-v3-turbo` by default) | interview transcription and segment analysis |
 
 ### Embeddings
 
 | Runtime | Model | Role |
 |---|---|---|
-| Primary | `jina-embeddings-v5` | Similarity and consistency checks |
-| Fallback | `BAAI/bge-m3` | Backup embedding path |
+| Primary | `jinaai/jina-embeddings-v5-text-nano` | local similarity and consistency checks inside the backend process |
+| Fallback | lexical cosine similarity | deterministic backup path when the local embedding backend is unavailable |
 
 ### Scoring
 
@@ -263,6 +229,7 @@ Transcribes interview media and exposes transcript quality markers.
 |---|---|---|
 | Baseline | rule-based scoring | transparent initial scoring |
 | Refinement | `GradientBoostingRegressor` | ML score refinement |
+| Calibration | `ScoreCalibrator` | optional score post-processing |
 
 ---
 
@@ -274,7 +241,7 @@ Stores encrypted PII and administrative-sensitive data such as names, addresses,
 
 ### Layer 2: Operational Metadata
 
-Stores workflow metadata such as age eligibility, language threshold status, selected program, completeness, and data flags.
+Stores workflow metadata such as age eligibility, language-threshold status, selected program, language exam type, completeness, data flags, and whether a video was provided.
 
 ### Layer 3: Safe Model Input
 
@@ -287,7 +254,7 @@ Stores model-facing content such as a redacted transcript, essay text, internal 
 ```mermaid
 flowchart TD
     Raw["Raw Candidate Payload"]
-    M3["M3 Privacy and Normalization"]
+    Privacy["M3 Privacy"]
 
     subgraph Layer1["Layer 1: Secure PII Vault"]
         PII1["Full name"]
@@ -299,7 +266,7 @@ flowchart TD
     subgraph Layer2["Layer 2: Operational Metadata"]
         META1["Age eligibility"]
         META2["Language threshold flag"]
-        META3["Has video"]
+        META3["Selected program and language exam"]
         META4["Completeness and data flags"]
     end
 
@@ -313,14 +280,14 @@ flowchart TD
 
     AI["AI and ML Modules"]
 
-    Raw --> M3
-    M3 --> Layer1
-    M3 --> Layer2
-    M3 --> Layer3
+    Raw --> Privacy
+    Privacy --> Layer1
+    Privacy --> Layer2
+    Privacy --> Layer3
     Layer3 --> AI
 
     Layer1 -. never sent .-> AI
-    Layer2 -. not used for leadership scoring .-> AI
+    Layer2 -. not used for demographic scoring .-> AI
 ```
 
 ---
@@ -336,10 +303,12 @@ erDiagram
     candidates ||--o| candidate_scores : has
     candidates ||--o| candidate_explanations : has
     candidates ||--o{ reviewer_actions : has
+    audit_log }o--|| candidates : references
 
     candidates {
         uuid id PK
         uuid intake_id
+        string dedupe_key
         string selected_program
         string pipeline_status
         timestamp created_at
@@ -350,7 +319,6 @@ erDiagram
         uuid id PK
         uuid candidate_id FK
         bytes encrypted_data
-        timestamp created_at
     }
 
     candidate_metadata {
@@ -358,10 +326,10 @@ erDiagram
         uuid candidate_id FK
         boolean age_eligible
         boolean language_threshold_met
+        string language_exam_type
         boolean has_video
         float data_completeness
         jsonb data_flags
-        timestamp created_at
     }
 
     candidate_model_inputs {
@@ -374,7 +342,6 @@ erDiagram
         text experience_summary
         float asr_confidence
         jsonb asr_flags
-        timestamp created_at
     }
 
     nlp_signals {
@@ -383,7 +350,6 @@ erDiagram
         jsonb signals
         string model_used
         int processing_time_ms
-        timestamp created_at
     }
 
     candidate_scores {
@@ -395,8 +361,7 @@ erDiagram
         float confidence
         boolean shortlist_eligible
         int ranking_position
-        string scoring_version
-        timestamp created_at
+        jsonb score_payload
     }
 
     candidate_explanations {
@@ -407,7 +372,7 @@ erDiagram
         jsonb caution_flags
         jsonb data_quality_notes
         text reviewer_guidance
-        timestamp created_at
+        jsonb report_payload
     }
 
     reviewer_actions {
@@ -418,7 +383,15 @@ erDiagram
         string previous_status
         string new_status
         text comment
-        timestamp created_at
+    }
+
+    audit_log {
+        uuid id PK
+        string entity_type
+        uuid entity_id
+        string action
+        string actor
+        jsonb details
     }
 ```
 
@@ -427,6 +400,8 @@ erDiagram
 ## Repository Structure
 
 ```text
+.agent/
+  memory/
 backend/
   app/
     core/
@@ -437,6 +412,9 @@ docs/
   eng/
   rus/
 frontend/
+  src/
+  e2e/
+scripts/
 ```
 
 ---

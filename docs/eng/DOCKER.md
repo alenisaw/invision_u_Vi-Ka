@@ -14,7 +14,7 @@
 
 ## Purpose
 
-This document describes the Docker assets currently present in the repository and how they are intended to be used.
+This document describes the Docker assets that currently exist in the repository and how they are used in the live branch.
 
 ---
 
@@ -22,28 +22,47 @@ This document describes the Docker assets currently present in the repository an
 
 | File | Purpose |
 |---|---|
-| `backend/Dockerfile` | Backend application image based on `python:3.11-slim` |
-| `backend/app/modules/m6_scoring/Dockerfile.m6` | Standalone scoring and evaluation image for the M6 bundle |
-| `docker-compose.template.yml` | Whole-repository Docker template with service placeholders |
+| `backend/Dockerfile` | Backend application image |
+| `frontend/Dockerfile` | Frontend production image for Next.js |
+| `docker-compose.yml` | Live whole-repository stack: `postgres + backend + frontend` |
+| `docker-compose.template.yml` | Older scaffold with placeholder services |
 | `docker-compose.m6.yml` | M6-specific compose flow for evaluation and notebook work |
+| `scripts/stack.sh` | Wrapper for common compose actions (`up`, `down`, `reset`, `logs`) |
 
 ---
 
 ## Whole-Repository Template
 
-The repository-level template is:
+The live repository stack is:
 
-- `docker-compose.template.yml`
+- `docker-compose.yml`
 
 It includes:
 
 - `postgres`
 - `backend`
-- `frontend_placeholder`
-- `m8_dashboard_placeholder`
-- `m10_audit_placeholder`
+- `frontend`
 
-This file is a starting scaffold rather than a production deployment manifest.
+Current behavior:
+
+- `backend` runs Alembic migrations on startup and then launches `uvicorn`
+- `backend` receives model configuration through env, including `M5_LLM_MODEL`, `M13_ASR_MODEL`, `EMBEDDING_MODEL`, and `EMBEDDING_DEVICE`
+- `frontend` receives `BACKEND_URL` and `REVIEWER_API_KEY` through environment variables
+- reviewer pages use the Next.js proxy and forward `X-API-Key` only on the server side
+- the default stack needs only `GROQ_API_KEY` for the primary LLM + ASR path; local embeddings do not require a Jina API key
+- the local embedding model is downloaded from Hugging Face on first use and then reused from the local cache
+- the stack is intended for local integration and demo use
+
+Typical commands:
+
+```bash
+./scripts/stack.sh up
+./scripts/stack.sh down
+./scripts/stack.sh reset
+./scripts/stack.sh logs
+```
+
+The older scaffold file `docker-compose.template.yml` is still present, but it is not the primary stack anymore.
 
 ---
 
@@ -51,38 +70,28 @@ This file is a starting scaffold rather than a production deployment manifest.
 
 ```mermaid
 flowchart LR
-    Frontend["frontend placeholder"]
-    Backend["backend service"]
+    Frontend["frontend"]
+    Backend["backend"]
     DB["postgres"]
-    M8["m8_dashboard_placeholder"]
-    M10["m10_audit_placeholder"]
-    Net["invisionu_net"]
 
     Frontend --> Backend
-    M8 --> Backend
-    M10 --> Backend
     Backend --> DB
-    Frontend --- Net
-    Backend --- Net
-    DB --- Net
-    M8 --- Net
-    M10 --- Net
 ```
 
 ---
 
 ## M6 Evaluation Container
 
-`M6` has its own standalone container flow:
+`M6` still has its own standalone container flow:
 
 - `backend/app/modules/m6_scoring/Dockerfile.m6`
 - `docker-compose.m6.yml`
 
 This setup supports:
 
-- synthetic evaluation
-- local notebook access
-- isolated scoring experiments
+- synthetic evaluation runs
+- local notebook access on port `8888`
+- isolated scoring experiments without starting the full frontend stack
 
 ---
 

@@ -129,5 +129,3 @@ class ExplainabilityReport(BaseModel):
     data_quality_notes: list[str] = Field(default_factory=list)
 
 
-# File summary: schemas.py
-# Declares both the M6 -> M7 handoff models and final reviewer-facing explainability output.

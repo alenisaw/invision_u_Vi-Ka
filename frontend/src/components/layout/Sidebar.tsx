@@ -1,8 +1,9 @@
 "use client";
 
-import { BarChart3, ClipboardList, Star, Upload, type LucideIcon } from "lucide-react";
+import { BarChart3, ClipboardList, Upload, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 interface SidebarLink {
   href: string;
@@ -10,26 +11,28 @@ interface SidebarLink {
   icon: LucideIcon;
 }
 
-const LINKS: SidebarLink[] = [
-  { href: "/dashboard", label: "Рейтинг", icon: BarChart3 },
-  { href: "/shortlist", label: "Шорт-лист", icon: Star },
-  { href: "/upload", label: "Загрузка", icon: Upload },
-  { href: "/audit", label: "Журнал", icon: ClipboardList },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t } = useLocale();
+
+  const links: SidebarLink[] = [
+    { href: "/candidates", label: t("nav.candidates"), icon: Users },
+    { href: "/dashboard", label: t("nav.dashboard"), icon: BarChart3 },
+    { href: "/upload", label: t("nav.upload"), icon: Upload },
+    { href: "/audit", label: t("nav.audit"), icon: ClipboardList },
+  ];
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-[220px] min-h-[calc(100vh-4.8rem)] py-6 px-4 border-r"
+      className="hidden lg:flex flex-col w-[232px] min-h-[calc(100vh-5.4rem)] py-6 px-4 border-r"
       style={{ borderColor: "rgba(20, 20, 20, 0.06)" }}
     >
-      <div className="eyebrow mb-4 px-3">Навигация</div>
+      <div className="eyebrow mb-4 px-3">{t("nav.label")}</div>
       <nav className="flex flex-col gap-1">
-        {LINKS.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+        {links.map((link) => {
+          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
+
           return (
             <Link
               key={link.href}

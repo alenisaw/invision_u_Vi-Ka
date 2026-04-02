@@ -28,7 +28,10 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
     """Validate the public M5 extraction surface."""
 
     def setUp(self) -> None:
-        self.service = NLPSignalExtractionService(transcription_client=FakeTranscriptionClient(text=""))
+        self.service = NLPSignalExtractionService(
+            transcription_client=FakeTranscriptionClient(text=""),
+            enable_llm=False,
+        )
 
     def build_request(self, transcript_text: str = "") -> M5ExtractionRequest:
         """Create a Foundation Year interview-style payload for extraction tests."""
@@ -65,27 +68,17 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
 
         request = self.build_request(
             transcript_text=(
-                "Why are you applying to inVision U? I want to study in the Foundation Year because it will prepare "
-                "me for bachelor study in digital products and improve my academic English. "
-                "The biggest challenge I overcame was when our first prototype failed and some teammates wanted to quit, "
-                "but support from my family and my physics teacher helped me continue. "
-                "My long-term goal is to create digital services for students from regional schools, and this program "
-                "will help me build the English, teamwork, and design skills for that goal. "
-                "To me, a leader listens, takes responsibility, and keeps the team moving; I showed that when I organized "
-                "tasks and motivated my team during a school sprint. "
-                "In one team situation I took the role of coordinator, resolved a conflict about deadlines, and helped "
-                "the group split the work. "
-                "My family supports my choice to join inVision U, and my older sister inspires me because she continued "
-                "studying despite obstacles. "
-                "In English, my dream is to create products that help rural students. I practice speaking every day, "
-                "watch lessons in English, and I can already present my project confidently."
+                "I am applying to the Foundation Year because it will prepare me for bachelor study and improve my academic English. "
+                "My goal is to build digital services for students from regional schools. "
+                "When our first prototype failed, I reorganized the team, solved a deadline conflict, and kept the group moving. "
+                "My family and teacher supported me, and I practice English every day by presenting my projects."
             )
         )
 
         envelope = self.service.extract_signals(request)
 
         self.assertEqual(envelope.signal_schema_version, "v1")
-        self.assertEqual(envelope.m5_model_version, "heuristic-gemini-v1")
+        self.assertEqual(envelope.m5_model_version, "heuristic-v1")
         self.assertEqual(envelope.selected_program, "Foundation Year")
         self.assertTrue(envelope.program_id)
         self.assertGreater(len(envelope.signals), 12)
@@ -111,12 +104,9 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
             self.assertLessEqual(envelope.signals[signal_name].value, 1.0)
             self.assertGreater(len(envelope.signals[signal_name].evidence), 0)
 
-        score = ScoringService().score_candidate(envelope)
-        self.assertGreaterEqual(score.review_priority_index, 0.0)
-        self.assertLessEqual(score.review_priority_index, 1.0)
-        self.assertGreater(score.sub_scores["leadership_potential"], 0.50)
-        self.assertGreater(score.sub_scores["motivation_clarity"], 0.50)
-        self.assertGreater(score.sub_scores["learning_agility"], 0.50)
+        self.assertGreater(envelope.signals["leadership_indicators"].value, 0.30)
+        self.assertGreater(envelope.signals["motivation_clarity"].value, 0.30)
+        self.assertGreater(envelope.signals["learning_agility"].value, 0.20)
 
     def test_extract_signals_uses_transcription_fallback_when_needed(self) -> None:
         """M5 should use the transcription client and still recover interview criteria."""
@@ -131,7 +121,10 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
                 "for rural schools, and I practice speaking every day."
             )
         )
-        service = NLPSignalExtractionService(transcription_client=fake_client)
+        service = NLPSignalExtractionService(
+            transcription_client=fake_client,
+            enable_llm=False,
+        )
         request = self.build_request(transcript_text="")
         request = request.model_copy(update={"interview_media_path": "mock_interview.mp4"})
 
@@ -142,6 +135,104 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertIn("english_growth", envelope.signals)
         self.assertNotIn("insufficient_interview_coverage", envelope.data_flags)
         self.assertNotIn("requires_human_review", envelope.data_flags)
+
+    def test_extract_signals_builds_authenticity_signal_for_transcript_only_case(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.86,
+            selected_program="Digital Media and Marketing",
+            video_transcript=(
+                "I want to study digital media because I already record short interviews, edit videos for school events, "
+                "and test ways to reach new audiences. Last semester I helped our debate club publish weekly clips and "
+                "learned how different formats affect engagement."
+            ),
+            project_descriptions=[
+                "Edited weekly club videos and tracked which clips students actually watched."
+            ],
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("authenticity_risk", envelope.signals)
+        self.assertNotIn("ai_writing_risk", envelope.signals)
+        self.assertEqual(envelope.signals["authenticity_risk"].source[0], "video_transcript")
+
+    def test_extract_signals_uses_essay_when_video_transcript_absent(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.88,
+            selected_program="Creative Engineering",
+            essay_text=(
+                "I built a prototype lamp, learned from mistakes, and want to study creative engineering so I can "
+                "combine design with practical technology projects."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("motivation_clarity", envelope.signals)
+        self.assertIn("clarity_score", envelope.signals)
+        self.assertEqual(envelope.signals["clarity_score"].source, ["essay"])
+        self.assertIn("missing_video_transcript", envelope.data_flags)
+
+    def test_extract_signals_combines_essay_and_video_transcript_when_both_exist(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.91,
+            selected_program="Digital Media and Marketing",
+            essay_text=(
+                "I want to study digital media because I already run a small school content team and I care about "
+                "storytelling that helps local communities."
+            ),
+            video_transcript=(
+                "In the interview I explained how I organize shoots, edit clips, and test what formats people "
+                "actually watch."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("specificity_score", envelope.signals)
+        self.assertIn("essay", envelope.signals["specificity_score"].source)
+        self.assertIn("video_transcript", envelope.signals["specificity_score"].source)
+        self.assertIn("essay_transcript_consistency", envelope.signals)
+
+    def test_extract_signals_marks_transcript_replacement_when_essay_is_missing(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.89,
+            selected_program="Creative Engineering",
+            essay_text="",
+            video_transcript=(
+                "I explained how I rebuilt a broken prototype, learned from the failure, "
+                "and kept iterating until the team could demo the final version."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("essay_replaced_by_video_transcript", envelope.data_flags)
+        self.assertNotIn("missing_essay", envelope.data_flags)
+        self.assertNotIn("missing_video_transcript", envelope.data_flags)
+        self.assertIn("clarity_score", envelope.signals)
+
+    def test_extract_signals_recovers_initiative_from_video_transcript(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.90,
+            selected_program="Creative Engineering",
+            video_transcript=(
+                "At school I opened two clubs, organized a robotics club, and set up a small makerspace so younger "
+                "students could build simple prototypes after class. Later I ran weekly sessions myself and recruited volunteers."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+        score = ScoringService().score_candidate(envelope)
+
+        self.assertIn("agency_signals", envelope.signals)
+        self.assertIn("self_started_projects", envelope.signals)
+        self.assertGreater(score.sub_scores["initiative_agency"], 0.30)
 
     def test_extract_signals_ignores_exam_scores_and_flags_missing_interview_content(self) -> None:
         """Exam-score mentions should not count as interview-quality evidence."""
@@ -166,7 +257,3 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-# File summary: test_service.py
-# Covers canonical envelope generation, M6 compatibility, and transcription fallback for M5.

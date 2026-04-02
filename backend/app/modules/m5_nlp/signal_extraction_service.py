@@ -1,6 +1,6 @@
 """
 File: signal_extraction_service.py
-Purpose: Grouped M5 NLP extraction with Gemini-backed prompts and heuristic fallback.
+Purpose: Grouped M5 NLP extraction with Groq-backed Llama support and heuristic fallback.
 """
 
 from __future__ import annotations
@@ -11,11 +11,19 @@ from dataclasses import dataclass, field
 from app.modules.m6_scoring.program_policy import normalize_program_id
 from app.modules.m6_scoring.schemas import SignalEnvelope, SignalPayload
 
-from .ai_detector import ai_writing_risk_score, authenticity_confidence, specificity_score, voice_consistency_score
+from .ai_detector import (
+    ai_writing_risk_score,
+    authenticity_confidence,
+    authenticity_risk_score,
+    specificity_score,
+    transcript_authenticity_risk_score,
+    voice_consistency_score,
+)
 from .client import GroqTranscriptionClient
 from .embeddings import clamp, tokenize
 from .extractor import HeuristicSignalExtractor
-from .gemini_client import GeminiSignalClient, SignalGroupSpec
+from .groq_llm_client import GroqSignalClient
+from .llm_shared import SignalGroupSpec
 from .schemas import M5ExtractionRequest
 from .source_bundle import SourceBundle, build_source_bundle, default_evidence, keyword_signal
 
@@ -32,7 +40,11 @@ CORE_SIGNAL_NAMES = {
     "ethical_reasoning",
     "program_alignment",
 }
-FOUNDATION_YEAR_MARKERS = ("foundation year", "foundation", "подготовитель")
+FOUNDATION_YEAR_MARKERS = (
+    "foundation year",
+    "foundation",
+    "\u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u0435\u043b\u044c",
+)
 FOUNDATION_INTERVIEW_CRITERIA = {
     "motivation": ("motivation_clarity", "program_alignment"),
     "goals": ("goal_specificity", "future_goals_alignment"),
@@ -80,7 +92,7 @@ SIGNAL_GROUP_SPECS = (
     ),
     SignalGroupSpec(
         name="authenticity",
-        signals=("ai_writing_risk", "voice_consistency", "specificity_score"),
+        signals=("authenticity_risk", "ai_writing_risk", "voice_consistency", "specificity_score"),
         source_fields=("essay", "video_transcript", "project_descriptions"),
         purpose="Assess advisory AI-writing risk, voice consistency, and narrative specificity.",
         model_tier="fast",
@@ -125,19 +137,29 @@ class GroupedExtractionResult:
 
 
 class GroupedNLPSignalExtractionService:
-    """Architecture-aligned M5 service with grouped extraction and heuristic fallback."""
+    """Architecture-aligned M5 service with grouped extraction and provider-aware fallback."""
 
     def __init__(
         self,
         extractor: HeuristicSignalExtractor | None = None,
         transcription_client: GroqTranscriptionClient | None = None,
-        llm_client: GeminiSignalClient | None = None,
+        llm_client: GroqSignalClient | None = None,
         enable_llm: bool | None = None,
     ) -> None:
         self.extractor = extractor or HeuristicSignalExtractor()
         self.transcription_client = transcription_client or GroqTranscriptionClient()
-        self.llm_client = llm_client or GeminiSignalClient()
+        self.llm_client = llm_client or self._build_default_llm_client()
         self.enable_llm = self.llm_client.enabled if enable_llm is None else bool(enable_llm and self.llm_client.enabled)
+
+    @staticmethod
+    def _build_default_llm_client() -> GroqSignalClient:
+        """Use Groq as the only active LLM backend for M5."""
+        groq_client = GroqSignalClient()
+        if groq_client.enabled:
+            logger.info("M5 LLM backend: Groq (%s)", groq_client.primary_model)
+            return groq_client
+        logger.warning("M5 LLM backend: none (heuristic-only mode)")
+        return groq_client
 
     def extract_signals(self, request: M5ExtractionRequest) -> SignalEnvelope:
         return self.extract_signal_groups(request).envelope
@@ -157,7 +179,7 @@ class GroupedNLPSignalExtractionService:
             group_result = self._extract_one_group(spec=spec, request=request, sources=sources, heuristic_signals=heuristic_signals)
             grouped_results.append(group_result)
             merged_signals.update(group_result.signals)
-            llm_used = llm_used or group_result.backend == "gemini"
+            llm_used = llm_used or group_result.backend != "heuristic"
 
         data_flags = self._finalize_data_flags(
             request=request,
@@ -209,18 +231,19 @@ class GroupedNLPSignalExtractionService:
         fallback_signals = {signal_name: heuristic_signals[signal_name] for signal_name in spec.signals if signal_name in heuristic_signals}
         notes: list[str] = []
         if self.enable_llm and available_sources:
+            provider_name = self._llm_backend_name()
             try:
                 llm_signals = self.llm_client.extract_group(spec=spec, request_candidate_id=str(request.candidate_id), sources=sources)
                 merged = self._merge_group_signals(spec, llm_signals, fallback_signals, list(available_sources), sources)
                 return SignalGroupResult(
                     group_name=spec.name,
-                    backend="gemini",
+                    backend=provider_name,
                     signals=merged,
                     source_fields=available_sources,
                     notes=tuple(notes),
                 )
             except Exception as exc:  # pragma: no cover
-                logger.warning("M5 Gemini fallback for group %s: %s", spec.name, exc.__class__.__name__)
+                logger.warning("M5 %s fallback for group %s: %s", provider_name, spec.name, exc.__class__.__name__)
                 notes.append(f"llm_fallback:{exc.__class__.__name__}")
         return SignalGroupResult(
             group_name=spec.name,
@@ -229,6 +252,9 @@ class GroupedNLPSignalExtractionService:
             source_fields=available_sources,
             notes=tuple(notes),
         )
+
+    def _llm_backend_name(self) -> str:
+        return "groq"
 
     def _merge_group_signals(
         self,
@@ -327,6 +353,31 @@ class GroupedNLPSignalExtractionService:
                 reasoning="ai-writing risk is advisory and based on genericity, specificity, and voice alignment.",
             )
 
+        if "authenticity_risk" not in signal_map and (sources.essay or sources.video_transcript):
+            if sources.essay:
+                value = authenticity_risk_score(
+                    primary_text=sources.essay,
+                    supporting_text=sources.video_transcript,
+                    project_text=sources.project_descriptions,
+                )
+                source_names = ["essay", "video_transcript", "project_descriptions"]
+                reasoning = "authenticity risk is advisory and combines essay genericity, cross-source alignment, and supporting detail."
+            else:
+                value = transcript_authenticity_risk_score(
+                    transcript_text=sources.video_transcript,
+                    essay_text=sources.essay,
+                    project_text=sources.project_descriptions,
+                )
+                source_names = ["video_transcript", "project_descriptions"]
+                reasoning = "authenticity risk is advisory and combines spoken genericity, supporting detail, and consistency with other safe sources."
+            signal_map["authenticity_risk"] = SignalPayload(
+                value=value,
+                confidence=authenticity_confidence(sources.essay, sources.video_transcript),
+                source=[name for name in source_names if sources.get(name)],
+                evidence=default_evidence(sources, source_names),
+                reasoning=reasoning,
+            )
+
     def _decision_making_signal(self, sources: SourceBundle) -> SignalPayload | None:
         text = " ".join(part for part in [sources.internal_test_answers, sources.essay, sources.video_transcript] if part)
         if not text:
@@ -352,6 +403,12 @@ class GroupedNLPSignalExtractionService:
         merged_signals: dict[str, SignalPayload],
         data_flags: list[str],
     ) -> list[str]:
+        if not (request.essay_text or "").strip() and (transcript_text or "").strip():
+            data_flags.append("essay_replaced_by_video_transcript")
+        elif not (request.essay_text or "").strip():
+            data_flags.append("missing_essay")
+        if not (transcript_text or "").strip():
+            data_flags.append("missing_video_transcript")
         if not self._has_minimum_signal_coverage(merged_signals):
             data_flags.append("requires_human_review")
         if self._is_foundation_year_request(request):
@@ -365,7 +422,7 @@ class GroupedNLPSignalExtractionService:
         return list(dict.fromkeys(data_flags))
 
     def _resolve_model_version(self, request: M5ExtractionRequest, llm_used: bool) -> str:
-        if llm_used and request.m5_model_version == "heuristic-gemini-v1":
+        if llm_used:
             return f"{self.llm_client.primary_model}:grouped-v1"
         return request.m5_model_version
 
@@ -381,7 +438,3 @@ class GroupedNLPSignalExtractionService:
     def _is_foundation_year_request(request: M5ExtractionRequest) -> bool:
         selected_program = request.selected_program.strip().lower()
         return any(marker in selected_program for marker in FOUNDATION_YEAR_MARKERS)
-
-
-# File summary: signal_extraction_service.py
-# Provides grouped Gemini-backed M5 extraction with deterministic fallback and a stable M6 handoff.

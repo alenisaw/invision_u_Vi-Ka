@@ -1,16 +1,39 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import StatusBadge from "@/components/dashboard/StatusBadge";
-import { MOCK_CANDIDATES } from "@/lib/mock-data";
-import { formatPercent, formatDate } from "@/lib/utils";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { reviewerApi } from "@/lib/api";
+import { formatDate, formatPercent, localizeLabels } from "@/lib/i18n";
+import type { CandidateListItem } from "@/types";
 
 export default function ShortlistPage() {
-  const shortlisted = MOCK_CANDIDATES.filter((c) => c.shortlist_eligible).sort(
-    (a, b) => b.review_priority_index - a.review_priority_index
-  );
+  const { locale, t } = useLocale();
+  const [shortlisted, setShortlisted] = useState<CandidateListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void loadShortlist();
+  }, []);
+
+  async function loadShortlist() {
+    setLoading(true);
+    setError("");
+
+    try {
+      setShortlisted(await reviewerApi.listShortlist());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t("shortlist.loadError"),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
@@ -25,17 +48,37 @@ export default function ShortlistPage() {
                   className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800]"
                   style={{ letterSpacing: "-0.04em" }}
                 >
-                  Шорт-лист
+                  {t("shortlist.title")}
                 </h1>
                 <p className="text-[0.95rem]" style={{ color: "var(--brand-muted)" }}>
-                  {shortlisted.length} кандидатов в шорт-листе
+                  {t("shortlist.count", { count: shortlisted.length })}
                 </p>
               </div>
               <button className="btn btn--dark btn--sm">
-                Экспорт CSV
+                {t("shortlist.export")}
               </button>
             </div>
 
+            {loading ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                  {t("shortlist.loading")}
+                </p>
+              </div>
+            ) : error ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600] mb-4">{error}</p>
+                <button onClick={() => void loadShortlist()} className="btn btn--dark btn--sm">
+                  {t("common.retry")}
+                </button>
+              </div>
+            ) : shortlisted.length === 0 ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                  {t("shortlist.empty")}
+                </p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {shortlisted.map((candidate) => (
                 <Link
@@ -47,7 +90,7 @@ export default function ShortlistPage() {
                     <div>
                       <div className="text-[0.95rem] font-[800]">{candidate.name}</div>
                       <div className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>
-                        Ранг #{candidate.ranking_position}
+                        {t("shortlist.rank", { value: candidate.ranking_position ?? t("common.none") })}
                       </div>
                     </div>
                     <StatusBadge status={candidate.recommendation_status} />
@@ -56,7 +99,7 @@ export default function ShortlistPage() {
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <div className="text-[0.72rem] font-[700] uppercase tracking-[0.1em]" style={{ color: "var(--brand-muted)" }}>
-                        Балл RPI
+                        {t("dashboard.rpiScore")}
                       </div>
                       <div className="text-[1.16rem] font-[800]">
                         {formatPercent(candidate.review_priority_index)}
@@ -64,7 +107,7 @@ export default function ShortlistPage() {
                     </div>
                     <div>
                       <div className="text-[0.72rem] font-[700] uppercase tracking-[0.1em]" style={{ color: "var(--brand-muted)" }}>
-                        Уверенность
+                        {t("common.confidence")}
                       </div>
                       <div className="text-[1.16rem] font-[800]">
                         {formatPercent(candidate.confidence)}
@@ -73,7 +116,7 @@ export default function ShortlistPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-1 mb-3">
-                    {candidate.top_strengths.map((s) => (
+                    {localizeLabels(candidate.top_strengths, locale).map((s) => (
                       <span
                         key={s}
                         className="text-[0.72rem] font-[700] px-2 py-0.5 rounded-full"
@@ -88,11 +131,12 @@ export default function ShortlistPage() {
                   </div>
 
                   <div className="text-[0.78rem]" style={{ color: "var(--brand-muted)" }}>
-                    {formatDate(candidate.created_at)}
+                    {formatDate(candidate.created_at, locale)}
                   </div>
                 </Link>
               ))}
             </div>
+            )}
           </div>
         </main>
       </div>

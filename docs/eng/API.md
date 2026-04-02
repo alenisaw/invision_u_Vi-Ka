@@ -7,10 +7,12 @@
 - [Overview](#overview)
 - [Response Envelope](#response-envelope)
 - [System Endpoints](#system-endpoints)
+- [Demo Endpoints](#demo-endpoints)
 - [Candidate Intake Endpoints](#candidate-intake-endpoints)
 - [Pipeline Endpoints](#pipeline-endpoints)
 - [Diagram 1. Full Pipeline Endpoint Flow](#diagram-1-full-pipeline-endpoint-flow)
 - [Direct Scoring Endpoints](#direct-scoring-endpoints)
+- [Reviewer Endpoints](#reviewer-endpoints)
 - [Diagram 2. Reviewer Workflow Surface](#diagram-2-reviewer-workflow-surface)
 - [Canonical Contracts](#canonical-contracts)
 
@@ -18,11 +20,17 @@
 
 ## Overview
 
-This document lists the endpoints implemented in the current branch. It excludes future endpoints that do not yet exist in code.
+This document lists the endpoints implemented in the current branch. It excludes planned endpoints that do not yet exist in code.
 
-Base URL:
+Backend base URL:
 
 `http://localhost:8000`
+
+Frontend proxy base URL:
+
+`http://localhost:3000/api/backend/*`
+
+The Next.js proxy rewrites `/api/backend/*` to backend `/api/v1/*`. It automatically injects `X-API-Key` for `dashboard/*` and `audit/*` requests when `REVIEWER_API_KEY` is configured on the server side.
 
 ---
 
@@ -52,9 +60,15 @@ Error response:
     "code": "VALIDATION_ERROR",
     "message": "Invalid payload",
     "details": {}
+  },
+  "meta": {
+    "timestamp": "2026-03-29T12:00:00Z",
+    "version": "1.0.0"
   }
 }
 ```
+
+The same envelope is returned for non-2xx API errors such as validation failures, auth failures, and not-found responses.
 
 ---
 
@@ -70,11 +84,35 @@ Returns a lightweight health response.
 
 ---
 
+## Demo Endpoints
+
+### `GET /api/v1/demo/candidates`
+
+Lists all available demo candidate fixtures with metadata.
+
+### `GET /api/v1/demo/candidates/{slug}`
+
+Returns one fixture with its full payload.
+
+### `POST /api/v1/demo/candidates/{slug}/run`
+
+Loads the fixture payload and runs it through the full synchronous pipeline.
+
+Response shape matches `POST /api/v1/pipeline/submit`.
+
+---
+
 ## Candidate Intake Endpoints
 
 ### `POST /api/v1/candidates/intake`
 
 Validates the candidate submission, creates the candidate record, stores encrypted PII and metadata, and returns a `candidate_id`.
+
+Key response fields:
+
+- `candidate_id`
+- `pipeline_status`
+- `message`
 
 Example request:
 
@@ -83,14 +121,19 @@ Example request:
   "personal": {
     "first_name": "Aida",
     "last_name": "Example",
-    "date_of_birth": "2007-06-15"
+    "date_of_birth": "2007-06-15",
+    "citizenship": "KZ"
+  },
+  "contacts": {
+    "email": "aida@example.com",
+    "telegram": "@aida"
   },
   "academic": {
     "selected_program": "Digital Media and Marketing"
   },
   "content": {
-    "essay_text": "I want to build media products that help communities.",
-    "video_url": "https://example.com/interview.mp4"
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "essay_text": "I want to build media products that help communities."
   },
   "internal_test": {
     "answers": [
@@ -103,6 +146,14 @@ Example request:
 }
 ```
 
+Current intake rules:
+
+- `contacts.email` is required
+- `content.video_url` is required and must pass public video URL validation
+- `content.essay_text` is optional
+- `content.transcript_text` is optional and can replace essay text in downstream narrative extraction
+- extra unknown fields are ignored
+
 ---
 
 ## Pipeline Endpoints
@@ -111,7 +162,7 @@ Example request:
 
 Runs the implemented backend flow:
 
-`M2 -> M13 -> M3 -> M4 -> M5 -> M6 -> M7`
+`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
 
 The response includes:
 
@@ -123,7 +174,7 @@ The response includes:
 
 ### `POST /api/v1/pipeline/batch`
 
-Runs the same flow for a list of candidate payloads. The current batch path is processed sequentially.
+Runs the same flow for a list of candidate payloads. The current batch path is processed sequentially inside the API process.
 
 ---
 
@@ -160,53 +211,6 @@ sequenceDiagram
 
 Scores one candidate from a canonical `SignalEnvelope`.
 
-Example request:
-
-```json
-{
-  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
-  "signal_schema_version": "v1",
-  "m5_model_version": "gemini-2.5-flash:grouped-v1",
-  "selected_program": "Digital Products and Services",
-  "program_id": "digital_products_and_services",
-  "completeness": 0.91,
-  "data_flags": [],
-  "signals": {
-    "leadership_indicators": {
-      "value": 0.82,
-      "confidence": 0.88,
-      "source": ["video_transcript", "essay"],
-      "evidence": ["candidate led a school team project"],
-      "reasoning": "leadership behavior is explicit and concrete"
-    }
-  }
-}
-```
-
-Example response fields:
-
-```json
-{
-  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
-  "sub_scores": {
-    "leadership_potential": 0.82,
-    "growth_trajectory": 0.0,
-    "motivation_clarity": 0.0,
-    "initiative_agency": 0.0,
-    "learning_agility": 0.0,
-    "communication_clarity": 0.0,
-    "ethical_reasoning": 0.0,
-    "program_fit": 0.0
-  },
-  "review_priority_index": 0.63,
-  "recommendation_status": "RECOMMEND",
-  "manual_review_required": false,
-  "human_in_loop_required": false,
-  "uncertainty_flag": false,
-  "review_recommendation": "STANDARD_REVIEW"
-}
-```
-
 ### `POST /api/v1/pipeline/score-signals/batch`
 
 Scores and ranks a batch of `SignalEnvelope` objects.
@@ -232,25 +236,103 @@ Query parameters:
 
 ---
 
+## Reviewer Endpoints
+
+All endpoints in this section require `X-API-Key`.
+
+### `GET /api/v1/dashboard/stats`
+
+Returns dashboard summary metrics:
+
+- `total_candidates`
+- `processed`
+- `shortlisted`
+- `pending_review`
+- `avg_confidence`
+- `by_status`
+
+### `GET /api/v1/dashboard/candidates`
+
+Returns ranked reviewer-facing candidate list items with safe projected names.
+
+The frontend uses these records for the processed reviewer ranking.
+
+### `GET /api/v1/dashboard/candidate-pool`
+
+Returns the live candidate pool for the `/candidates` screen, split by stage:
+
+- `raw`
+- `processed`
+
+Demo fixtures are intentionally not mixed into this endpoint.
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}`
+
+Returns the full reviewer detail view:
+
+- candidate identity
+- `score`
+- `explanation`
+- `raw_content`
+- `audit_logs`
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/override`
+
+Overrides the recommendation status and writes an audit entry.
+
+Request body:
+
+```json
+{
+  "reviewer_id": "committee-reviewer",
+  "new_status": "RECOMMEND",
+  "comment": "Manual adjustment after committee review"
+}
+```
+
+### `GET /api/v1/dashboard/shortlist`
+
+Returns the current shortlist derived from persisted score state.
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/actions`
+
+Creates non-override reviewer actions such as:
+
+- `comment`
+- `shortlist_add`
+- `shortlist_remove`
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}/actions`
+
+Returns reviewer action history for one candidate.
+
+### `GET /api/v1/audit/feed?limit=100`
+
+Returns the global audit feed ordered by newest first.
+
+---
+
 ## Diagram 2. Reviewer Workflow Surface
 
 ```mermaid
 flowchart TD
-    Ranking["Ranking Page"]
-    Detail["Candidate Detail Page"]
-    Explanation["Explanation Block"]
-    Evidence["Evidence List"]
-    Override["Reviewer Override"]
-    Shortlist["Shortlist Decision"]
-    Audit["Audit Log"]
+    Browser["Browser UI"]
+    Proxy["Next.js Proxy"]
+    Stats["Dashboard Stats"]
+    List["Candidate Ranking"]
+    Detail["Candidate Detail"]
+    Override["Override Action"]
+    Actions["Reviewer Actions"]
+    Audit["Audit Feed"]
 
-    Ranking --> Detail
-    Detail --> Explanation
-    Detail --> Evidence
+    Browser --> Proxy
+    Proxy --> Stats
+    Proxy --> List
+    Proxy --> Detail
     Detail --> Override
-    Override --> Shortlist
+    Detail --> Actions
     Override --> Audit
-    Shortlist --> Audit
+    Actions --> Audit
 ```
 
 ---
@@ -293,6 +375,8 @@ Separate review-routing fields:
 - `human_in_loop_required`
 - `uncertainty_flag`
 - `review_recommendation`
+- `ranking_position`
+- `shortlist_eligible`
 
 ### M7 Output
 
@@ -301,8 +385,8 @@ Separate review-routing fields:
 - `summary`
 - `positive_factors`
 - `caution_blocks`
-- `evidence_items`
 - `reviewer_guidance`
+- `data_quality_notes`
 
 ---
 

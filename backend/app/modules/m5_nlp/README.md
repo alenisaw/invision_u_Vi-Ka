@@ -24,7 +24,7 @@ The module:
 
 1. normalizes safe text inputs into a reusable source bundle;
 2. optionally transcribes interview media through the supported fallback ASR path;
-3. runs grouped Gemini extraction where available;
+3. runs grouped Groq extraction with the configured Llama model;
 4. falls back to deterministic heuristic extraction when needed;
 5. merges signals into a single canonical envelope with value, confidence, source, evidence, and reasoning.
 
@@ -34,15 +34,15 @@ The module:
 flowchart LR
     Input["M5ExtractionRequest"]
     Bundle["Source Bundle"]
-    Gemini["Gemini Extraction"]
+    LLM["Groq Llama Extraction"]
     Heuristic["Heuristic Fallback"]
     Merge["Signal Merge"]
     Envelope["SignalEnvelope"]
 
     Input --> Bundle
-    Bundle --> Gemini
+    Bundle --> LLM
     Bundle --> Heuristic
-    Gemini --> Merge
+    LLM --> Merge
     Heuristic --> Merge
     Merge --> Envelope
 ```
@@ -94,11 +94,12 @@ Each signal contains:
 |---|---|
 | `schemas.py` | request validation and safe input constraints |
 | `client.py` | safe local-media transcription fallback client |
-| `gemini_client.py` | Gemini-based grouped extraction client |
+| `groq_llm_client.py` | primary Groq-based grouped extraction client |
+| `llm_shared.py` | shared LLM request/response helpers |
 | `source_bundle.py` | normalized source assembly and shared helpers |
 | `extractor.py` | deterministic heuristic signal extraction |
 | `signal_extraction_service.py` | grouped extraction orchestration and merge logic |
-| `embeddings.py` | similarity helpers and embedding client integration |
+| `embeddings.py` | local embedding and similarity helpers |
 | `ai_detector.py` | advisory authenticity and consistency heuristics |
 
 ---

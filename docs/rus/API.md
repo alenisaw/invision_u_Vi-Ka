@@ -1,32 +1,40 @@
-# Справочник API
+# API
 
 ---
 
 ## Структура документа
 
 - [Обзор](#обзор)
-- [Формат ответа](#формат-ответа)
-- [Системные методы](#системные-методы)
-- [Методы приема заявок](#методы-приема-заявок)
-- [Методы запуска конвейера](#методы-запуска-конвейера)
-- [Диаграмма 1. Полный путь обработки заявки](#диаграмма-1-полный-путь-обработки-заявки)
-- [Методы прямого скоринга](#методы-прямого-скоринга)
-- [Диаграмма 2. Поверхность работы проверяющего](#диаграмма-2-поверхность-работы-проверяющего)
+- [Response Envelope](#response-envelope)
+- [Системные endpoint'ы](#системные-endpointы)
+- [Demo endpoint'ы](#demo-endpointы)
+- [Candidate intake endpoint'ы](#candidate-intake-endpointы)
+- [Pipeline endpoint'ы](#pipeline-endpointы)
+- [Диаграмма 1. Flow полного pipeline](#диаграмма-1-flow-полного-pipeline)
+- [Direct scoring endpoint'ы](#direct-scoring-endpointы)
+- [Reviewer endpoint'ы](#reviewer-endpointы)
+- [Диаграмма 2. Reviewer workflow surface](#диаграмма-2-reviewer-workflow-surface)
 - [Канонические контракты](#канонические-контракты)
 
 ---
 
 ## Обзор
 
-Этот документ описывает только те методы API, которые реально реализованы в текущей ветке. Запланированные, но не существующие методы сюда не включаются.
+Этот документ перечисляет endpoint'ы, которые реально реализованы в текущей ветке.
 
-Базовый адрес:
+Базовый backend URL:
 
 `http://localhost:8000`
 
+Базовый frontend proxy URL:
+
+`http://localhost:3000/api/backend/*`
+
+Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. Для `dashboard/*` и `audit/*` он автоматически добавляет `X-API-Key`, если на сервере frontend задан `REVIEWER_API_KEY`.
+
 ---
 
-## Формат ответа
+## Response Envelope
 
 Успешный ответ:
 
@@ -42,7 +50,7 @@
 }
 ```
 
-Ответ с ошибкой:
+Ошибка:
 
 ```json
 {
@@ -52,29 +60,59 @@
     "code": "VALIDATION_ERROR",
     "message": "Invalid payload",
     "details": {}
+  },
+  "meta": {
+    "timestamp": "2026-03-29T12:00:00Z",
+    "version": "1.0.0"
   }
 }
 ```
 
+Одна и та же envelope-форма используется и для non-2xx ответов.
+
 ---
 
-## Системные методы
+## Системные endpoint'ы
 
 ### `GET /`
 
-Возвращает общую информацию о приложении.
+Возвращает метаданные приложения.
 
 ### `GET /health`
 
-Возвращает короткий ответ о состоянии сервиса.
+Возвращает облегченный health response.
 
 ---
 
-## Методы приема заявок
+## Demo endpoint'ы
+
+### `GET /api/v1/demo/candidates`
+
+Возвращает список доступных demo-fixture кандидатов.
+
+### `GET /api/v1/demo/candidates/{slug}`
+
+Возвращает одну fixture вместе с полным payload.
+
+### `POST /api/v1/demo/candidates/{slug}/run`
+
+Берет fixture и прогоняет ее через живой синхронный pipeline.
+
+Структура ответа совпадает с `POST /api/v1/pipeline/submit`.
+
+---
+
+## Candidate intake endpoint'ы
 
 ### `POST /api/v1/candidates/intake`
 
-Проверяет структуру заявки кандидата, создает запись кандидата, сохраняет зашифрованные персональные данные и служебные сведения, после чего возвращает `candidate_id`.
+Валидирует анкету кандидата, создает запись, сохраняет encrypted PII и metadata и возвращает `candidate_id`.
+
+Ключевые поля ответа:
+
+- `candidate_id`
+- `pipeline_status`
+- `message`
 
 Пример запроса:
 
@@ -83,14 +121,19 @@
   "personal": {
     "first_name": "Aida",
     "last_name": "Example",
-    "date_of_birth": "2007-06-15"
+    "date_of_birth": "2007-06-15",
+    "citizenship": "KZ"
+  },
+  "contacts": {
+    "email": "aida@example.com",
+    "telegram": "@aida"
   },
   "academic": {
     "selected_program": "Digital Media and Marketing"
   },
   "content": {
-    "essay_text": "I want to build media products that help communities.",
-    "video_url": "https://example.com/interview.mp4"
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "essay_text": "I want to build media products that help communities."
   },
   "internal_test": {
     "answers": [
@@ -103,15 +146,23 @@
 }
 ```
 
+Актуальные правила intake:
+
+- `contacts.email` обязателен
+- `content.video_url` обязателен и проходит проверку public video URL
+- `content.essay_text` опционален
+- `content.transcript_text` опционален и может заменить эссе в downstream narrative extraction
+- лишние неизвестные поля игнорируются
+
 ---
 
-## Методы запуска конвейера
+## Pipeline endpoint'ы
 
 ### `POST /api/v1/pipeline/submit`
 
-Запускает реализованный серверный конвейер:
+Запускает реализованный backend flow:
 
-`M2 -> M13 -> M3 -> M4 -> M5 -> M6 -> M7`
+`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
 
 Ответ включает:
 
@@ -123,11 +174,11 @@
 
 ### `POST /api/v1/pipeline/batch`
 
-Запускает тот же конвейер для массива заявок. В текущей реализации пакетная обработка выполняется последовательно.
+Запускает тот же flow для списка payload'ов. Сейчас batch-обработка идет последовательно внутри API-процесса.
 
 ---
 
-## Диаграмма 1. Полный путь обработки заявки
+## Диаграмма 1. Flow полного pipeline
 
 ```mermaid
 sequenceDiagram
@@ -154,77 +205,30 @@ sequenceDiagram
 
 ---
 
-## Методы прямого скоринга
+## Direct scoring endpoint'ы
 
 ### `POST /api/v1/pipeline/score-signals`
 
-Рассчитывает оценку для одного кандидата по каноническому `SignalEnvelope`.
-
-Пример запроса:
-
-```json
-{
-  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
-  "signal_schema_version": "v1",
-  "m5_model_version": "gemini-2.5-flash:grouped-v1",
-  "selected_program": "Digital Products and Services",
-  "program_id": "digital_products_and_services",
-  "completeness": 0.91,
-  "data_flags": [],
-  "signals": {
-    "leadership_indicators": {
-      "value": 0.82,
-      "confidence": 0.88,
-      "source": ["video_transcript", "essay"],
-      "evidence": ["candidate led a school team project"],
-      "reasoning": "leadership behavior is explicit and concrete"
-    }
-  }
-}
-```
-
-Пример ключевых полей ответа:
-
-```json
-{
-  "candidate_id": "8a352307-4af4-4f0a-a8f7-b0dd22cb6fa5",
-  "sub_scores": {
-    "leadership_potential": 0.82,
-    "growth_trajectory": 0.0,
-    "motivation_clarity": 0.0,
-    "initiative_agency": 0.0,
-    "learning_agility": 0.0,
-    "communication_clarity": 0.0,
-    "ethical_reasoning": 0.0,
-    "program_fit": 0.0
-  },
-  "review_priority_index": 0.63,
-  "recommendation_status": "RECOMMEND",
-  "manual_review_required": false,
-  "human_in_loop_required": false,
-  "uncertainty_flag": false,
-  "review_recommendation": "STANDARD_REVIEW"
-}
-```
+Считает score одного кандидата из канонического `SignalEnvelope`.
 
 ### `POST /api/v1/pipeline/score-signals/batch`
 
-Рассчитывает оценки и ранжирование для массива объектов `SignalEnvelope`.
+Считает score и ranking для пачки `SignalEnvelope`.
 
 ### `POST /api/v1/pipeline/score-signals/train-synthetic`
 
-Обучает уточняющий слой скоринга на синтетических данных.
+Тренирует scoring refinement layer на synthetic data.
 
-Параметры:
+Query parameters:
 
 - `sample_count`
 - `seed`
 
 ### `POST /api/v1/pipeline/score-signals/evaluate-synthetic`
 
-Запускает контрольную оценку `M6` на синтетической выборке.
+Гоняет synthetic holdout evaluation для `M6`.
 
-Параметры:
+Query parameters:
 
 - `train_sample_count`
 - `test_sample_count`
@@ -232,34 +236,112 @@ sequenceDiagram
 
 ---
 
-## Диаграмма 2. Поверхность работы проверяющего
+## Reviewer endpoint'ы
+
+Все endpoint'ы в этом разделе требуют `X-API-Key`.
+
+### `GET /api/v1/dashboard/stats`
+
+Возвращает dashboard summary metrics:
+
+- `total_candidates`
+- `processed`
+- `shortlisted`
+- `pending_review`
+- `avg_confidence`
+- `by_status`
+
+### `GET /api/v1/dashboard/candidates`
+
+Возвращает ranking list reviewer-facing кандидатов с безопасно спроецированными именами.
+
+Frontend использует этот endpoint для обработанного reviewer-ranking.
+
+### `GET /api/v1/dashboard/candidate-pool`
+
+Возвращает live candidate pool для экрана `/candidates` с разделением по стадиям:
+
+- `raw`
+- `processed`
+
+Demo fixtures намеренно не смешиваются с этим endpoint'ом.
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}`
+
+Возвращает полную reviewer detail view:
+
+- candidate identity
+- `score`
+- `explanation`
+- `raw_content`
+- `audit_logs`
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/override`
+
+Переопределяет recommendation status и записывает audit entry.
+
+Тело запроса:
+
+```json
+{
+  "reviewer_id": "committee-reviewer",
+  "new_status": "RECOMMEND",
+  "comment": "Manual adjustment after committee review"
+}
+```
+
+### `GET /api/v1/dashboard/shortlist`
+
+Возвращает текущий shortlist на основе сохраненного score state.
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/actions`
+
+Создает reviewer action без override, например:
+
+- `comment`
+- `shortlist_add`
+- `shortlist_remove`
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}/actions`
+
+Возвращает историю reviewer actions для одного кандидата.
+
+### `GET /api/v1/audit/feed?limit=100`
+
+Возвращает глобальный audit feed в порядке от новых к старым.
+
+---
+
+## Диаграмма 2. Reviewer workflow surface
 
 ```mermaid
 flowchart TD
-    Ranking["Ranking Page"]
-    Detail["Candidate Detail Page"]
-    Explanation["Explanation Block"]
-    Evidence["Evidence List"]
-    Override["Reviewer Override"]
-    Shortlist["Shortlist Decision"]
-    Audit["Audit Log"]
+    Browser["Browser UI"]
+    Proxy["Next.js Proxy"]
+    Stats["Dashboard Stats"]
+    List["Candidate Ranking"]
+    Detail["Candidate Detail"]
+    Override["Override Action"]
+    Actions["Reviewer Actions"]
+    Audit["Audit Feed"]
 
-    Ranking --> Detail
-    Detail --> Explanation
-    Detail --> Evidence
+    Browser --> Proxy
+    Proxy --> Stats
+    Proxy --> List
+    Proxy --> Detail
     Detail --> Override
-    Override --> Shortlist
+    Detail --> Actions
     Override --> Audit
-    Shortlist --> Audit
+    Actions --> Audit
 ```
 
 ---
 
 ## Канонические контракты
 
-### Выход `M5`
+### Выход M5
 
-`M5` возвращает `SignalEnvelope` со следующими полями:
+`M5` отдает `SignalEnvelope` с полями:
 
 - `candidate_id`
 - `signal_schema_version`
@@ -270,7 +352,7 @@ flowchart TD
 - `data_flags`
 - `signals`
 
-Каждый сигнал включает:
+Каждый signal содержит:
 
 - `value`
 - `confidence`
@@ -278,31 +360,33 @@ flowchart TD
 - `evidence`
 - `reasoning`
 
-### Выход `M6`
+### Выход M6
 
-`M6` возвращает `CandidateScore` с четырьмя основными категориями рекомендации:
+`M6` отдает `CandidateScore` с четырьмя основными recommendation category:
 
 - `STRONG_RECOMMEND`
 - `RECOMMEND`
 - `WAITLIST`
 - `DECLINED`
 
-Поля маршрутизации на проверку отделены:
+Отдельные review-routing поля:
 
 - `manual_review_required`
 - `human_in_loop_required`
 - `uncertainty_flag`
 - `review_recommendation`
+- `ranking_position`
+- `shortlist_eligible`
 
-### Выход `M7`
+### Выход M7
 
-`M7` возвращает материалы для проверяющего:
+`M7` отдает reviewer-facing explainability-контент:
 
-- summary
-- positive_factors
-- caution_blocks
-- evidence_items
-- reviewer_guidance
+- `summary`
+- `positive_factors`
+- `caution_blocks`
+- `reviewer_guidance`
+- `data_quality_notes`
 
 ---
 

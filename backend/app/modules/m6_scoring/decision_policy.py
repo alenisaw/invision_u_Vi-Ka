@@ -46,7 +46,7 @@ def classify_score(context: DecisionContext, policy: DecisionPolicyConfig) -> st
     """Map the calibrated score into one of the four primary categories."""
 
     if context.completeness < policy.thresholds.declined_completeness_max:
-        return "DECLINED"
+        return "WAITLIST"
     if context.calibrated_score >= policy.thresholds.strong_recommend_min:
         return "STRONG_RECOMMEND"
     if context.calibrated_score >= policy.thresholds.recommend_min:
@@ -115,6 +115,10 @@ def should_require_manual_review(
 ) -> bool:
     """Decide whether the candidate truly needs manual review."""
 
+    if context.completeness < policy.thresholds.declined_completeness_max:
+        return True
+    if "low_completeness" in context.caution_flags and score_status == "DECLINED":
+        return True
     if any(flag in policy.uncertainty_policy.hard_flags for flag in context.data_flags):
         if score_status == "DECLINED":
             return context.calibrated_score >= policy.uncertainty_policy.declined_manual_review_score_min
@@ -196,6 +200,8 @@ def build_decision_summary(
     """Build a compact UI-friendly decision summary."""
 
     base_summary = policy.status_summary_templates.get(score_status, "Candidate scored successfully.")
+    if manual_review_required and score_status == "DECLINED":
+        return f"{base_summary} The case should be reviewed manually because incomplete or unstable evidence may be driving the current result."
     if manual_review_required:
         return f"{base_summary} Manual review flag is active."
     if shortlist_eligible and confidence_band == "HIGH":
@@ -263,7 +269,3 @@ def apply_decision_policy(
         review_reasons=review_reasons,
         decision_summary=decision_summary,
     )
-
-
-# File summary: decision_policy.py
-# Separates class assignment, uncertainty categories, and manual-review routing.

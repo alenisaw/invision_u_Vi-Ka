@@ -43,6 +43,7 @@ class StorageRepository(Generic[ModelT]):
         selected_program: str | None = None,
         pipeline_status: str = "pending",
         intake_id: UUID | None = None,
+        dedupe_key: str | None = None,
     ) -> Candidate:
         candidate = Candidate(
             selected_program=selected_program,
@@ -50,11 +51,24 @@ class StorageRepository(Generic[ModelT]):
         )
         if intake_id is not None:
             candidate.intake_id = intake_id
+        if dedupe_key is not None:
+            candidate.dedupe_key = dedupe_key
 
         self.session.add(candidate)
         await self.session.flush()
         await self.session.refresh(candidate)
         return candidate
+
+    async def find_candidate_by_dedupe_key(self, dedupe_key: str) -> Candidate | None:
+        stmt = select(Candidate).where(Candidate.dedupe_key == dedupe_key)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete_candidate(self, candidate_id: UUID) -> None:
+        candidate = await self.get_candidate_with_related(candidate_id)
+        if candidate is not None:
+            await self.session.delete(candidate)
+            await self.session.flush()
 
     async def get_candidate(self, candidate_id: UUID) -> Candidate | None:
         stmt = select(Candidate).where(Candidate.id == candidate_id)
@@ -80,6 +94,22 @@ class StorageRepository(Generic[ModelT]):
 
     async def list_candidates(self, limit: int | None = None) -> list[Candidate]:
         stmt = select(Candidate).order_by(Candidate.created_at.desc())
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_candidates_with_related(self, limit: int | None = None) -> list[Candidate]:
+        stmt = (
+            select(Candidate)
+            .options(
+                selectinload(Candidate.pii_record),
+                selectinload(Candidate.metadata_record),
+                selectinload(Candidate.score_record),
+                selectinload(Candidate.explanation_record),
+            )
+            .order_by(Candidate.created_at.desc())
+        )
         if limit is not None:
             stmt = stmt.limit(limit)
         result = await self.session.execute(stmt)
@@ -141,8 +171,16 @@ class StorageRepository(Generic[ModelT]):
     async def list_ranked_scores(self) -> list[CandidateScore]:
         stmt = (
             select(CandidateScore)
-            .options(selectinload(CandidateScore.candidate))
-            .order_by(CandidateScore.review_priority_index.desc().nullslast())
+            .options(
+                selectinload(CandidateScore.candidate).selectinload(Candidate.pii_record),
+                selectinload(CandidateScore.candidate).selectinload(
+                    Candidate.explanation_record
+                ),
+            )
+            .order_by(
+                CandidateScore.ranking_position.asc().nullslast(),
+                CandidateScore.review_priority_index.desc().nullslast(),
+            )
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
@@ -202,6 +240,19 @@ class StorageRepository(Generic[ModelT]):
         stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def refresh_score_rankings(self) -> None:
+        stmt = select(CandidateScore).order_by(
+            CandidateScore.review_priority_index.desc().nullslast(),
+            CandidateScore.created_at.asc(),
+        )
+        result = await self.session.execute(stmt)
+        ranked_scores = list(result.scalars().all())
+
+        for position, score in enumerate(ranked_scores, start=1):
+            score.ranking_position = position
+
+        await self.session.flush()
 
     async def create_program(
         self,

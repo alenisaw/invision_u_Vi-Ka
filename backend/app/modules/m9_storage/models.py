@@ -29,6 +29,12 @@ class Candidate(Base):
         index=True,
         nullable=False,
     )
+    dedupe_key: Mapped[str | None] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
     selected_program: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     pipeline_status: Mapped[str] = mapped_column(
         String(50),
@@ -173,12 +179,28 @@ class CandidateScore(TimestampMixin, Base):
         index=True,
     )
     sub_scores: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    program_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    program_weight_profile: Mapped[dict | None] = mapped_column(JSONB, default=dict, nullable=True)
     review_priority_index: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
     recommendation_status: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    decision_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence_band: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    manual_review_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
+    human_in_loop_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    uncertainty_flag: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
     shortlist_eligible: Mapped[bool | None] = mapped_column(Boolean, nullable=True, index=True)
+    review_recommendation: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    review_reasons: Mapped[list | dict | None] = mapped_column(JSONB, default=list, nullable=True)
+    top_strengths: Mapped[list | dict | None] = mapped_column(JSONB, default=list, nullable=True)
+    top_risks: Mapped[list | dict | None] = mapped_column(JSONB, default=list, nullable=True)
+    score_delta_vs_baseline: Mapped[float | None] = mapped_column(Float, nullable=True)
     ranking_position: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    caution_flags: Mapped[list | dict | None] = mapped_column(JSONB, default=list, nullable=True)
+    score_breakdown: Mapped[dict | None] = mapped_column(JSONB, default=dict, nullable=True)
+    model_family: Mapped[str | None] = mapped_column(String(50), nullable=True)
     scoring_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    score_payload: Mapped[dict | None] = mapped_column(JSONB, default=dict, nullable=True)
 
     candidate: Mapped[Candidate] = relationship(back_populates="score_record")
 
@@ -194,11 +216,20 @@ class CandidateExplanation(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    scoring_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    program_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    recommendation_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    review_priority_index: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    manual_review_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    human_in_loop_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    review_recommendation: Mapped[str | None] = mapped_column(String(50), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     positive_factors: Mapped[list | dict] = mapped_column(JSONB, default=list, nullable=False)
     caution_flags: Mapped[list | dict] = mapped_column(JSONB, default=list, nullable=False)
     data_quality_notes: Mapped[list | dict] = mapped_column(JSONB, default=list, nullable=False)
     reviewer_guidance: Mapped[str | None] = mapped_column(Text, nullable=True)
+    report_payload: Mapped[dict | None] = mapped_column(JSONB, default=dict, nullable=True)
 
     candidate: Mapped[Candidate] = relationship(back_populates="explanation_record")
 

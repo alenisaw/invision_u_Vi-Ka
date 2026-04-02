@@ -149,6 +149,11 @@ class PipelineOrchestrator:
     ) -> tuple[str | None, float | None, list[str]]:
         """Call M13 before privacy separation so transcript enters Layer 3 safely."""
 
+        transcript_override = (payload.content.transcript_text or "").strip()
+        if transcript_override:
+            flags = ["essay_replaced_by_video_transcript"] if not (payload.content.essay_text or "").strip() else []
+            return transcript_override, 1.0, flags
+
         video_reference = (payload.content.video_url or "").strip()
         if not video_reference:
             return None, None, []
@@ -165,7 +170,10 @@ class PipelineOrchestrator:
                 selected_program=payload.academic.selected_program,
             )
             result = asr_service.transcribe(request)
-            return result.transcript, result.mean_confidence, result.flags
+            flags = list(result.flags)
+            if result.transcript and not (payload.content.essay_text or "").strip():
+                flags.append("essay_replaced_by_video_transcript")
+            return result.transcript, result.mean_confidence, list(dict.fromkeys(flags))
         except (ImportError, AttributeError, NotImplementedError, ValueError, RuntimeError, FileNotFoundError) as exc:
             logger.warning(
                 "M13 ASR failed for candidate %s, forcing human review: %s",
@@ -235,15 +243,35 @@ class PipelineOrchestrator:
 
     async def _persist_score(self, candidate_id: UUID, score: CandidateScore) -> None:
         """Save M6 scoring result to database."""
-        await self.repository.upsert_candidate_score(
+        score_payload = score.model_dump(mode="json")
+        persisted_score = await self.repository.upsert_candidate_score(
             candidate_id=candidate_id,
             sub_scores=score.sub_scores,
+            program_id=score.program_id or None,
+            program_weight_profile=score.program_weight_profile,
             review_priority_index=score.review_priority_index,
             recommendation_status=score.recommendation_status,
+            decision_summary=score.decision_summary or None,
             confidence=score.confidence,
+            confidence_band=score.confidence_band,
+            manual_review_required=score.manual_review_required,
+            human_in_loop_required=score.human_in_loop_required,
+            uncertainty_flag=score.uncertainty_flag,
             shortlist_eligible=score.shortlist_eligible,
+            review_recommendation=score.review_recommendation,
+            review_reasons=score.review_reasons,
+            top_strengths=score.top_strengths,
+            top_risks=score.top_risks,
+            score_delta_vs_baseline=score.score_delta_vs_baseline,
+            ranking_position=score.ranking_position,
+            caution_flags=score.caution_flags,
+            score_breakdown=score.score_breakdown,
+            model_family=score.model_family,
             scoring_version=score.scoring_version,
+            score_payload=score_payload,
         )
+        await self.repository.refresh_score_rankings()
+        score.ranking_position = persisted_score.ranking_position
         await self.repository.update_pipeline_status(candidate_id, "scored")
 
     # --- Direct M6 scoring (kept for backward compatibility) ---

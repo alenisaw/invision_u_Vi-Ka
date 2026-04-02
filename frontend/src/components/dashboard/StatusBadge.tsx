@@ -1,11 +1,14 @@
+"use client";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { getStatusLabel } from "@/lib/i18n";
 import type { RecommendationStatus } from "@/types";
 
-const STATUS_CONFIG: Record<RecommendationStatus, { label: string; className: string }> = {
-  STRONG_RECOMMEND: { label: "Рекомендован", className: "badge--lime" },
-  RECOMMEND: { label: "К рассмотрению", className: "badge--blue" },
-  REVIEW_NEEDED: { label: "Требует проверки", className: "badge--coral" },
-  LOW_SIGNAL: { label: "Мало данных", className: "badge--neutral" },
-  MANUAL_REVIEW: { label: "Ручная проверка", className: "badge--coral" },
+const STATUS_CLASSES: Record<RecommendationStatus, string> = {
+  STRONG_RECOMMEND: "badge--lime",
+  RECOMMEND: "badge--blue",
+  WAITLIST: "badge--coral",
+  DECLINED: "badge--neutral",
 };
 
 interface StatusBadgeProps {
@@ -13,6 +16,6 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status];
-  return <span className={`badge ${config.className}`}>{config.label}</span>;
+  const { locale } = useLocale();
+  return <span className={`badge ${STATUS_CLASSES[status]}`}>{getStatusLabel(status, locale)}</span>;
 }

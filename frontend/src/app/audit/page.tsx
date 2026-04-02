@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
-import { MOCK_AUDIT_LOG, MOCK_CANDIDATES } from "@/lib/mock-data";
-import { formatDateTime } from "@/lib/utils";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { reviewerApi } from "@/lib/api";
+import { formatDateTime, getStatusLabel } from "@/lib/i18n";
+import type { AuditFeedItem } from "@/types";
 
 const ACTION_STYLES: Record<string, { bg: string; color: string }> = {
   shortlist_add: { bg: "rgba(193, 241, 29, 0.28)", color: "#415005" },
@@ -13,6 +16,38 @@ const ACTION_STYLES: Record<string, { bg: string; color: string }> = {
 };
 
 export default function AuditPage() {
+  const { locale, t } = useLocale();
+  const [actions, setActions] = useState<AuditFeedItem[]>([]);
+  const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void loadAudit();
+  }, []);
+
+  async function loadAudit() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [nextActions, candidates] = await Promise.all([
+        reviewerApi.listAuditFeed(),
+        reviewerApi.listDashboardCandidates(),
+      ]);
+      setActions(nextActions);
+      setCandidateNames(
+        Object.fromEntries(candidates.map((candidate) => [candidate.candidate_id, candidate.name])),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t("audit.loadError"),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <>
       <Header />
@@ -24,29 +59,43 @@ export default function AuditPage() {
               className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800] mb-2"
               style={{ letterSpacing: "-0.04em" }}
             >
-              Журнал действий
+              {t("audit.title")}
             </h1>
             <p className="text-[0.95rem] mb-8" style={{ color: "var(--brand-muted)" }}>
-              Все действия рецензентов и системные события зафиксированы для прозрачности
+              {t("audit.description")}
             </p>
 
+            {loading ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
+                  {t("audit.loading")}
+                </p>
+              </div>
+            ) : error ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600] mb-4">{error}</p>
+                <button onClick={() => void loadAudit()} className="btn btn--dark btn--sm">
+                  {t("common.retry")}
+                </button>
+              </div>
+            ) : (
             <div className="card overflow-hidden" style={{ borderRadius: "1rem" }}>
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: "1px solid rgba(20, 20, 20, 0.07)" }}>
-                    <th className="eyebrow px-5 py-4 text-left">Время</th>
-                    <th className="eyebrow px-5 py-4 text-left">Рецензент</th>
-                    <th className="eyebrow px-5 py-4 text-left">Кандидат</th>
-                    <th className="eyebrow px-5 py-4 text-left">Действие</th>
-                    <th className="eyebrow px-5 py-4 text-left">Смена статуса</th>
-                    <th className="eyebrow px-5 py-4 text-left">Комментарий</th>
+                    <th className="eyebrow px-5 py-4 text-left">{t("audit.time")}</th>
+                    <th className="eyebrow px-5 py-4 text-left">{t("audit.reviewer")}</th>
+                    <th className="eyebrow px-5 py-4 text-left">{t("audit.candidate")}</th>
+                    <th className="eyebrow px-5 py-4 text-left">{t("audit.action")}</th>
+                    <th className="eyebrow px-5 py-4 text-left">{t("audit.statusChange")}</th>
+                    <th className="eyebrow px-5 py-4 text-left">{t("audit.comment")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {MOCK_AUDIT_LOG.map((action) => {
-                    const candidate = MOCK_CANDIDATES.find(
-                      (c) => c.candidate_id === action.candidate_id
-                    );
+                  {actions.map((action) => {
+                    const candidateName = action.candidate_id
+                      ? candidateNames[action.candidate_id]
+                      : undefined;
                     const style = ACTION_STYLES[action.action_type] ?? ACTION_STYLES.comment;
 
                     return (
@@ -56,15 +105,17 @@ export default function AuditPage() {
                       >
                         <td className="px-5 py-4">
                           <span className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>
-                            {formatDateTime(action.created_at)}
+                            {formatDateTime(action.created_at, locale)}
                           </span>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="text-[0.88rem] font-[700]">{action.reviewer_id}</span>
+                          <span className="text-[0.88rem] font-[700]">
+                            {action.reviewer_id ?? action.actor}
+                          </span>
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-[0.88rem] font-[800]">
-                            {candidate?.name ?? action.candidate_id.slice(0, 8)}
+                            {candidateName ?? action.candidate_id?.slice(0, 8) ?? t("common.none")}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -76,19 +127,19 @@ export default function AuditPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4">
-                          {action.previous_status !== action.new_status ? (
+                          {action.previous_status && action.new_status && action.previous_status !== action.new_status ? (
                             <span className="text-[0.82rem]">
-                              <span style={{ color: "var(--brand-muted)" }}>{action.previous_status}</span>
+                              <span style={{ color: "var(--brand-muted)" }}>{getStatusLabel(action.previous_status, locale)}</span>
                               {" → "}
-                              <span className="font-[700]">{action.new_status}</span>
+                              <span className="font-[700]">{getStatusLabel(action.new_status, locale)}</span>
                             </span>
                           ) : (
-                            <span className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>—</span>
+                            <span className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>{t("common.none")}</span>
                           )}
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-[0.82rem]" style={{ color: "var(--brand-muted-strong)" }}>
-                            {action.comment}
+                            {action.comment ?? t("common.none")}
                           </span>
                         </td>
                       </tr>
@@ -97,6 +148,7 @@ export default function AuditPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         </main>
       </div>
