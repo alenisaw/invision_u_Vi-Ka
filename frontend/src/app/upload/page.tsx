@@ -9,7 +9,7 @@ import PipelineProgress from "@/components/candidate/PipelineProgress";
 import DemoCard from "@/components/candidate/DemoCard";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { demoApi, pipelineApi } from "@/lib/api";
-import { getProgramOptions } from "@/lib/i18n";
+import { getCountryOptions, getProgramOptions } from "@/lib/i18n";
 import type { FixtureSummary } from "@/types";
 
 type Tab = "form" | "json" | "demo";
@@ -122,6 +122,7 @@ export default function UploadPage() {
   }, []);
 
   const programOptions = useMemo(() => getProgramOptions(locale), [locale]);
+  const countryOptions = useMemo(() => getCountryOptions(locale), [locale]);
 
   const updateField = useCallback(
     <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -207,27 +208,25 @@ export default function UploadPage() {
         <Sidebar />
         <main className="flex-1 p-6 lg:p-8 pb-20">
           <div className="container-app max-w-6xl">
-            <section className="rounded-[2rem] border px-6 py-8 lg:px-8 lg:py-10 mb-8 page-glow">
-              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-                <div className="max-w-[56rem]">
-                  <div className="eyebrow mb-3">{t("nav.upload")}</div>
-                  <h1 className="text-[clamp(2.2rem,1.9rem+2vw,3.8rem)] font-[900] tracking-[-0.05em] mb-3">
-                    {t("upload.title")}
-                  </h1>
-                  <p className="text-[1rem] text-muted leading-relaxed max-w-[72ch]">
-                    {t("upload.description")}
-                  </p>
-                </div>
-                <div className="rounded-[1.4rem] px-5 py-4 bg-[var(--surface-subtle)] border border-[var(--brand-line)] max-w-[24rem]">
-                  <div className="text-[0.74rem] font-[800] uppercase tracking-[0.14em] text-muted mb-2">
-                    ASR-first flow
-                  </div>
-                  <p className="text-[0.9rem] leading-relaxed text-muted-strong">
-                    {t("upload.videoHint")}
-                  </p>
-                </div>
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
+              <div className="max-w-[56rem]">
+                <div className="eyebrow mb-3">{t("nav.upload")}</div>
+                <h1 className="text-[clamp(2.2rem,1.9rem+2vw,3.8rem)] font-[900] tracking-[-0.05em] mb-3">
+                  {t("upload.title")}
+                </h1>
+                <p className="text-[1rem] text-muted leading-relaxed max-w-[72ch]">
+                  {t("upload.description")}
+                </p>
               </div>
-            </section>
+              <div className="max-w-[24rem]">
+                <div className="text-[0.74rem] font-[800] uppercase tracking-[0.14em] text-muted mb-2">
+                  {t("upload.videoLead")}
+                </div>
+                <p className="text-[0.9rem] leading-relaxed text-muted-strong">
+                  {t("upload.videoHint")}
+                </p>
+              </div>
+            </div>
 
             <div className="flex gap-2 mb-6 flex-wrap">
               {(["form", "json", "demo"] as const).map((currentTab) => (
@@ -312,7 +311,12 @@ export default function UploadPage() {
                         { value: "female", label: t("upload.field.gender.female") },
                       ]}
                     />
-                    <FormInput label={t("upload.field.citizenship")} value={form.citizenship} onChange={(value) => updateField("citizenship", value)} placeholder="KZ" />
+                    <FormSelect
+                      label={t("upload.field.citizenship")}
+                      value={form.citizenship}
+                      onChange={(value) => updateField("citizenship", value)}
+                      options={countryOptions}
+                    />
                     <FormInput label={t("upload.field.email")} type="email" value={form.email} onChange={(value) => updateField("email", value)} placeholder="applicant@example.com" />
                     <FormInput label={t("upload.field.phone")} value={form.phone} onChange={(value) => updateField("phone", value)} placeholder="+7..." />
                   </div>
@@ -349,6 +353,14 @@ export default function UploadPage() {
 
                 <FormSection title={t("upload.section.content")}>
                   <div className="flex flex-col gap-4">
+                    <FormInput
+                      label={t("upload.field.video")}
+                      type="url"
+                      value={form.video_url}
+                      onChange={(value) => updateField("video_url", value)}
+                      placeholder="https://..."
+                    />
+
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-[0.82rem] font-[700] text-muted-strong">
@@ -367,14 +379,6 @@ export default function UploadPage() {
                         style={{ lineHeight: 1.7 }}
                       />
                     </div>
-
-                    <FormInput
-                      label={t("upload.field.video")}
-                      type="url"
-                      value={form.video_url}
-                      onChange={(value) => updateField("video_url", value)}
-                      placeholder="https://..."
-                    />
 
                     <FormInput
                       label={t("upload.field.telegram")}

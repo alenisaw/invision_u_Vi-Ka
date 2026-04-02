@@ -114,6 +114,7 @@ const translations: Record<Locale, TranslationDictionary> = {
     "upload.field.words": "слов",
     "upload.essayPlaceholder": "Опишите мотивацию и цели, если хотите добавить письменное пояснение.",
     "upload.videoHint": "Ссылка на публичное видео или аудио. Транскрипция заменит эссе, если текстовое поле пустое.",
+    "upload.videoLead": "Видео сначала",
     "upload.json.title": "JSON кандидата",
     "upload.json.invalid": "Неверный формат JSON",
     "upload.json.placeholder": "{\n  \"personal\": { \"last_name\": \"...\", \"first_name\": \"...\", \"date_of_birth\": \"2007-01-01\" },\n  \"contacts\": { \"email\": \"applicant@example.com\" },\n  \"academic\": { \"selected_program\": \"...\" },\n  \"content\": { \"video_url\": \"https://...\", \"essay_text\": \"optional\" }\n}",
@@ -222,6 +223,7 @@ const translations: Record<Locale, TranslationDictionary> = {
     "demoCompare.title": "Сравнение кандидатов",
     "demoCompare.detail": "Детальное сравнение",
     "demoCompare.profileLink": "Карточка: {name}",
+    "header.rickroll": "Никогда не брошу U",
   },
   en: {
     "brand.title": "AIdmission commitee",
@@ -331,6 +333,7 @@ const translations: Record<Locale, TranslationDictionary> = {
     "upload.field.words": "words",
     "upload.essayPlaceholder": "Add written motivation only if you want extra narrative context.",
     "upload.videoHint": "Public video or audio URL. If the essay is empty, its role is replaced by the transcript.",
+    "upload.videoLead": "Video first",
     "upload.json.title": "Candidate JSON",
     "upload.json.invalid": "Invalid JSON format",
     "upload.json.placeholder": "{\n  \"personal\": { \"last_name\": \"...\", \"first_name\": \"...\", \"date_of_birth\": \"2007-01-01\" },\n  \"contacts\": { \"email\": \"applicant@example.com\" },\n  \"academic\": { \"selected_program\": \"...\" },\n  \"content\": { \"video_url\": \"https://...\", \"essay_text\": \"optional\" }\n}",
@@ -439,8 +442,47 @@ const translations: Record<Locale, TranslationDictionary> = {
     "demoCompare.title": "Candidate comparison",
     "demoCompare.detail": "Detailed comparison",
     "demoCompare.profileLink": "Profile: {name}",
+    "header.rickroll": "Never gonna give U up",
   },
 };
+
+const countryCodes = [
+  "KZ",
+  "KG",
+  "UZ",
+  "TJ",
+  "TM",
+  "AZ",
+  "AM",
+  "GE",
+  "RU",
+  "BY",
+  "UA",
+  "TR",
+  "AE",
+  "SA",
+  "QA",
+  "CN",
+  "MN",
+  "IN",
+  "KR",
+  "JP",
+  "SG",
+  "MY",
+  "TH",
+  "DE",
+  "FR",
+  "IT",
+  "ES",
+  "NL",
+  "PL",
+  "GB",
+  "IE",
+  "US",
+  "CA",
+  "AU",
+  "NZ",
+] as const;
 
 const programLabels: Record<string, { ru: string; en: string }> = {
   "Цифровые медиа и маркетинг": {
@@ -560,4 +602,21 @@ export function getProgramOptions(locale: Locale): Array<{ value: string; label:
   return Object.entries(programLabels)
     .filter(([value]) => value !== "General Admissions")
     .map(([value, labels]) => ({ value, label: labels[locale] }));
+}
+
+export function getCountryOptions(locale: Locale): Array<{ value: string; label: string }> {
+  const formatter = new Intl.DisplayNames([locale === "ru" ? "ru-RU" : "en-US"], {
+    type: "region",
+  });
+
+  return countryCodes
+    .map((code) => ({
+      value: code,
+      label: formatter.of(code) ?? code,
+    }))
+    .sort((left, right) => {
+      if (left.value === "KZ") return -1;
+      if (right.value === "KZ") return 1;
+      return left.label.localeCompare(right.label, locale === "ru" ? "ru" : "en");
+    });
 }

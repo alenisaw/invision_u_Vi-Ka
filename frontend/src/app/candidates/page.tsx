@@ -146,14 +146,14 @@ function CandidatesPageInner() {
         <Sidebar />
         <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24 relative">
           <div className="container-app">
-            <section className="rounded-[2rem] border px-6 py-8 lg:px-8 lg:py-10 mb-8 page-glow">
+            <div className="mb-8">
               <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] mb-3 tracking-[-0.05em]">
                 {t("candidates.title")}
               </h1>
               <p className="text-[1rem] text-muted max-w-[72ch] leading-relaxed">
                 {t("candidates.description")}
               </p>
-            </section>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               <StatCard label={t("candidates.total")} value={String(stats.total)} tone="lime" />

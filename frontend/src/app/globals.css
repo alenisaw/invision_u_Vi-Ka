@@ -110,6 +110,8 @@ html[data-theme="dark"] {
 
 html {
   color-scheme: light;
+  --theme-x: calc(100% - 4rem);
+  --theme-y: 2.5rem;
 }
 
 html[data-theme="dark"] {
@@ -130,10 +132,14 @@ body {
   line-height: 1.4;
   min-height: 100vh;
   overflow-x: hidden;
+  position: relative;
   background:
     radial-gradient(circle at top left, rgba(183, 223, 45, 0.14), transparent 24%),
     radial-gradient(circle at 100% 0, rgba(79, 214, 223, 0.08), transparent 18%),
     linear-gradient(180deg, #f8fbf3 0%, #ffffff 18%, #f1f5ec 100%);
+  transition:
+    background 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 240ms ease;
 }
 
 html[data-theme="dark"] body {
@@ -141,6 +147,24 @@ html[data-theme="dark"] body {
     radial-gradient(circle at top left, rgba(168, 201, 58, 0.08), transparent 22%),
     radial-gradient(circle at 100% 0, rgba(87, 199, 209, 0.05), transparent 16%),
     linear-gradient(180deg, #0f1211 0%, #121615 22%, #171c1a 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0;
+  transform: scale(1.12);
+  background:
+    radial-gradient(circle at var(--theme-x) var(--theme-y), color-mix(in srgb, var(--brand-blue) 34%, transparent), transparent 18%),
+    radial-gradient(circle at calc(var(--theme-x) - 8rem) calc(var(--theme-y) + 3rem), color-mix(in srgb, var(--brand-lime) 30%, transparent), transparent 22%);
+  filter: blur(26px);
+}
+
+html.theme-shift body::before {
+  animation: theme-wash 720ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 h1, h2, h3 {
@@ -162,6 +186,12 @@ h1, h2, h3 {
   box-shadow: var(--surface-shadow);
   backdrop-filter: blur(14px);
   animation: fade-up 420ms ease both;
+  transition:
+    background 380ms ease,
+    border-color 280ms ease,
+    box-shadow 320ms ease,
+    color 220ms ease,
+    transform 220ms ease;
 }
 
 .card--dark {
@@ -330,6 +360,20 @@ input[type="url"] {
     color 0.2s ease;
 }
 
+header,
+textarea,
+select,
+input,
+.badge,
+.eyebrow {
+  transition:
+    background 320ms ease,
+    background-color 320ms ease,
+    border-color 260ms ease,
+    color 220ms ease,
+    box-shadow 320ms ease;
+}
+
 textarea::placeholder,
 select::placeholder,
 input::placeholder {
@@ -375,6 +419,20 @@ option {
   }
   50% {
     transform: translate3d(-12px, -16px, 0) scale(1.04);
+  }
+}
+
+@keyframes theme-wash {
+  0% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+  25% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
   }
 }
 

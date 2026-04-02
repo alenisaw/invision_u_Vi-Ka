@@ -28,14 +28,14 @@ export default function Header() {
     >
       <div className="flex items-center gap-4 mr-6 lg:mr-12 min-w-0">
         <div
-          className="w-11 h-11 rounded-[1rem] shrink-0 flex items-center justify-center font-[900] text-[0.95rem]"
+          className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-[900] text-[0.95rem]"
           style={{
-            background: "linear-gradient(135deg, var(--brand-lime), var(--brand-blue))",
+            background: "var(--brand-lime)",
             color: "#101311",
-            boxShadow: "0 0 0 6px color-mix(in srgb, var(--brand-lime) 14%, transparent)",
+            boxShadow: "0 0 0 6px color-mix(in srgb, var(--brand-lime) 16%, transparent)",
           }}
         >
-          AI
+          U
         </div>
         <div className="min-w-0">
           <div
@@ -43,9 +43,6 @@ export default function Header() {
             style={{ letterSpacing: "-0.04em", color: "var(--brand-ink)" }}
           >
             inVision U
-          </div>
-          <div className="text-[0.76rem] font-[800] text-muted whitespace-nowrap">
-            {t("brand.committee")}
           </div>
         </div>
       </div>
@@ -82,7 +79,11 @@ export default function Header() {
           <span className="text-[0.8rem] font-[700] text-muted whitespace-nowrap">
             {t("brand.title")}
           </span>
-          <div
+          <a
+            href="https://youtu.be/dQw4w9WgXcQ"
+            target="_blank"
+            rel="noreferrer"
+            title={t("header.rickroll")}
             className="w-9 h-9 rounded-full flex items-center justify-center text-[0.8rem] font-[900]"
             style={{
               background: "var(--brand-ink)",
@@ -90,7 +91,7 @@ export default function Header() {
             }}
           >
             {t("brand.badge")}
-          </div>
+          </a>
         </div>
       </div>
     </header>
