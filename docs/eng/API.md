@@ -121,14 +121,19 @@ Example request:
   "personal": {
     "first_name": "Aida",
     "last_name": "Example",
-    "date_of_birth": "2007-06-15"
+    "date_of_birth": "2007-06-15",
+    "citizenship": "KZ"
+  },
+  "contacts": {
+    "email": "aida@example.com",
+    "telegram": "@aida"
   },
   "academic": {
     "selected_program": "Digital Media and Marketing"
   },
   "content": {
-    "essay_text": "I want to build media products that help communities.",
-    "video_url": "https://example.com/interview.mp4"
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "essay_text": "I want to build media products that help communities."
   },
   "internal_test": {
     "answers": [
@@ -140,6 +145,14 @@ Example request:
   }
 }
 ```
+
+Current intake rules:
+
+- `contacts.email` is required
+- `content.video_url` is required and must pass public video URL validation
+- `content.essay_text` is optional
+- `content.transcript_text` is optional and can replace essay text in downstream narrative extraction
+- extra unknown fields are ignored
 
 ---
 
@@ -241,6 +254,17 @@ Returns dashboard summary metrics:
 ### `GET /api/v1/dashboard/candidates`
 
 Returns ranked reviewer-facing candidate list items with safe projected names.
+
+The frontend uses these records for the processed reviewer ranking.
+
+### `GET /api/v1/dashboard/candidate-pool`
+
+Returns the live candidate pool for the `/candidates` screen, split by stage:
+
+- `raw`
+- `processed`
+
+Demo fixtures are intentionally not mixed into this endpoint.
 
 ### `GET /api/v1/dashboard/candidates/{candidate_id}`
 

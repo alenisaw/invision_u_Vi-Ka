@@ -160,6 +160,11 @@ def _download_media_with_ytdlp(video_url: str, timeout_s: float = 60.0) -> Resol
     except FileNotFoundError as exc:
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise RuntimeError("yt-dlp is not installed or not available in PATH.") from exc
+    except subprocess.CalledProcessError as exc:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        stderr = (exc.stderr or exc.stdout or "").strip()
+        details = f": {stderr}" if stderr else ""
+        raise RuntimeError(f"yt-dlp failed to resolve media for M13{details}") from exc
     except Exception:
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise
@@ -173,10 +178,7 @@ def _download_media(video_url: str, timeout_s: float = 60.0) -> ResolvedMedia:
         except Exception:
             return _download_media_with_ytdlp(video_url, timeout_s=timeout_s)
 
-    try:
-        return _download_media_with_ytdlp(video_url, timeout_s=timeout_s)
-    except Exception:
-        return _download_media_with_request(video_url, timeout_s=timeout_s)
+    return _download_media_with_ytdlp(video_url, timeout_s=timeout_s)
 
 
 def resolve_request_media(request: ASRRequest) -> ResolvedMedia:

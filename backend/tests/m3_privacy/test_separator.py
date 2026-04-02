@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-import pytest
-
+from app.core.text_sanitizer import mask_profanity
 from app.modules.m2_intake.schemas import (
     AcademicInfo,
     CandidateIntakeRequest,
@@ -19,24 +18,24 @@ from app.modules.m3_privacy.separator import Layer1PII, Layer2Metadata, Layer3Mo
 
 
 def _make_payload(**overrides) -> CandidateIntakeRequest:
-    """Build a minimal valid intake request for testing."""
     defaults = {
         "personal": PersonalInfo(
-            first_name="Алихан",
-            last_name="Касымов",
-            patronymic="Серикович",
+            first_name="Alikhan",
+            last_name="Kassymov",
+            patronymic="Serikovich",
             date_of_birth=date(2005, 6, 15),
             iin="050615123456",
             citizenship="KZ",
         ),
         "contacts": ContactsInfo(
+            email="alikhan@example.com",
             phone="+77011234567",
             instagram="@alikhan_kas",
             telegram="@alikhan_t",
         ),
         "parents": ParentsInfo(
-            father=ParentContact(first_name="Серик", last_name="Касымов", phone="+77019876543"),
-            mother=ParentContact(first_name="Айгуль", last_name="Касымова"),
+            father=ParentContact(first_name="Serik", last_name="Kassymov", phone="+77019876543"),
+            mother=ParentContact(first_name="Aigul", last_name="Kassymova"),
         ),
         "academic": AcademicInfo(
             selected_program="Computer Science",
@@ -45,13 +44,11 @@ def _make_payload(**overrides) -> CandidateIntakeRequest:
         ),
         "content": ContentInfo(
             video_url="https://example.com/video.mp4",
-            essay_text="Меня зовут Алихан Касымов. Я хочу стать программистом.",
-            project_descriptions=["Проект по ML от Алихан"],
-            experience_summary="Стажировка в компании, телефон +77011234567",
+            essay_text="My name is Alikhan Kassymov. I want to become a software engineer.",
         ),
         "internal_test": InternalTestInfo(
             answers=[
-                InternalTestAnswer(question_id="q1", answer="Мой ответ от Алихан Касымов"),
+                InternalTestAnswer(question_id="q1", answer="My answer is from Alikhan Kassymov"),
             ]
         ),
     }
@@ -82,7 +79,7 @@ class TestSeparate:
             data_completeness=0.9,
             data_flags=[],
         )
-        assert result.layer1.snapshot["personal"]["first_name"] == "Алихан"
+        assert result.layer1.snapshot["personal"]["first_name"] == "Alikhan"
         assert result.layer1.snapshot["contacts"]["phone"] == "+77011234567"
 
     def test_layer2_metadata_populated(self) -> None:
@@ -111,11 +108,11 @@ class TestSeparate:
             data_flags=[],
         )
         assert result.layer3.essay_text is not None
-        assert "Алихан" not in result.layer3.essay_text
-        assert "Касымов" not in result.layer3.essay_text
+        assert "Alikhan" not in result.layer3.essay_text
+        assert "Kassymov" not in result.layer3.essay_text
         assert "[NAME]" in result.layer3.essay_text
 
-    def test_layer3_redacts_phone_from_experience(self) -> None:
+    def test_layer3_keeps_removed_fields_empty_for_downstream_compatibility(self) -> None:
         payload = _make_payload()
         result = separate(
             payload,
@@ -124,9 +121,8 @@ class TestSeparate:
             data_completeness=0.9,
             data_flags=[],
         )
-        assert result.layer3.experience_summary is not None
-        assert "+77011234567" not in result.layer3.experience_summary
-        assert "[PHONE]" in result.layer3.experience_summary
+        assert result.layer3.experience_summary is None
+        assert result.layer3.project_descriptions == []
 
     def test_layer3_redacts_names_from_test_answers(self) -> None:
         payload = _make_payload()
@@ -139,26 +135,14 @@ class TestSeparate:
         )
         answer = result.layer3.internal_test_answers[0]
         assert answer["question_id"] == "q1"
-        assert "Алихан" not in answer["answer"]
+        assert "Alikhan" not in answer["answer"]
         assert "[NAME]" in answer["answer"]
-
-    def test_layer3_redacts_names_from_projects(self) -> None:
-        payload = _make_payload()
-        result = separate(
-            payload,
-            age_eligible=True,
-            language_threshold_met=True,
-            data_completeness=0.9,
-            data_flags=[],
-        )
-        assert len(result.layer3.project_descriptions) == 1
-        assert "Алихан" not in result.layer3.project_descriptions[0]
 
     def test_layer3_strips_html(self) -> None:
         payload = _make_payload(
             content=ContentInfo(
-                essay_text="<p>Привет <b>мир</b></p>",
-                project_descriptions=["<div>Проект</div>"],
+                video_url="https://example.com/video.mp4",
+                essay_text="<p>Hello <b>world</b></p>",
             ),
         )
         result = separate(
@@ -169,7 +153,7 @@ class TestSeparate:
             data_flags=[],
         )
         assert "<p>" not in (result.layer3.essay_text or "")
-        assert "Привет мир" in (result.layer3.essay_text or "")
+        assert "Hello world" in (result.layer3.essay_text or "")
 
     def test_video_transcript_passed_through_and_redacted(self) -> None:
         payload = _make_payload()
@@ -179,21 +163,22 @@ class TestSeparate:
             language_threshold_met=True,
             data_completeness=0.9,
             data_flags=[],
-            video_transcript="Привет, я Алихан, мой номер +77011234567",
+            video_transcript="Hello, I am Alikhan, my phone is +77011234567",
             asr_confidence=0.92,
             asr_flags=["low_volume"],
         )
         assert result.layer3.video_transcript is not None
-        assert "Алихан" not in result.layer3.video_transcript
+        assert "Alikhan" not in result.layer3.video_transcript
         assert "[NAME]" in result.layer3.video_transcript
         assert result.layer3.asr_confidence == 0.92
         assert result.layer3.asr_flags == ["low_volume"]
 
     def test_layer3_masks_profanity_before_model_input(self) -> None:
+        mask_token = mask_profanity("fuck") or ""
         payload = _make_payload(
             content=ContentInfo(
-                essay_text="Это был пиздец, но я не сдался и закончил проект.",
-                project_descriptions=["Сделал охуенный прототип для клуба."],
+                video_url="https://example.com/video.mp4",
+                essay_text="This was fuck, but I still finished the project.",
             ),
         )
         result = separate(
@@ -202,24 +187,24 @@ class TestSeparate:
             language_threshold_met=True,
             data_completeness=0.7,
             data_flags=[],
-            video_transcript="Бля, было трудно, но я доделал задачу.",
+            video_transcript="shit, it was hard, but I finished the task.",
         )
 
-        assert "[нецензурно]" in (result.layer3.essay_text or "")
-        assert "[нецензурно]" in result.layer3.project_descriptions[0]
-        assert "[нецензурно]" in (result.layer3.video_transcript or "")
+        assert mask_token in (result.layer3.essay_text or "")
+        assert mask_token in (result.layer3.video_transcript or "")
 
     def test_none_fields_stay_none(self) -> None:
         payload = _make_payload(
-            content=ContentInfo(),
+            content=ContentInfo(video_url="https://example.com/video.mp4"),
         )
         result = separate(
             payload,
             age_eligible=True,
             language_threshold_met=None,
             data_completeness=0.3,
-            data_flags=["missing_essay", "missing_video"],
+            data_flags=["missing_essay"],
         )
         assert result.layer3.essay_text is None
         assert result.layer3.video_transcript is None
         assert result.layer3.experience_summary is None
+        assert result.layer3.project_descriptions == []

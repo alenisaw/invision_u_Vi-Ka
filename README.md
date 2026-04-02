@@ -34,7 +34,7 @@ The current branch is a full-stack implementation with:
 - synchronous pipeline submission through `POST /api/v1/pipeline/submit`
 - Groq-backed `M5` extraction by default with `meta-llama/llama-4-scout-17b-16e-instruct`
 - local embeddings through `jinaai/jina-embeddings-v5-text-nano`
-- reviewer dashboard and audit pages in `frontend/`
+- localized reviewer dashboard, candidate pool, upload, shortlist, and audit pages in `frontend/`
 - PostgreSQL-backed persistence for candidate layers, scores, explanations, reviewer actions, and audit logs
 - a local Docker stack for `postgres + backend + frontend`
 
@@ -123,6 +123,13 @@ curl -H "X-API-Key: $API_KEY" http://localhost:8000/api/v1/dashboard/stats
 
 Reviewer routes under `dashboard/*` and `audit/*` require `X-API-Key`.
 When using the Next.js frontend, the built-in proxy under `/api/backend/*` injects the reviewer key server-side for those routes.
+
+Current UI behavior:
+
+- `/candidates` shows the live candidate pool split into `raw` and `processed`
+- demo fixtures are launched from `/upload`, not mixed into the live candidate list
+- upload is video-first: `contacts.email` and `content.video_url` are required, `content.essay_text` is optional
+- when essay text is missing, narrative extraction can fall back to the ASR transcript
 
 Run the M6 evaluation bundle:
 

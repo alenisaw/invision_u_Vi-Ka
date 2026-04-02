@@ -123,6 +123,27 @@ export default function UploadPage() {
 
   const programOptions = useMemo(() => getProgramOptions(locale), [locale]);
   const countryOptions = useMemo(() => getCountryOptions(locale), [locale]);
+  const statusPanelStyle = useMemo(() => {
+    if (status === "error") {
+      return {
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 70%, var(--brand-coral) 30%), color-mix(in srgb, var(--surface-soft) 84%, var(--brand-paper) 16%))",
+        borderColor: "color-mix(in srgb, var(--brand-coral) 44%, var(--brand-line))",
+      };
+    }
+    if (status === "completed") {
+      return {
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, var(--surface-soft) 72%, var(--brand-lime) 28%), color-mix(in srgb, var(--surface-strong) 90%, var(--brand-paper) 10%))",
+        borderColor: "color-mix(in srgb, var(--brand-lime) 36%, var(--brand-line))",
+      };
+    }
+    return {
+      background:
+        "linear-gradient(135deg, color-mix(in srgb, var(--surface-soft) 86%, var(--brand-blue) 14%), var(--surface-strong))",
+      borderColor: "color-mix(in srgb, var(--brand-blue) 28%, var(--brand-line))",
+    };
+  }, [status]);
 
   const updateField = useCallback(
     <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -248,9 +269,9 @@ export default function UploadPage() {
             </div>
 
             {status !== "idle" && (
-              <div className="card card--dark p-5 mb-6">
+              <div className="card p-5 mb-6" style={statusPanelStyle}>
                 <div className="flex items-center justify-between mb-3 gap-3">
-                  <div className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-paper)" }}>
+                  <div className="text-[0.82rem] font-[700] text-muted-strong">
                     {status === "running"
                       ? t("pipeline.running")
                       : status === "completed"
@@ -261,7 +282,7 @@ export default function UploadPage() {
                     <button
                       onClick={handleReset}
                       className="text-[0.78rem] font-[600]"
-                      style={{ color: "rgba(255,255,255,0.6)" }}
+                      style={{ color: "var(--brand-muted)" }}
                     >
                       {t("common.close")}
                     </button>
@@ -284,7 +305,7 @@ export default function UploadPage() {
                     <Link
                       href={`/candidates?highlight=${candidateId}`}
                       className="btn btn--ghost btn--sm"
-                      style={{ color: "var(--brand-paper)" }}
+                      style={{ color: "var(--brand-ink)" }}
                     >
                       {t("common.goToCandidates")}
                     </Link>

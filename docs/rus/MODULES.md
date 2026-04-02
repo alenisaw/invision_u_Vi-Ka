@@ -273,7 +273,7 @@ flowchart LR
 ### Текущее состояние
 
 - реализован в текущей ветке
-- отдает dashboard stats, ranking list, candidate detail, shortlist и safe reviewer projection
+- отдает dashboard stats, ranking list, candidate detail, shortlist, live candidate pool и safe reviewer projection
 - строит отображаемое имя кандидата через backend-дешифровку PII внутри projection layer
 - включает raw safe content и историю reviewer actions в detail-response
 - требует reviewer API key для доступа

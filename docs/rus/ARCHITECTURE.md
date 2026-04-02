@@ -195,7 +195,7 @@ Reviewer-маршруты требуют `X-API-Key`. Next.js proxy добавл
 
 ### Layer 3: Safe Model Input
 
-Хранит model-facing контент: redacted transcript, essay text, internal test answers, project descriptions, experience summary, ASR confidence и ASR quality flags.
+Хранит model-facing контент: redacted transcript, essay text, internal test answers, ASR confidence и ASR quality flags.
 
 ---
 

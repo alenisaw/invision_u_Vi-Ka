@@ -121,14 +121,19 @@ Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. 
   "personal": {
     "first_name": "Aida",
     "last_name": "Example",
-    "date_of_birth": "2007-06-15"
+    "date_of_birth": "2007-06-15",
+    "citizenship": "KZ"
+  },
+  "contacts": {
+    "email": "aida@example.com",
+    "telegram": "@aida"
   },
   "academic": {
     "selected_program": "Digital Media and Marketing"
   },
   "content": {
-    "essay_text": "I want to build media products that help communities.",
-    "video_url": "https://example.com/interview.mp4"
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "essay_text": "I want to build media products that help communities."
   },
   "internal_test": {
     "answers": [
@@ -140,6 +145,14 @@ Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. 
   }
 }
 ```
+
+Актуальные правила intake:
+
+- `contacts.email` обязателен
+- `content.video_url` обязателен и проходит проверку public video URL
+- `content.essay_text` опционален
+- `content.transcript_text` опционален и может заменить эссе в downstream narrative extraction
+- лишние неизвестные поля игнорируются
 
 ---
 
@@ -241,6 +254,17 @@ Query parameters:
 ### `GET /api/v1/dashboard/candidates`
 
 Возвращает ranking list reviewer-facing кандидатов с безопасно спроецированными именами.
+
+Frontend использует этот endpoint для обработанного reviewer-ranking.
+
+### `GET /api/v1/dashboard/candidate-pool`
+
+Возвращает live candidate pool для экрана `/candidates` с разделением по стадиям:
+
+- `raw`
+- `processed`
+
+Demo fixtures намеренно не смешиваются с этим endpoint'ом.
 
 ### `GET /api/v1/dashboard/candidates/{candidate_id}`
 

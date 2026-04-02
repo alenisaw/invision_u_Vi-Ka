@@ -107,20 +107,12 @@ def separate(
 
     # Layer 3: redacted model input
     clean_essay = mask_profanity(_clean_text(payload.content.essay_text))
-    clean_experience = mask_profanity(_clean_text(payload.content.experience_summary))
     clean_transcript = mask_profanity(_clean_text(video_transcript))
-    clean_projects = mask_profanity_list(
-        [_clean_text(project) or "" for project in payload.content.project_descriptions if project]
-    )
 
     redacted_essay = redact_text(clean_essay, known_names) if clean_essay else None
-    redacted_experience = (
-        redact_text(clean_experience, known_names) if clean_experience else None
-    )
     redacted_transcript = (
         redact_text(clean_transcript, known_names) if clean_transcript else None
     )
-    redacted_projects = redact_texts(clean_projects, known_names)
 
     redacted_answers = [
         {
@@ -134,8 +126,8 @@ def separate(
         video_transcript=redacted_transcript,
         essay_text=redacted_essay,
         internal_test_answers=redacted_answers,
-        project_descriptions=redacted_projects,
-        experience_summary=redacted_experience,
+        project_descriptions=[],
+        experience_summary=None,
         asr_confidence=asr_confidence,
         asr_flags=asr_flags or [],
     )

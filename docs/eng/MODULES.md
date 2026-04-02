@@ -285,7 +285,7 @@ Provides pre-built candidate fixtures for demonstration. Loads realistic payload
 ### Current State
 
 - implemented in this branch
-- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, and safe reviewer identity projection
+- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, live candidate-pool reads, and safe reviewer identity projection
 - builds candidate display names by decrypting stored PII inside the backend projection layer
 - includes raw safe content and reviewer action history in detail responses
 - requires reviewer API key access before returning reviewer-facing data

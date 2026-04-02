@@ -184,7 +184,7 @@ Builds deterministic reviewer-facing explanation output from `SignalEnvelope + C
 
 ### `M8 Dashboard`
 
-Reviewer-facing read API for stats, ranking lists, candidate detail, and shortlist views. Candidate names are derived from decrypted PII inside the backend projection layer rather than exposed as raw snapshots.
+Reviewer-facing read API for stats, ranking lists, candidate detail, shortlist views, and the live candidate pool split into `raw` and `processed` stages. Candidate names are derived from decrypted PII inside the backend projection layer rather than exposed as raw snapshots.
 
 ### `M9 Storage`
 

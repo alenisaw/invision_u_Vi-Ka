@@ -75,10 +75,7 @@ export default function Header() {
       <div className="ml-auto flex items-center gap-3 lg:gap-4">
         <LanguageToggle />
         <ThemeToggle />
-        <div className="hidden xl:flex items-center gap-3">
-          <span className="text-[0.8rem] font-[700] text-muted whitespace-nowrap">
-            {t("brand.title")}
-          </span>
+        <div className="hidden xl:flex items-center">
           <a
             href="https://youtu.be/dQw4w9WgXcQ"
             target="_blank"

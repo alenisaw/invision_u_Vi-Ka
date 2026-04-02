@@ -1,6 +1,6 @@
 # Frontend
 
-Фронтенд `inVision U` на `Next.js 14` для reviewer workflow: рейтинг, карточка кандидата, сравнение, ручная загрузка, демо-кандидаты, shortlist и аудит.
+Фронтенд `inVision U` на `Next.js 14` для reviewer workflow: локализованный рейтинг, live candidate pool, карточка кандидата, сравнение, video-first загрузка, shortlist и аудит.
 
 ## Что нужно
 
@@ -44,11 +44,19 @@ REVIEWER_API_KEY=change-me-reviewer-key
 - `/dashboard` — общий рейтинг и фильтрация кандидатов
 - `/dashboard/[id]` — детальная карточка кандидата, explainability и override
 - `/dashboard/compare` — сравнение выбранных кандидатов по `ids`
-- `/candidates` — демо-пул фикстур
+- `/candidates` — live candidate pool с разделением на необработанные и обработанные заявки
 - `/candidates/compare` — сравнение демо-кандидатов по `slugs`
-- `/upload` — ручная загрузка формы или JSON и запуск pipeline
+- `/upload` — ручная video-first загрузка формы или JSON и запуск pipeline; demo fixtures запускаются отсюда
 - `/shortlist` — shortlist view
 - `/audit` — журнал reviewer-действий
+
+## Актуальная логика intake
+
+- обязательны `personal.first_name`, `personal.last_name`, `personal.date_of_birth`
+- обязательны `contacts.email` и `content.video_url`
+- `content.essay_text` опционален
+- если `essay_text` пустой, narrative может быть собран из `transcript_text`
+- `citizenship` в UI выбирается из списка стран
 
 ## Полезные команды
 
