@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 revision: str = "5b7a2d1c9f30"
@@ -18,15 +19,32 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("candidates", sa.Column("dedupe_key", sa.String(length=64), nullable=True))
-    op.create_index(
-        op.f("ix_candidates_dedupe_key"),
-        "candidates",
-        ["dedupe_key"],
-        unique=True,
-    )
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    columns = {column["name"] for column in inspector.get_columns("candidates")}
+    index_names = {index["name"] for index in inspector.get_indexes("candidates")}
+    dedupe_index_name = op.f("ix_candidates_dedupe_key")
+
+    if "dedupe_key" not in columns:
+        op.add_column("candidates", sa.Column("dedupe_key", sa.String(length=64), nullable=True))
+
+    if dedupe_index_name not in index_names:
+        op.create_index(
+            dedupe_index_name,
+            "candidates",
+            ["dedupe_key"],
+            unique=True,
+        )
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_candidates_dedupe_key"), table_name="candidates")
-    op.drop_column("candidates", "dedupe_key")
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    columns = {column["name"] for column in inspector.get_columns("candidates")}
+    index_names = {index["name"] for index in inspector.get_indexes("candidates")}
+    dedupe_index_name = op.f("ix_candidates_dedupe_key")
+
+    if dedupe_index_name in index_names:
+        op.drop_index(dedupe_index_name, table_name="candidates")
+    if "dedupe_key" in columns:
+        op.drop_column("candidates", "dedupe_key")
