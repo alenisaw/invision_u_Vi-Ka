@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
@@ -113,7 +113,7 @@ export default function UploadPage() {
 
   const updateField = useCallback(
     <K extends keyof FormState>(key: K, value: FormState[K]) => {
-      setForm((prev) => ({ ...prev, [key]: value }));
+      setForm((previous) => ({ ...previous, [key]: value }));
     },
     [],
   );
@@ -144,8 +144,8 @@ export default function UploadPage() {
       setPipelineStep(PIPELINE_STEP_COUNT);
       setStatus("completed");
       setCandidateId(result.candidate_id);
-      setMessage(`Пайплайн завершён: ${result.pipeline_status}`);
-      setTimeout(() => router.push(`/dashboard/${result.candidate_id}`), 1500);
+      setMessage(`Кандидат обработан и добавлен в список: ${result.pipeline_status}`);
+      setTimeout(() => router.push(`/candidates?highlight=${result.candidate_id}`), 1500);
     } catch (err) {
       clearInterval(timer);
       setStatus("error");
@@ -155,13 +155,13 @@ export default function UploadPage() {
 
   function handleFormSubmit() {
     if (!isFormValid) return;
-    runPipeline(buildPayload(form));
+    void runPipeline(buildPayload(form));
   }
 
   function handleJsonSubmit() {
     if (!jsonInput.trim()) return;
     try {
-      runPipeline(JSON.parse(jsonInput));
+      void runPipeline(JSON.parse(jsonInput));
     } catch {
       setStatus("error");
       setMessage("Неверный формат JSON");
@@ -179,17 +179,19 @@ export default function UploadPage() {
     updateField("project_descriptions", [...form.project_descriptions, ""]);
   }
 
-  function removeProject(idx: number) {
+  function removeProject(index: number) {
     updateField(
       "project_descriptions",
-      form.project_descriptions.filter((_, i) => i !== idx),
+      form.project_descriptions.filter((_, currentIndex) => currentIndex !== index),
     );
   }
 
-  function updateProject(idx: number, value: string) {
+  function updateProject(index: number, value: string) {
     updateField(
       "project_descriptions",
-      form.project_descriptions.map((p, i) => (i === idx ? value : p)),
+      form.project_descriptions.map((project, currentIndex) =>
+        currentIndex === index ? value : project,
+      ),
     );
   }
 
@@ -207,23 +209,25 @@ export default function UploadPage() {
               Загрузка кандидата
             </h1>
             <p className="text-[0.95rem] mb-6 text-muted">
-              Заполните анкету или загрузите JSON для запуска пайплайна оценки
+              Заполните анкету или вставьте JSON, чтобы запустить пайплайн оценки и
+              добавить кандидата в список.
             </p>
 
-            {/* Tabs */}
             <div className="flex gap-2 mb-6">
-              {(["form", "json"] as const).map((t) => (
+              {(["form", "json"] as const).map((currentTab) => (
                 <button
-                  key={t}
-                  onClick={() => { setTab(t); handleReset(); }}
-                  className={`chip ${tab === t ? "is-active" : ""}`}
+                  key={currentTab}
+                  onClick={() => {
+                    setTab(currentTab);
+                    handleReset();
+                  }}
+                  className={`chip ${tab === currentTab ? "is-active" : ""}`}
                 >
-                  {t === "form" ? "Анкета" : "JSON"}
+                  {currentTab === "form" ? "Анкета" : "JSON"}
                 </button>
               ))}
             </div>
 
-            {/* Pipeline progress */}
             {status !== "idle" && (
               <div className="card card--dark p-5 mb-6">
                 <div className="flex items-center justify-between mb-3">
@@ -231,7 +235,7 @@ export default function UploadPage() {
                     {status === "running"
                       ? "Обработка кандидата..."
                       : status === "completed"
-                        ? "Готово! Переход к результатам..."
+                        ? "Готово. Перехожу к списку кандидатов..."
                         : `Ошибка: ${message}`}
                   </div>
                   {(status === "error" || status === "completed") && (
@@ -247,48 +251,80 @@ export default function UploadPage() {
                 <PipelineProgress status={status} currentStep={pipelineStep} />
                 {status === "completed" && candidateId && (
                   <div className="flex gap-3 mt-4">
-                    <Link href={`/dashboard/${candidateId}`} className="btn btn--sm" style={{ background: "var(--brand-lime)", color: "var(--brand-ink)", borderColor: "var(--brand-lime)" }}>
-                      Открыть карточку
+                    <Link
+                      href={`/dashboard/${candidateId}`}
+                      className="btn btn--sm"
+                      style={{
+                        background: "var(--brand-lime)",
+                        color: "var(--brand-ink)",
+                        borderColor: "var(--brand-lime)",
+                      }}
+                    >
+                      Открыть рейтинг
                     </Link>
-                    <Link href="/dashboard" className="btn btn--ghost btn--sm" style={{ color: "var(--brand-paper)" }}>
-                      Перейти в рейтинг
+                    <Link
+                      href={`/candidates?highlight=${candidateId}`}
+                      className="btn btn--ghost btn--sm"
+                      style={{ color: "var(--brand-paper)" }}
+                    >
+                      Перейти в список кандидатов
                     </Link>
                   </div>
                 )}
               </div>
             )}
 
-            {/* === FORM TAB === */}
             {tab === "form" && (
               <>
-                {/* Section 1: Personal */}
                 <FormSection title="Личные данные" required>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormInput label="Фамилия *" value={form.last_name} onChange={(v) => updateField("last_name", v)} placeholder="Ахметжанов"/>
-                    <FormInput label="Имя *" value={form.first_name} onChange={(v) => updateField("first_name", v)} placeholder="Данияр" />
-                    <FormInput label="Отчество" value={form.patronymic} onChange={(v) => updateField("patronymic", v)} placeholder="Бахытжанович" />
-                    <FormInput label="Дата рождения *" type="date" value={form.date_of_birth} onChange={(v) => updateField("date_of_birth", v)} />
-                    <FormSelect label="Пол" value={form.gender} onChange={(v) => updateField("gender", v)} options={[
-                      { value: "", label: "Не указан" },
-                      { value: "male", label: "Мужской" },
-                      { value: "female", label: "Женский" },
-                    ]} />
-                    <FormInput label="Гражданство" value={form.citizenship} onChange={(v) => updateField("citizenship", v)} placeholder="KZ" />
+                    <FormInput label="Фамилия *" value={form.last_name} onChange={(value) => updateField("last_name", value)} placeholder="Ахметжанов" />
+                    <FormInput label="Имя *" value={form.first_name} onChange={(value) => updateField("first_name", value)} placeholder="Данияр" />
+                    <FormInput label="Отчество" value={form.patronymic} onChange={(value) => updateField("patronymic", value)} placeholder="Бахытжанович" />
+                    <FormInput label="Дата рождения *" type="date" value={form.date_of_birth} onChange={(value) => updateField("date_of_birth", value)} />
+                    <FormSelect
+                      label="Пол"
+                      value={form.gender}
+                      onChange={(value) => updateField("gender", value)}
+                      options={[
+                        { value: "", label: "Не указан" },
+                        { value: "male", label: "Мужской" },
+                        { value: "female", label: "Женский" },
+                      ]}
+                    />
+                    <FormInput label="Гражданство" value={form.citizenship} onChange={(value) => updateField("citizenship", value)} placeholder="KZ" />
                   </div>
                 </FormSection>
 
-                {/* Section 2: Academic */}
                 <FormSection title="Образование">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormSelect label="Программа *" value={form.selected_program} onChange={(v) => updateField("selected_program", v)} options={PROGRAMS.map((p) => ({ value: p, label: p }))} />
-                    <FormSelect label="Языковой экзамен" value={form.language_exam_type} onChange={(v) => updateField("language_exam_type", v)} options={EXAM_TYPES.map((t) => ({ value: t, label: t || "Не сдавал" }))} />
+                    <FormSelect
+                      label="Программа *"
+                      value={form.selected_program}
+                      onChange={(value) => updateField("selected_program", value)}
+                      options={PROGRAMS.map((program) => ({ value: program, label: program }))}
+                    />
+                    <FormSelect
+                      label="Языковой экзамен"
+                      value={form.language_exam_type}
+                      onChange={(value) => updateField("language_exam_type", value)}
+                      options={EXAM_TYPES.map((exam) => ({
+                        value: exam,
+                        label: exam || "Не сдавал",
+                      }))}
+                    />
                     {form.language_exam_type && (
-                      <FormInput label="Балл" type="number" value={form.language_score} onChange={(v) => updateField("language_score", v)} placeholder="0.0 – 9.0" />
+                      <FormInput
+                        label="Бал"
+                        type="number"
+                        value={form.language_score}
+                        onChange={(value) => updateField("language_score", value)}
+                        placeholder="0.0 – 9.0"
+                      />
                     )}
                   </div>
                 </FormSection>
 
-                {/* Section 3: Content */}
                 <FormSection title="Контент">
                   <div className="flex flex-col gap-4">
                     <div>
@@ -300,51 +336,76 @@ export default function UploadPage() {
                       </div>
                       <textarea
                         value={form.essay_text}
-                        onChange={(e) => updateField("essay_text", e.target.value)}
-                        placeholder="Напишите мотивационное эссе (3–5 абзацев)..."
+                        onChange={(event) => updateField("essay_text", event.target.value)}
+                        placeholder="Напишите мотивационное эссе в 3–5 абзацах..."
                         rows={8}
                         className="px-4 py-3 text-[0.88rem] font-[500] resize-y"
                         style={{ lineHeight: 1.7 }}
                       />
                     </div>
-                    <FormInput label="Ссылка на видео-интервью" type="url" value={form.video_url} onChange={(v) => updateField("video_url", v)} placeholder="https://..." />
+
+                    <FormInput
+                      label="Ссылка на видеоинтервью"
+                      type="url"
+                      value={form.video_url}
+                      onChange={(value) => updateField("video_url", value)}
+                      placeholder="https://..."
+                    />
+
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-[0.82rem] font-[700] text-muted-strong">Проекты</label>
-                        <button onClick={addProject} className="text-[0.78rem] font-[700]" style={{ color: "var(--brand-blue)" }}>+ Добавить</button>
+                        <button
+                          onClick={addProject}
+                          className="text-[0.78rem] font-[700]"
+                          style={{ color: "var(--brand-blue)" }}
+                        >
+                          + Добавить
+                        </button>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {form.project_descriptions.map((p, i) => (
-                          <div key={i} className="flex gap-2">
+                        {form.project_descriptions.map((project, index) => (
+                          <div key={`${index}-${project}`} className="flex gap-2">
                             <input
                               type="text"
-                              value={p}
-                              onChange={(e) => updateProject(i, e.target.value)}
-                              placeholder={`Проект ${i + 1}: описание...`}
+                              value={project}
+                              onChange={(event) => updateProject(index, event.target.value)}
+                              placeholder={`Проект ${index + 1}: краткое описание...`}
                               className="flex-1 px-4 py-2.5 text-[0.86rem] font-[500]"
                             />
                             {form.project_descriptions.length > 1 && (
-                              <button onClick={() => removeProject(i)} className="text-[0.82rem] font-[600] px-2" style={{ color: "var(--brand-coral)" }}>×</button>
+                              <button
+                                onClick={() => removeProject(index)}
+                                className="text-[0.82rem] font-[600] px-2"
+                                style={{ color: "var(--brand-coral)" }}
+                              >
+                                Удалить
+                              </button>
                             )}
                           </div>
                         ))}
                       </div>
                     </div>
-                    <FormInput label="Краткое описание опыта" value={form.experience_summary} onChange={(v) => updateField("experience_summary", v)} placeholder="Опыт, навыки, достижения..." />
+
+                    <FormInput
+                      label="Краткое описание опыта"
+                      value={form.experience_summary}
+                      onChange={(value) => updateField("experience_summary", value)}
+                      placeholder="Опыт, навыки, достижения..."
+                    />
                   </div>
                 </FormSection>
 
-                {/* Section 4: Optional */}
-                <CollapsibleSection title="Дополнительно (необязательно)">
+                <CollapsibleSection title="Дополнительно">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormInput label="Телефон" value={form.phone} onChange={(v) => updateField("phone", v)} placeholder="+7..." />
-                    <FormInput label="Telegram" value={form.telegram} onChange={(v) => updateField("telegram", v)} placeholder="@username" />
+                    <FormInput label="Телефон" value={form.phone} onChange={(value) => updateField("phone", value)} placeholder="+7..." />
+                    <FormInput label="Telegram" value={form.telegram} onChange={(value) => updateField("telegram", value)} placeholder="@username" />
                     <div className="sm:col-span-2 flex items-center gap-3">
                       <label className="flex items-center gap-2 cursor-pointer text-[0.84rem] font-[600]">
                         <input
                           type="checkbox"
                           checked={form.has_social_benefit}
-                          onChange={(e) => updateField("has_social_benefit", e.target.checked)}
+                          onChange={(event) => updateField("has_social_benefit", event.target.checked)}
                           className="accent-[var(--brand-blue)] w-4 h-4"
                         />
                         Социальный статус
@@ -353,7 +414,7 @@ export default function UploadPage() {
                         <input
                           type="text"
                           value={form.benefit_type}
-                          onChange={(e) => updateField("benefit_type", e.target.value)}
+                          onChange={(event) => updateField("benefit_type", event.target.value)}
                           placeholder="Тип льготы..."
                           className="flex-1 px-3 py-2 text-[0.84rem] font-[500]"
                         />
@@ -362,7 +423,6 @@ export default function UploadPage() {
                   </div>
                 </CollapsibleSection>
 
-                {/* Preview JSON toggle */}
                 <div className="mt-4 mb-2">
                   <button
                     onClick={() => setShowPreview(!showPreview)}
@@ -380,7 +440,6 @@ export default function UploadPage() {
                   )}
                 </div>
 
-                {/* Submit */}
                 <div className="flex gap-3 mt-4 mb-8">
                   <button
                     onClick={handleFormSubmit}
@@ -394,13 +453,15 @@ export default function UploadPage() {
               </>
             )}
 
-            {/* === JSON TAB === */}
             {tab === "json" && (
               <div className="card p-6 mb-6">
-                <div className="eyebrow mb-4">JSON-данные кандидата</div>
+                <div className="eyebrow mb-4">JSON кандидата</div>
                 <textarea
                   value={jsonInput}
-                  onChange={(e) => { setJsonInput(e.target.value); handleReset(); }}
+                  onChange={(event) => {
+                    setJsonInput(event.target.value);
+                    handleReset();
+                  }}
                   placeholder={`{
   "personal": { "last_name": "...", "first_name": "...", "date_of_birth": "2007-01-01" },
   "academic": { "selected_program": "..." },
@@ -430,24 +491,46 @@ export default function UploadPage() {
   );
 }
 
-/* ---------- Reusable form sub-components ---------- */
-
-function FormSection({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) {
+function FormSection({
+  title,
+  required,
+  children,
+}: {
+  title: string;
+  required?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="card p-5 mb-4">
       <div className="flex items-center gap-2 mb-4">
         <div className="eyebrow">{title}</div>
-        {required && <span className="text-[0.7rem] font-[700] px-1.5 py-0.5 rounded-full" style={{ background: "var(--danger-soft-bg)", color: "var(--danger-soft-text)" }}>обязательно</span>}
+        {required && (
+          <span
+            className="text-[0.7rem] font-[700] px-1.5 py-0.5 rounded-full"
+            style={{
+              background: "var(--danger-soft-bg)",
+              color: "var(--danger-soft-text)",
+            }}
+          >
+            обязательно
+          </span>
+        )}
       </div>
       {children}
     </div>
   );
 }
 
-function FormInput({ label, value, onChange, type = "text", placeholder }: {
+function FormInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   type?: string;
   placeholder?: string;
 }) {
@@ -459,7 +542,7 @@ function FormInput({ label, value, onChange, type = "text", placeholder }: {
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="px-4 py-2.5 text-[0.86rem] font-[500]"
         {...(type === "number" ? { step: "0.5", min: "0", max: "120" } : {})}
@@ -468,10 +551,15 @@ function FormInput({ label, value, onChange, type = "text", placeholder }: {
   );
 }
 
-function FormSelect({ label, value, onChange, options }: {
+function FormSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
   options: { value: string; label: string }[];
 }) {
   return (
@@ -481,26 +569,33 @@ function FormSelect({ label, value, onChange, options }: {
       </label>
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         className="px-4 py-2.5 text-[0.86rem] font-[500]"
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
         ))}
       </select>
     </div>
   );
 }
 
-function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+function CollapsibleSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
+
   return (
     <div className="card p-5 mb-4">
       <button onClick={() => setOpen(!open)} className="flex items-center justify-between w-full">
         <div className="eyebrow">{title}</div>
-        <span className="text-[0.82rem] font-[700] text-muted">
-          {open ? "−" : "+"}
-        </span>
+        <span className="text-[0.82rem] font-[700] text-muted">{open ? "−" : "+"}</span>
       </button>
       {open && <div className="mt-4">{children}</div>}
     </div>

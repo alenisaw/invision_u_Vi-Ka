@@ -8,6 +8,7 @@ interface DemoCardProps {
   viewMode?: "grid" | "list";
   isRunning: boolean;
   isDisabled: boolean;
+  actionLabel?: string;
 }
 
 export default function DemoCard({
@@ -16,19 +17,17 @@ export default function DemoCard({
   viewMode = "grid",
   isRunning,
   isDisabled,
+  actionLabel = "Добавить в очередь",
 }: DemoCardProps) {
   const isList = viewMode === "list";
 
   return (
     <div
-      // Добавлено w-full и h-full, чтобы карточка занимала всё пространство флекс-контейнера
       className={`card p-6 transition-all duration-300 w-full h-full flex ${
         isDisabled ? "opacity-40 grayscale pointer-events-none" : ""
       } ${isList ? "flex-row items-center gap-6" : "flex-col"}`}
     >
       <div className="flex-1 min-w-0 flex flex-col h-full">
-        {/* Шапка: Язык + Программа */}
-        {/* flex-start позволяет программе переноситься на 2 строки, а бейджику оставаться сверху */}
         <div className="flex items-start gap-3 mb-4 w-full">
           <span
             className="px-2.5 py-1 rounded-[0.6rem] text-[0.65rem] font-[800] uppercase tracking-widest shrink-0 mt-0.5"
@@ -36,39 +35,34 @@ export default function DemoCard({
           >
             {meta.language.toUpperCase()}
           </span>
-          <span 
+          <span
             className="text-[0.75rem] font-[800] text-muted uppercase tracking-wider leading-snug line-clamp-2"
-            title={meta.program} // При наведении покажет полное название, если обрежется
+            title={meta.program}
           >
             {meta.program}
           </span>
         </div>
-        
-        {/* Имя кандидата */}
+
         <h3 className={`${isList ? "text-[1.1rem]" : "text-[1.25rem]"} font-[900] leading-tight mb-3 tracking-tight`}>
           {meta.display_name}
         </h3>
-        
-        {/* Эссе. Добавлена минимальная высота (min-h), чтобы карточки не прыгали */}
+
         <p className={`text-[0.88rem] font-[500] italic text-muted leading-relaxed ${!isList ? "line-clamp-3 min-h-[4rem]" : "truncate"}`}>
           &ldquo;{meta.essay_preview}&rdquo;
         </p>
       </div>
 
-      {/* Кнопка. mt-auto прижимает её к самому низу, независимо от объема текста выше */}
-      <div 
-        className={`${isList ? "w-[220px] pt-0 border-t-0" : "pt-5 mt-auto border-t border-[var(--brand-line)]"}`}
-      >
+      <div className={`${isList ? "w-[220px] pt-0 border-t-0" : "pt-5 mt-auto border-t border-[var(--brand-line)]"}`}>
         <button
           onClick={() => onRun(meta.slug)}
           disabled={isRunning || isDisabled}
           className={`btn btn--sm w-full font-[800] tracking-wide transition-all ${
-            isRunning 
-              ? "bg-[var(--surface-subtle-2)] text-muted cursor-wait" 
+            isRunning
+              ? "bg-[var(--surface-subtle-2)] text-muted cursor-wait"
               : "btn--dark"
           }`}
         >
-          {isRunning ? "ОБРАБОТКА..." : "ЗАПУСТИТЬ ТЕСТ"}
+          {isRunning ? "В обработке..." : actionLabel}
         </button>
       </div>
     </div>

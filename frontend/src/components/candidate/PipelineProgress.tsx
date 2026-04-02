@@ -1,13 +1,13 @@
 "use client";
 
 const STEPS = [
-  { id: "m2", label: "M2 Intake" },
+  { id: "m2", label: "M2 Прием" },
   { id: "m13", label: "M13 ASR" },
-  { id: "m3", label: "M3 Privacy" },
-  { id: "m4", label: "M4 Profile" },
+  { id: "m3", label: "M3 Приватность" },
+  { id: "m4", label: "M4 Профиль" },
   { id: "m5", label: "M5 NLP" },
-  { id: "m6", label: "M6 Scoring" },
-  { id: "m7", label: "M7 Explain" },
+  { id: "m6", label: "M6 Скоринг" },
+  { id: "m7", label: "M7 Выводы" },
 ] as const;
 
 interface PipelineProgressProps {
@@ -37,14 +37,10 @@ export default function PipelineProgress({ status, currentStep }: PipelineProgre
                       : "rgba(255, 255, 255, 0.12)",
                 color: isError
                   ? "#ffffff"
-                  : isCompleted
+                  : isCompleted || isCurrent
                     ? "#1a1a1a"
-                    : isCurrent
-                      ? "#1a1a1a"
-                      : "rgba(255, 255, 255, 0.5)",
-                ...(isCurrent
-                  ? { animation: "pulse-step 1.2s ease-in-out infinite" }
-                  : {}),
+                    : "rgba(255, 255, 255, 0.5)",
+                ...(isCurrent ? { animation: "pulse-step 1.2s ease-in-out infinite" } : {}),
               }}
             >
               {step.label}
@@ -64,8 +60,13 @@ export default function PipelineProgress({ status, currentStep }: PipelineProgre
 
       <style jsx>{`
         @keyframes pulse-step {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
         }
       `}</style>
     </div>

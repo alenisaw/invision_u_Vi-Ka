@@ -5,8 +5,8 @@ import type { RecommendationStatus } from "@/types";
 const FILTER_OPTIONS: { value: RecommendationStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "Все кандидаты" },
   { value: "STRONG_RECOMMEND", label: "Приоритетные" },
-  { value: "RECOMMEND", label: "Рекомендованные" },
-  { value: "WAITLIST", label: "В листе ожидания" },
+  { value: "RECOMMEND", label: "Рекомендуемые" },
+  { value: "WAITLIST", label: "Лист ожидания" },
   { value: "DECLINED", label: "Отклоненные" },
 ];
 

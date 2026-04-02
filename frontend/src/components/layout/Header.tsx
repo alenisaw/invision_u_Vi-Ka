@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import ThemeToggle from "./ThemeToggle";
 
 const NAV_LINKS = [
-  { href: "/candidates", label: "Анкеты кандидатов"},
+  { href: "/candidates", label: "Список кандидатов" },
   { href: "/dashboard", label: "Рейтинг" },
   { href: "/upload", label: "Загрузка" },
   { href: "/audit", label: "Журнал" },
@@ -41,7 +41,7 @@ export default function Header() {
 
       <nav className="flex items-center gap-8">
         {NAV_LINKS.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
 
           return (
             <Link
@@ -68,11 +68,8 @@ export default function Header() {
       <div className="ml-auto flex items-center gap-4">
         <ThemeToggle />
 
-        <span
-          className="text-[0.82rem] font-[700]"
-          style={{ color: "var(--brand-muted)" }}
-        >
-          Приёмная комиссия
+        <span className="text-[0.82rem] font-[700]" style={{ color: "var(--brand-muted)" }}>
+          Приемная комиссия
         </span>
 
         <div

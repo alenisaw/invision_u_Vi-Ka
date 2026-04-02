@@ -1,10 +1,11 @@
 import type { RecommendationStatus } from "@/types";
+import { STATUS_LABELS } from "@/lib/utils";
 
-const STATUS_CONFIG: Record<RecommendationStatus, { label: string; className: string }> = {
-  STRONG_RECOMMEND: { label: "Приоритетные", className: "badge--lime" },
-  RECOMMEND: { label: "Рекомендованные", className: "badge--blue" },
-  WAITLIST: { label: "В листе ожидания", className: "badge--coral" },
-  DECLINED: { label: "Отклоненные", className: "badge--neutral" },
+const STATUS_CLASSES: Record<RecommendationStatus, string> = {
+  STRONG_RECOMMEND: "badge--lime",
+  RECOMMEND: "badge--blue",
+  WAITLIST: "badge--coral",
+  DECLINED: "badge--neutral",
 };
 
 interface StatusBadgeProps {
@@ -12,6 +13,5 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status];
-  return <span className={`badge ${config.className}`}>{config.label}</span>;
+  return <span className={`badge ${STATUS_CLASSES[status]}`}>{STATUS_LABELS[status]}</span>;
 }

@@ -207,7 +207,7 @@ function ComparePageInner() {
                         </tr>
                       ))}
                       <tr style={{ borderTop: "2px solid rgba(20,20,20,0.12)" }}>
-                        <td className="py-2 pr-4 font-[800]">Confidence</td>
+                        <td className="py-2 pr-4 font-[800]">Уверенность</td>
                         {completedResults.map((r, i) => (
                           <td key={states[i].slug} className="text-center py-2 px-3 font-[800]">
                             {formatPercent(r.score.confidence)}

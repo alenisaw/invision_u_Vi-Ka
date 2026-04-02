@@ -1,5 +1,9 @@
 import type { CandidateScore } from "@/types";
-import { formatPercent, SUB_SCORE_LABELS } from "@/lib/utils";
+import {
+  formatPercent,
+  localizeLabels,
+  SUB_SCORE_LABELS,
+} from "@/lib/utils";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 
 interface CandidateCardProps {
@@ -20,24 +24,24 @@ export default function CandidateCard({ score }: CandidateCardProps) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <MetricCard label="Балл RPI" value={formatPercent(score.review_priority_index)} accent />
+        <MetricCard label="Бал RPI" value={formatPercent(score.review_priority_index)} accent />
         <MetricCard label="Уверенность" value={formatPercent(score.confidence)} />
         <MetricCard label="Диапазон" value={score.confidence_band} />
         <MetricCard label="Ранг" value={score.ranking_position ? `#${score.ranking_position}` : "—"} />
       </div>
 
-      <div className="eyebrow mb-3">Под-оценки</div>
+      <div className="eyebrow mb-3">Подоценки</div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {Object.entries(score.sub_scores).map(([key, value]) => (
           <div
             key={key}
-            className="flex items-center justify-between px-3 py-2.5 rounded-[1rem] gap-3" // Добавлен gap-3 для отступа
+            className="flex items-center justify-between px-3 py-2.5 rounded-[1rem] gap-3"
             style={{ background: "var(--surface-subtle)" }}
           >
-            <span className="text-[0.78rem] font-[600] text-muted-strong truncate"> {/* Добавлено truncate для длинного текста */}
+            <span className="text-[0.78rem] font-[600] text-muted-strong truncate">
               {SUB_SCORE_LABELS[key] ?? key}
             </span>
-            <span className="text-[0.88rem] font-[800] text-right"> {/* Добавлено text-right для выравнивания чисел */}
+            <span className="text-[0.88rem] font-[800] text-right">
               {formatPercent(value)}
             </span>
           </div>
@@ -48,8 +52,10 @@ export default function CandidateCard({ score }: CandidateCardProps) {
         <div className="mt-5">
           <div className="eyebrow mb-2">Сильные стороны</div>
           <div className="flex flex-wrap gap-2">
-            {score.top_strengths.map((s) => (
-              <span key={s} className="badge badge--blue">{s}</span>
+            {localizeLabels(score.top_strengths).map((strength) => (
+              <span key={strength} className="badge badge--blue">
+                {strength}
+              </span>
             ))}
           </div>
         </div>
@@ -59,8 +65,10 @@ export default function CandidateCard({ score }: CandidateCardProps) {
         <div className="mt-4">
           <div className="eyebrow mb-2">Предупреждения</div>
           <div className="flex flex-wrap gap-2">
-            {score.caution_flags.map((f) => (
-              <span key={f} className="badge badge--coral">{f}</span>
+            {localizeLabels(score.caution_flags).map((flag) => (
+              <span key={flag} className="badge badge--coral">
+                {flag}
+              </span>
             ))}
           </div>
         </div>
@@ -77,12 +85,14 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
         background: accent ? "var(--brand-lime)" : "var(--surface-subtle)",
       }}
     >
-      <div 
-        className={`text-[0.72rem] font-[700] uppercase tracking-[0.1em] mb-1 ${accent ? 'opacity-70 text-black' : 'text-muted'}`}
+      <div
+        className={`text-[0.72rem] font-[700] uppercase tracking-[0.1em] mb-1 ${
+          accent ? "opacity-70 text-black" : "text-muted"
+        }`}
       >
         {label}
       </div>
-      <div className={`text-[1.16rem] font-[800] ${accent ? 'text-black' : ''}`}>
+      <div className={`text-[1.16rem] font-[800] ${accent ? "text-black" : ""}`}>
         {value}
       </div>
     </div>

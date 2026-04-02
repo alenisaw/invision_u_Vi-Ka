@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ClipboardList, Star, Upload, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, ClipboardList, Upload, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,7 +11,7 @@ interface SidebarLink {
 }
 
 const LINKS: SidebarLink[] = [
-  { href: "/candidates", label: "Анкеты кандидатов", icon: Users },
+  { href: "/candidates", label: "Список кандидатов", icon: Users },
   { href: "/dashboard", label: "Рейтинг", icon: BarChart3 },
   { href: "/upload", label: "Загрузка", icon: Upload },
   { href: "/audit", label: "Журнал", icon: ClipboardList },
@@ -28,8 +28,9 @@ export default function Sidebar() {
       <div className="eyebrow mb-4 px-3">Навигация</div>
       <nav className="flex flex-col gap-1">
         {LINKS.map((link) => {
-          const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
+
           return (
             <Link
               key={link.href}
