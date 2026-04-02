@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import type { CandidateListItem } from "@/types";
-import { formatDate, formatPercent, localizeLabels } from "@/lib/utils";
+import { formatDate, formatPercent, localizeLabels, translate } from "@/lib/i18n";
 import StatusBadge from "./StatusBadge";
 
 interface RankingTableProps {
@@ -12,12 +13,12 @@ interface RankingTableProps {
 }
 
 export default function RankingTable({ candidates, selected, onToggleSelect }: RankingTableProps) {
+  const { locale, t } = useLocale();
+
   if (candidates.length === 0) {
     return (
       <div className="card p-12 text-center">
-        <p className="text-[1rem] font-[600] text-muted">
-          Нет кандидатов по выбранным фильтрам
-        </p>
+        <p className="text-[1rem] font-[600] text-muted">{t("dashboard.emptyFiltered")}</p>
       </div>
     );
   }
@@ -29,19 +30,19 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
           <thead>
             <tr className="text-left" style={{ borderBottom: "1px solid var(--brand-line)" }}>
               <th className="px-5 py-4 w-12"></th>
-              <th className="eyebrow px-5 py-4">#</th>
-              <th className="eyebrow px-5 py-4">Кандидат</th>
-              <th className="eyebrow px-5 py-4">Программа</th>
-              <th className="eyebrow px-5 py-4">Балл RPI</th>
-              <th className="eyebrow px-5 py-4 text-center">Уверенность</th>
-              <th className="eyebrow px-5 py-4">Статус</th>
-              <th className="eyebrow px-5 py-4">Сильные стороны</th>
-              <th className="eyebrow px-5 py-4 w-[140px]">Дата</th>
+              <th className="eyebrow px-5 py-4">{t("dashboard.table.number")}</th>
+              <th className="eyebrow px-5 py-4">{t("dashboard.table.candidate")}</th>
+              <th className="eyebrow px-5 py-4">{t("dashboard.table.program")}</th>
+              <th className="eyebrow px-5 py-4">{t("dashboard.table.rpi")}</th>
+              <th className="eyebrow px-5 py-4 text-center">{t("common.confidence")}</th>
+              <th className="eyebrow px-5 py-4">{t("dashboard.table.status")}</th>
+              <th className="eyebrow px-5 py-4">{t("dashboard.table.strengths")}</th>
+              <th className="eyebrow px-5 py-4 w-[140px]">{t("dashboard.table.date")}</th>
             </tr>
           </thead>
           <tbody>
             {candidates.map((candidate) => {
-              const strengths = localizeLabels(candidate.top_strengths.slice(0, 2));
+              const strengths = localizeLabels(candidate.top_strengths.slice(0, 2), locale);
 
               return (
                 <tr
@@ -121,14 +122,16 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
                       ))}
                       {candidate.caution_flags.length > 0 && (
                         <span className="text-[0.72rem] font-[700] px-2 py-0.5 rounded-full bg-[var(--badge-coral-bg)] text-[var(--badge-coral-text)] font-numbers">
-                          {candidate.caution_flags.length} флаг{candidate.caution_flags.length > 1 ? "а" : ""}
+                          {translate(locale, "dashboard.flagsCount", {
+                            count: candidate.caution_flags.length,
+                          })}
                         </span>
                       )}
                     </div>
                   </td>
                   <td className="px-5 py-[0.95rem] whitespace-nowrap">
                     <span className="text-[0.82rem] text-muted font-numbers">
-                      {formatDate(candidate.created_at)}
+                      {formatDate(candidate.created_at, locale)}
                     </span>
                   </td>
                 </tr>

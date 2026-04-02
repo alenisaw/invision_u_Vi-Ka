@@ -1,5 +1,8 @@
+"use client";
+
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { getStatusLabel } from "@/lib/i18n";
 import type { RecommendationStatus } from "@/types";
-import { STATUS_LABELS } from "@/lib/utils";
 
 const STATUS_CLASSES: Record<RecommendationStatus, string> = {
   STRONG_RECOMMEND: "badge--lime",
@@ -13,5 +16,6 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  return <span className={`badge ${STATUS_CLASSES[status]}`}>{STATUS_LABELS[status]}</span>;
+  const { locale } = useLocale();
+  return <span className={`badge ${STATUS_CLASSES[status]}`}>{getStatusLabel(status, locale)}</span>;
 }

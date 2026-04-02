@@ -12,6 +12,7 @@ from app.modules.m7_explainability.schemas import ExplainabilityReport
 from app.modules.m8_dashboard.schemas import (
     DashboardCandidateDetailResponse,
     DashboardCandidateListItem,
+    DashboardCandidatePoolItem,
     DashboardStatsResponse,
     RawCandidateContent,
     ReviewerActionItem,
@@ -81,6 +82,10 @@ class DashboardService:
     async def list_candidates(self) -> list[DashboardCandidateListItem]:
         ranked_scores = await self.repository.list_ranked_scores()
         return [self._project_candidate_list_item(score) for score in ranked_scores]
+
+    async def list_candidate_pool(self) -> list[DashboardCandidatePoolItem]:
+        candidates = await self.repository.list_candidates_with_related()
+        return [self._project_candidate_pool_item(candidate) for candidate in candidates]
 
     async def get_candidate_detail(
         self,
@@ -206,12 +211,29 @@ class DashboardService:
         mi = candidate.model_input_record
         if mi is None:
             return None
-        project_list = mi.project_descriptions if isinstance(mi.project_descriptions, list) else []
         return RawCandidateContent(
             essay_text=mi.essay_text or None,
             video_transcript=mi.video_transcript or None,
-            project_descriptions=[str(p) for p in project_list if p],
-            experience_summary=mi.experience_summary or None,
+        )
+
+    def _project_candidate_pool_item(self, candidate: Candidate) -> DashboardCandidatePoolItem:
+        identity = self._load_candidate_identity(candidate)
+        score = candidate.score_record
+        recommendation_status = self._recommendation_status(score.recommendation_status) if score and score.recommendation_status else None
+        return DashboardCandidatePoolItem(
+            candidate_id=identity.candidate_id,
+            name=identity.name,
+            selected_program=self._selected_program(candidate, score),
+            pipeline_status=self._clean_text(candidate.pipeline_status) or "pending",
+            stage="processed" if score is not None else "raw",
+            review_priority_index=float(score.review_priority_index) if score and score.review_priority_index is not None else None,
+            recommendation_status=recommendation_status,
+            confidence=float(score.confidence) if score and score.confidence is not None else None,
+            shortlist_eligible=bool(score.shortlist_eligible) if score is not None else False,
+            ranking_position=score.ranking_position if score is not None else None,
+            top_strengths=self._coerce_string_list(score.top_strengths) if score is not None else [],
+            caution_flags=self._coerce_string_list(score.caution_flags) if score is not None else [],
+            created_at=candidate.created_at,
         )
 
     def _build_score_payload(

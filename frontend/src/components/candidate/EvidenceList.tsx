@@ -1,11 +1,14 @@
 import type { EvidenceItem } from "@/types";
-import { localizeLabel } from "@/lib/utils";
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { localizeLabel } from "@/lib/i18n";
 
 interface EvidenceListProps {
   evidence: EvidenceItem[];
 }
 
 export default function EvidenceList({ evidence }: EvidenceListProps) {
+  const { locale } = useLocale();
+
   return (
     <div className="flex flex-col gap-2">
       {evidence.map((item, i) => (
@@ -24,7 +27,7 @@ export default function EvidenceList({ evidence }: EvidenceListProps) {
             >
               {item.source
                 .split(",")
-                .map((part) => localizeLabel(part.trim()))
+                .map((part) => localizeLabel(part.trim(), locale))
                 .join(", ")}
             </span>
           </div>

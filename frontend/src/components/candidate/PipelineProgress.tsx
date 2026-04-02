@@ -1,14 +1,8 @@
 "use client";
 
-const STEPS = [
-  { id: "m2", label: "M2 Прием" },
-  { id: "m13", label: "M13 ASR" },
-  { id: "m3", label: "M3 Приватность" },
-  { id: "m4", label: "M4 Профиль" },
-  { id: "m5", label: "M5 NLP" },
-  { id: "m6", label: "M6 Скоринг" },
-  { id: "m7", label: "M7 Выводы" },
-] as const;
+import { useLocale } from "@/components/providers/LocaleProvider";
+
+const STEP_IDS = ["m2", "asr", "m3", "m4", "m5", "m6", "m7"] as const;
 
 interface PipelineProgressProps {
   status: "idle" | "running" | "completed" | "error";
@@ -16,15 +10,17 @@ interface PipelineProgressProps {
 }
 
 export default function PipelineProgress({ status, currentStep }: PipelineProgressProps) {
+  const { t } = useLocale();
+
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      {STEPS.map((step, i) => {
-        const isCompleted = status === "completed" || (status === "running" && i < currentStep);
-        const isCurrent = status === "running" && i === currentStep;
-        const isError = status === "error" && i === currentStep;
+      {STEP_IDS.map((stepId, index) => {
+        const isCompleted = status === "completed" || (status === "running" && index < currentStep);
+        const isCurrent = status === "running" && index === currentStep;
+        const isError = status === "error" && index === currentStep;
 
         return (
-          <span key={step.id} className="flex items-center gap-2">
+          <span key={stepId} className="flex items-center gap-2">
             <span
               className="px-3 py-1.5 rounded-full text-[0.78rem] font-[700] transition-all duration-300"
               style={{
@@ -43,9 +39,9 @@ export default function PipelineProgress({ status, currentStep }: PipelineProgre
                 ...(isCurrent ? { animation: "pulse-step 1.2s ease-in-out infinite" } : {}),
               }}
             >
-              {step.label}
+              {t(`pipeline.step.${stepId}`)}
             </span>
-            {i < STEPS.length - 1 && (
+            {index < STEP_IDS.length - 1 && (
               <span
                 style={{
                   color: isCompleted ? "rgba(193, 241, 29, 0.6)" : "rgba(20, 20, 20, 0.15)",

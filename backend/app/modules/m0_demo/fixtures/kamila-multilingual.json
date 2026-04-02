@@ -1,67 +1,63 @@
-{
-  "_meta": {
-    "slug": "kamila-multilingual",
-    "display_name": "Камила Оразбекова",
-    "program": "Креативная инженерия",
-    "language": "en"
-  },
-  "personal": {
-    "first_name": "Камила",
-    "last_name": "Оразбекова",
-    "date_of_birth": "2007-06-28",
-    "gender": "female",
-    "citizenship": "KZ"
-  },
-  "contacts": {
-    "phone": "+77089012345",
-    "telegram": "@kamila_oraz",
-    "instagram": "@kamila.creates"
-  },
-  "parents": {
-    "father": {
-      "first_name": "Нурбек",
-      "last_name": "Оразбеков",
-      "phone": "+77082109876"
-    },
-    "mother": {
-      "first_name": "Динара",
-      "last_name": "Оразбекова",
-      "phone": "+77082109877"
-    }
-  },
-  "address": {
-    "country": "Казахстан",
-    "region": "Алматинская область",
-    "city": "Алматы"
-  },
-  "academic": {
-    "selected_program": "Креативная инженерия",
-    "language_exam_type": "IELTS",
-    "language_score": 8.0
-  },
-  "content": {
-    "essay_text": "When I was fourteen, I spent a summer at a maker camp in Seoul, South Korea. For two weeks, I worked alongside students from twelve different countries, building prototypes with 3D printers, laser cutters, and microcontrollers. My team created a wearable device that measured air quality and displayed the data through LED patterns on a jacket. That experience changed how I think about engineering — it's not just about solving problems, it's about making solutions that people actually want to use.\n\nBack in Almaty, I started a small makerspace in our school's unused storage room. I convinced the principal to let us use the space, fundraised for basic equipment through a crowdfunding campaign, and recruited eight classmates. Over the past year, we've built everything from a solar-powered phone charger to an automated plant watering system for the school garden. The makerspace has become a place where students who don't fit the traditional academic mold can discover that they're brilliant with their hands.\n\nWhat drives me is the intersection of engineering and human needs. Last winter, our makerspace team partnered with a local NGO that works with visually impaired children. We developed a tactile learning board with raised 3D-printed elements and audio feedback. Watching a seven-year-old girl trace the shape of Kazakhstan on our board and smile was the most rewarding moment of my life.\n\nI want to study Creative Engineering because I believe the future belongs to people who can think across disciplines. I'm not just an engineer who codes — I'm a designer who builds, a storyteller who prototypes. This program's emphasis on design thinking, rapid prototyping, and human-centered engineering is exactly where I want to grow.",
-    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "project_descriptions": [
-      "School makerspace — founded and fundraised, 8 members, 10+ projects in one year",
-      "Tactile learning board for visually impaired children — 3D-printed, audio feedback, partnership with NGO",
-      "Wearable air quality device — Seoul maker camp, international team of 12 countries"
-    ],
-    "experience_summary": "Founded school makerspace, international maker camp (Seoul), tactile learning board for visually impaired, IELTS 8.0, trilingual (Kazakh, Russian, English)"
-  },
-  "social_status": {
-    "has_social_benefit": false
-  },
-  "internal_test": {
-    "answers": [
-      {
-        "question_id": "q1",
-        "answer": "When our makerspace had limited materials, I faced a choice: build my personal project or contribute materials to the NGO collaboration. I chose the NGO project without hesitation. Individual achievement means nothing if it doesn't serve a larger purpose."
-      },
-      {
-        "question_id": "q2",
-        "answer": "I lead by creating systems, not by giving orders. In the makerspace, I set up a rotation where every member gets to be project lead for one build. This way, everyone develops leadership skills, and no one feels like they're just following instructions."
-      }
-    ]
-  }
+﻿{
+    "_meta":  {
+                  "slug":  "kamila-multilingual",
+                  "display_name":  "Камила Оразбекова",
+                  "program":  "Креативная инженерия",
+                  "language":  "en"
+              },
+    "personal":  {
+                     "first_name":  "Камила",
+                     "last_name":  "Оразбекова",
+                     "date_of_birth":  "2007-06-28",
+                     "gender":  "female",
+                     "citizenship":  "KZ"
+                 },
+    "contacts":  {
+                     "phone":  "+77089012345",
+                     "telegram":  "@kamila_oraz",
+                     "instagram":  "@kamila.creates",
+                     "email":  "kamila-multilingual@demo.invisionu.local"
+                 },
+    "parents":  {
+                    "father":  {
+                                   "first_name":  "Нурбек",
+                                   "last_name":  "Оразбеков",
+                                   "phone":  "+77082109876"
+                               },
+                    "mother":  {
+                                   "first_name":  "Динара",
+                                   "last_name":  "Оразбекова",
+                                   "phone":  "+77082109877"
+                               }
+                },
+    "address":  {
+                    "country":  "Казахстан",
+                    "region":  "Алматинская область",
+                    "city":  "Алматы"
+                },
+    "academic":  {
+                     "selected_program":  "Креативная инженерия",
+                     "language_exam_type":  "IELTS",
+                     "language_score":  8.0
+                 },
+    "content":  {
+                    "video_url":  "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                    "transcript_text":  "When I was fourteen, I spent a summer at a maker camp in Seoul, South Korea. For two weeks, I worked alongside students from twelve different countries, building prototypes with 3D printers, laser cutters, and microcontrollers. My team created a wearable device that measured air quality and displayed the data through LED patterns on a jacket. That experience changed how I think about engineering — it\u0027s not just about solving problems, it\u0027s about making solutions that people actually want to use.\n\nBack in Almaty, I started a small makerspace in our school\u0027s unused storage room. I convinced the principal to let us use the space, fundraised for basic equipment through a crowdfunding campaign, and recruited eight classmates. Over the past year, we\u0027ve built everything from a solar-powered phone charger to an automated plant watering system for the school garden. The makerspace has become a place where students who don\u0027t fit the traditional academic mold can discover that they\u0027re brilliant with their hands.\n\nWhat drives me is the intersection of engineering and human needs. Last winter, our makerspace team partnered with a local NGO that works with visually impaired children. We developed a tactile learning board with raised 3D-printed elements and audio feedback. Watching a seven-year-old girl trace the shape of Kazakhstan on our board and smile was the most rewarding moment of my life.\n\nI want to study Creative Engineering because I believe the future belongs to people who can think across disciplines. I\u0027m not just an engineer who codes — I\u0027m a designer who builds, a storyteller who prototypes. This program\u0027s emphasis on design thinking, rapid prototyping, and human-centered engineering is exactly where I want to grow."
+                },
+    "social_status":  {
+                          "has_social_benefit":  false
+                      },
+    "internal_test":  {
+                          "answers":  [
+                                          {
+                                              "question_id":  "q1",
+                                              "answer":  "When our makerspace had limited materials, I faced a choice: build my personal project or contribute materials to the NGO collaboration. I chose the NGO project without hesitation. Individual achievement means nothing if it doesn\u0027t serve a larger purpose."
+                                          },
+                                          {
+                                              "question_id":  "q2",
+                                              "answer":  "I lead by creating systems, not by giving orders. In the makerspace, I set up a rotation where every member gets to be project lead for one build. This way, everyone develops leadership skills, and no one feels like they\u0027re just following instructions."
+                                          }
+                                      ]
+                      }
 }
+

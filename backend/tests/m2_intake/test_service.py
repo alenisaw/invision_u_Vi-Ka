@@ -36,6 +36,7 @@ def _build_payload() -> CandidateIntakeRequest:
             document_authority="MIA",
         ),
         contacts=ContactsInfo(
+            email="candidate@example.com",
             phone="+77011234567",
             instagram="@candidate",
         ),
@@ -54,8 +55,6 @@ def _build_payload() -> CandidateIntakeRequest:
         content=ContentInfo(
             video_url="https://example.com/video.mp4",
             essay_text="This essay must stay outside Layer 1.",
-            project_descriptions=["Built a robotics prototype."],
-            experience_summary="Led a school club.",
         ),
         social_status=SocialStatusInfo(
             has_social_benefit=True,
@@ -93,28 +92,31 @@ def test_build_dedupe_key_is_stable_for_same_iin(monkeypatch) -> None:
     service = CandidateIntakeService(MagicMock())
     payload = _build_payload()
 
-    first_key = service._build_dedupe_key(payload)
-    second_key = service._build_dedupe_key(payload)
+    first_key = service._compute_dedupe_key(payload)
+    second_key = service._compute_dedupe_key(payload)
 
     assert first_key
     assert first_key == second_key
 
 
 @pytest.mark.asyncio
-async def test_intake_candidate_reuses_existing_candidate(monkeypatch) -> None:
+async def test_intake_candidate_replaces_existing_candidate(monkeypatch) -> None:
     monkeypatch.setenv("API_KEY", "reviewer-key-1234567890-abcdef")
     monkeypatch.setenv("POSTGRES_PASSWORD", "local-dev-password")
     monkeypatch.setenv("PII_ENCRYPTION_KEY", "very-secure-pii-encryption-secret-123456")
 
     service = CandidateIntakeService(MagicMock())
     existing_candidate = MagicMock(id=uuid4(), selected_program="Old Program", pipeline_status="completed")
+    new_candidate = MagicMock(id=uuid4(), selected_program="Creative Engineering", pipeline_status="pending")
     service.repository = AsyncMock()
-    service.repository.get_candidate_by_dedupe_key.return_value = existing_candidate
+    service.repository.find_candidate_by_dedupe_key.return_value = existing_candidate
+    service.repository.create_candidate.return_value = new_candidate
 
     response = await service.intake_candidate(_build_payload())
 
-    assert response.candidate_id == str(existing_candidate.id)
-    service.repository.create_candidate.assert_not_awaited()
+    service.repository.delete_candidate.assert_awaited_once_with(existing_candidate.id)
+    assert response.candidate_id == str(new_candidate.id)
+    service.repository.create_candidate.assert_awaited_once()
     service.repository.upsert_candidate_pii.assert_awaited_once()
     service.repository.upsert_candidate_metadata.assert_awaited_once()
-    service.repository.flush.assert_awaited_once()
+    service.repository.commit.assert_awaited_once()

@@ -99,6 +99,22 @@ class StorageRepository(Generic[ModelT]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_candidates_with_related(self, limit: int | None = None) -> list[Candidate]:
+        stmt = (
+            select(Candidate)
+            .options(
+                selectinload(Candidate.pii_record),
+                selectinload(Candidate.metadata_record),
+                selectinload(Candidate.score_record),
+                selectinload(Candidate.explanation_record),
+            )
+            .order_by(Candidate.created_at.desc())
+        )
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def update_pipeline_status(self, candidate_id: UUID, status: str) -> Candidate | None:
         candidate = await self.get_candidate(candidate_id)
         if candidate is None:

@@ -53,13 +53,27 @@ class DashboardCandidateListItem(ReviewerCandidateIdentity):
     created_at: datetime
 
 
+class DashboardCandidatePoolItem(ReviewerCandidateIdentity):
+    model_config = ConfigDict(extra="ignore")
+
+    selected_program: str = ""
+    pipeline_status: str = "pending"
+    stage: str = "raw"
+    review_priority_index: float | None = None
+    recommendation_status: RecommendationStatus | None = None
+    confidence: float | None = None
+    shortlist_eligible: bool = False
+    ranking_position: int | None = None
+    top_strengths: list[str] = Field(default_factory=list)
+    caution_flags: list[str] = Field(default_factory=list)
+    created_at: datetime
+
+
 class RawCandidateContent(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     essay_text: str | None = None
     video_transcript: str | None = None
-    project_descriptions: list[str] = Field(default_factory=list)
-    experience_summary: str | None = None
 
 
 class ReviewerActionItem(BaseModel):

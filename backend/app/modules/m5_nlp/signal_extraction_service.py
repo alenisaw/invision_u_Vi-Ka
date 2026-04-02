@@ -403,7 +403,9 @@ class GroupedNLPSignalExtractionService:
         merged_signals: dict[str, SignalPayload],
         data_flags: list[str],
     ) -> list[str]:
-        if not (request.essay_text or "").strip():
+        if not (request.essay_text or "").strip() and (transcript_text or "").strip():
+            data_flags.append("essay_replaced_by_video_transcript")
+        elif not (request.essay_text or "").strip():
             data_flags.append("missing_essay")
         if not (transcript_text or "").strip():
             data_flags.append("missing_video_transcript")

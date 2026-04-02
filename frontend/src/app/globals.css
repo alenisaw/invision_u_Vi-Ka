@@ -129,6 +129,7 @@ body {
   color: var(--brand-ink);
   line-height: 1.4;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(183, 223, 45, 0.14), transparent 24%),
     radial-gradient(circle at 100% 0, rgba(79, 214, 223, 0.08), transparent 18%),
@@ -160,6 +161,7 @@ h1, h2, h3 {
   background: var(--surface-soft);
   box-shadow: var(--surface-shadow);
   backdrop-filter: blur(14px);
+  animation: fade-up 420ms ease both;
 }
 
 .card--dark {
@@ -281,6 +283,27 @@ html[data-theme="dark"] .card--lime {
   border-color: var(--tab-active-bg);
 }
 
+.page-glow {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--brand-blue) 12%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-soft) 86%, white), var(--surface-soft));
+}
+
+.page-glow::after {
+  content: "";
+  position: absolute;
+  inset: auto -4rem -4rem auto;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand-lime) 22%, transparent), transparent 65%);
+  filter: blur(12px);
+  animation: drift 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
 .text-muted { color: var(--brand-muted); }
 .text-muted-strong { color: var(--brand-muted-strong); }
 
@@ -288,6 +311,7 @@ html[data-theme="dark"] .card--lime {
 textarea,
 select,
 input[type="text"],
+input[type="email"],
 input[type="number"],
 input[type="date"],
 input[type="url"] {
@@ -330,6 +354,27 @@ option {
     max-width: 92rem;
     margin-inline: auto;
     padding-inline: 2rem;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-12px, -16px, 0) scale(1.04);
   }
 }
 

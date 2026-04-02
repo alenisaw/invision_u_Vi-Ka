@@ -6,30 +6,27 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import CompareRadar from "@/components/candidate/CompareRadar";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
-import { SUB_SCORE_LABELS, formatPercent } from "@/lib/utils";
+import { formatPercent, getStatusLabel, localizeLabel } from "@/lib/i18n";
 import type { CandidateDetail, RecommendationStatus } from "@/types";
 
-const STATUS_CONFIG: Record<RecommendationStatus, { label: string; bg: string; text: string }> = {
-  STRONG_RECOMMEND: { 
-    label: "Приоритетные", 
-    bg: "var(--badge-lime-bg)", 
-    text: "var(--badge-lime-text)" 
+const STATUS_CONFIG: Record<RecommendationStatus, { bg: string; text: string }> = {
+  STRONG_RECOMMEND: {
+    bg: "var(--badge-lime-bg)",
+    text: "var(--badge-lime-text)",
   },
-  RECOMMEND: { 
-    label: "Рекомендованные", 
-    bg: "var(--badge-blue-bg)", 
-    text: "var(--badge-blue-text)" 
+  RECOMMEND: {
+    bg: "var(--badge-blue-bg)",
+    text: "var(--badge-blue-text)",
   },
-  WAITLIST: { 
-    label: "В листе ожидания", 
-    bg: "var(--badge-coral-bg)", 
-    text: "var(--badge-coral-text)" 
+  WAITLIST: {
+    bg: "var(--badge-coral-bg)",
+    text: "var(--badge-coral-text)",
   },
-  DECLINED: { 
-    label: "Отклоненные", 
-    bg: "var(--badge-neutral-bg)", 
-    text: "var(--badge-neutral-text)" 
+  DECLINED: {
+    bg: "var(--badge-neutral-bg)",
+    text: "var(--badge-neutral-text)",
   },
 };
 
@@ -41,14 +38,16 @@ interface CandidateState {
 }
 
 export default function ComparePage() {
+  const { t } = useLocale();
   return (
-    <Suspense fallback={<div className="p-8 text-center text-muted">Загрузка...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-muted">{t("dashboard.compare.loading")}</div>}>
       <ComparePageInner />
     </Suspense>
   );
 }
 
 function ComparePageInner() {
+  const { locale, t } = useLocale();
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -113,17 +112,20 @@ function ComparePageInner() {
             <div className="flex items-center gap-4 mb-8">
               <Link href="/dashboard" className="btn btn--sm btn--ghost min-w-0 px-3">&larr;</Link>
               <h1 className="text-[clamp(1.6rem,1.4rem+1vw,2.4rem)] font-[800] tracking-tight">
-                Сравнение кандидатов
+                {t("dashboard.compare.title")}
               </h1>
             </div>
 
-            {/* Индикатор загрузки */}
             {!allDone && (
               <div className="flex flex-col gap-4 mb-8">
                 {states.map((s) => (
                   <div key={s.id} className="card p-5">
                     <div className="text-[0.88rem] font-[700] mb-3 text-muted-strong uppercase tracking-wider">
-                      {s.status === "running" ? "Загрузка..." : s.status === "error" ? `Ошибка: ${s.error}` : "Ожидание..."}
+                      {s.status === "running"
+                        ? t("dashboard.compare.running")
+                        : s.status === "error"
+                          ? t("dashboard.compare.error", { error: s.error ?? "unknown" })
+                          : t("dashboard.compare.pending")}
                       {" "}({s.id.slice(0, 8)}...)
                     </div>
                   </div>
@@ -133,7 +135,6 @@ function ComparePageInner() {
 
             {allDone && (
               <div className="flex flex-col gap-8">
-                {/* Радарная диаграмма */}
                 <CompareRadar
                   candidates={completedResults.map((r) => ({
                     name: r.name,
@@ -141,7 +142,6 @@ function ComparePageInner() {
                   }))}
                 />
 
-                {/* Карточки с итоговым баллом */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {completedResults.map((r, i) => {
                     const config = STATUS_CONFIG[r.score.recommendation_status] || STATUS_CONFIG.WAITLIST;
@@ -155,28 +155,27 @@ function ComparePageInner() {
                             className="inline-block px-3 py-1 rounded-full text-[0.75rem] font-[800] uppercase tracking-wider"
                             style={{ background: config.bg, color: config.text }}
                           >
-                            {config.label}
+                            {getStatusLabel(r.score.recommendation_status, locale)}
                           </span>
                         </div>
                         <div className="mt-5 text-[1.8rem] font-[700] font-numbers leading-none">
                           {formatPercent(r.score.review_priority_index)}
                         </div>
                         <div className="text-[0.72rem] font-[700] text-muted uppercase tracking-widest mt-2">
-                          RPI Балл
+                          {t("dashboard.rpiScore")}
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Таблица детального сравнения */}
                 <div className="card p-6 overflow-hidden">
-                  <div className="eyebrow mb-6">Детальное сравнение по параметрам</div>
+                  <div className="eyebrow mb-6">{t("dashboard.compare.detail")}</div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-[0.9rem]">
                       <thead>
                         <tr>
-                          <th className="text-left font-[700] py-3 pr-4 text-muted border-b border-[var(--brand-line)]">Параметр</th>
+                          <th className="text-left font-[700] py-3 pr-4 text-muted border-b border-[var(--brand-line)]">{t("dashboard.compare.parameter")}</th>
                           {completedResults.map((r) => (
                             <th key={r.candidate_id} className="text-center font-[800] py-3 px-4 border-b border-[var(--brand-line)]">
                               {r.name.split(" ")[0]}
@@ -188,7 +187,7 @@ function ComparePageInner() {
                         {subScoreKeys.map((key) => (
                           <tr key={key} className="border-b border-[var(--brand-line)] last:border-0 hover:bg-[var(--surface-subtle)] transition-colors">
                             <td className="py-4 pr-4 font-[600] text-muted-strong">
-                              {SUB_SCORE_LABELS[key] ?? key}
+                              {localizeLabel(key, locale)}
                             </td>
                             {completedResults.map((r, i) => (
                               <td key={r.candidate_id} className="text-center py-4 px-4 font-[700] font-numbers text-[1.05rem]">
@@ -197,9 +196,8 @@ function ComparePageInner() {
                             ))}
                           </tr>
                         ))}
-                        {/* Итоговая уверенность */}
                         <tr className="bg-[var(--brand-ink)] text-[var(--brand-paper)]">
-                          <td className="py-4 px-5 font-[800] rounded-l-[0.8rem]">Уверенность ИИ</td>
+                          <td className="py-4 px-5 font-[800] rounded-l-[0.8rem]">{t("dashboard.compare.aiConfidence")}</td>
                           {completedResults.map((r, i) => (
                             <td key={r.candidate_id} className="text-center py-4 px-4 font-[800] font-numbers text-[1.1rem] last:rounded-r-[0.8rem]">
                               {formatPercent(r.score.confidence)}
@@ -211,7 +209,6 @@ function ComparePageInner() {
                   </div>
                 </div>
 
-                {/* Кнопки перехода */}
                 <div className="flex flex-wrap gap-3">
                   {completedResults.map((r, i) => (
                     <Link
@@ -219,7 +216,7 @@ function ComparePageInner() {
                       href={`/dashboard/${r.candidate_id}`}
                       className="btn btn--dark btn--sm"
                     >
-                      Открыть карту #{i + 1}
+                      {t("dashboard.compare.openCard", { index: i + 1 })}
                     </Link>
                   ))}
                 </div>

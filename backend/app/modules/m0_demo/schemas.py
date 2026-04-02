@@ -15,7 +15,7 @@ class FixtureMeta(BaseModel):
     display_name: str
     program: str
     language: str = "ru"
-    essay_preview: str = ""
+    content_preview: str = ""
 
 
 class FixtureSummary(BaseModel):

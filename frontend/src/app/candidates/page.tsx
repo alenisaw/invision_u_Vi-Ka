@@ -1,78 +1,56 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
-import PipelineProgress from "@/components/candidate/PipelineProgress";
 import CandidatePoolTable, {
   type CandidatePoolTableItem,
 } from "@/components/candidate/CandidatePoolTable";
 import StatusBadge from "@/components/dashboard/StatusBadge";
-import { demoApi, reviewerApi } from "@/lib/api";
-import { formatDate, formatPercent, localizeLabels } from "@/lib/utils";
-import type { CandidateListItem, FixtureSummary } from "@/types";
-
-const PIPELINE_STEP_COUNT = 7;
-const STEP_INTERVAL_MS = 1800;
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { reviewerApi } from "@/lib/api";
+import {
+  formatDate,
+  formatPercent,
+  localizeLabels,
+  localizeProgramName,
+} from "@/lib/i18n";
+import type { CandidatePoolListItem } from "@/types";
+import { useSearchParams } from "next/navigation";
 
 const SORT_OPTIONS = [
-  { value: "recent", label: "Сначала новые" },
-  { value: "rpi_desc", label: "По RPI" },
-  { value: "name_asc", label: "По имени" },
-  { value: "program_asc", label: "По программе" },
+  { value: "recent", key: "candidates.sort.recent" },
+  { value: "rpi_desc", key: "candidates.sort.rpi_desc" },
+  { value: "name_asc", key: "candidates.sort.name_asc" },
+  { value: "program_asc", key: "candidates.sort.program_asc" },
 ] as const;
 
 type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 type ViewMode = "table" | "grid";
-
-interface RunState {
-  slug: string;
-  status: "running" | "completed" | "error";
-  step: number;
-}
+type StageFilter = "all" | "raw" | "processed";
 
 type CandidatePoolItem = CandidatePoolTableItem & {
   searchText: string;
 };
 
-function buildProcessedItem(candidate: CandidateListItem): CandidatePoolItem {
+function buildPoolItem(candidate: CandidatePoolListItem, viewLabel: string, pendingLabel: string): CandidatePoolItem {
+  const processed = candidate.stage === "processed";
   return {
     id: candidate.candidate_id,
-    kind: "processed",
+    kind: processed ? "processed" : "raw",
     name: candidate.name,
     selectedProgram: candidate.selected_program,
-    sourceLabel: "Загрузка",
-    sourceTone: "lime",
-    statusLabel: "Обработан",
-    recommendationStatus: candidate.recommendation_status,
+    sourceLabel: viewLabel,
+    sourceTone: processed ? "blue" : "neutral",
+    statusLabel: processed ? "Processed" : pendingLabel,
+    recommendationStatus: candidate.recommendation_status ?? undefined,
     reviewPriorityIndex: candidate.review_priority_index,
     confidence: candidate.confidence,
-    tags: [...candidate.top_strengths, ...candidate.caution_flags].slice(0, 3),
+    tags: processed ? [...candidate.top_strengths, ...candidate.caution_flags].slice(0, 3) : [candidate.pipeline_status],
     createdAt: candidate.created_at,
-    actionLabel: "Просмотреть рейтинг",
-    href: `/dashboard/${candidate.candidate_id}`,
-    searchText: `${candidate.name} ${candidate.selected_program}`.toLowerCase(),
-  };
-}
-
-function buildFixtureItem(fixture: FixtureSummary): CandidatePoolItem {
-  return {
-    id: `fixture:${fixture.meta.slug}`,
-    kind: "fixture",
-    name: fixture.meta.display_name,
-    selectedProgram: fixture.meta.program,
-    sourceLabel: "Демо",
-    sourceTone: "blue",
-    statusLabel: "Готов к запуску",
-    reviewPriorityIndex: null,
-    confidence: null,
-    tags: [fixture.meta.language, "Тестовый сценарий"],
-    createdAt: null,
-    actionLabel: "Добавить в очередь",
-    runSlug: fixture.meta.slug,
-    searchText: `${fixture.meta.display_name} ${fixture.meta.program} ${fixture.meta.language}`.toLowerCase(),
+    actionLabel: processed ? viewLabel : pendingLabel,
+    href: processed ? `/dashboard/${candidate.candidate_id}` : undefined,
+    searchText: `${candidate.name} ${candidate.selected_program} ${candidate.pipeline_status}`.toLowerCase(),
   };
 }
 
@@ -85,22 +63,18 @@ export default function CandidatesPage() {
 }
 
 function CandidatesPageInner() {
-  const router = useRouter();
+  const { locale, t } = useLocale();
   const searchParams = useSearchParams();
   const highlightId = searchParams.get("highlight");
 
-  const [processedCandidates, setProcessedCandidates] = useState<CandidateListItem[]>([]);
-  const [fixtures, setFixtures] = useState<FixtureSummary[]>([]);
+  const [pool, setPool] = useState<CandidatePoolListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortValue>("recent");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "processed" | "fixture">("all");
-
-  const [runState, setRunState] = useState<RunState | null>(null);
-  const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [stageFilter, setStageFilter] = useState<StageFilter>("all");
 
   useEffect(() => {
     async function loadData() {
@@ -108,50 +82,35 @@ function CandidatesPageInner() {
       setError("");
 
       try {
-        const [dashboardCandidates, demoFixtures] = await Promise.all([
-          reviewerApi.listDashboardCandidates(),
-          demoApi.listFixtures(),
-        ]);
-        setProcessedCandidates(dashboardCandidates);
-        setFixtures(demoFixtures);
+        const candidatePool = await reviewerApi.listCandidatePool();
+        setPool(candidatePool);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Не удалось загрузить список кандидатов");
+        setError(err instanceof Error ? err.message : t("candidates.loadError"));
       } finally {
         setLoading(false);
       }
     }
 
     void loadData();
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (stepTimer.current) {
-        clearInterval(stepTimer.current);
-      }
-    };
-  }, []);
+  }, [t]);
 
   const items = useMemo(() => {
-    const combined = [
-      ...processedCandidates.map(buildProcessedItem),
-      ...fixtures.map(buildFixtureItem),
-    ];
+    const prepared = pool.map((candidate) =>
+      buildPoolItem(candidate, t("candidates.action.view"), t("candidates.status.raw")),
+    );
 
     const query = search.trim().toLowerCase();
-    let filtered = combined.filter((item) => {
-      if (sourceFilter !== "all" && item.kind !== sourceFilter) {
+    const filtered = prepared.filter((item) => {
+      if (stageFilter !== "all" && item.kind !== stageFilter) {
         return false;
       }
-
       if (!query) {
         return true;
       }
-
       return item.searchText.includes(query);
     });
 
-    filtered = filtered.sort((left, right) => {
+    return filtered.sort((left, right) => {
       if (highlightId) {
         if (left.id === highlightId && right.id !== highlightId) return -1;
         if (right.id === highlightId && left.id !== highlightId) return 1;
@@ -159,9 +118,9 @@ function CandidatesPageInner() {
 
       switch (sort) {
         case "name_asc":
-          return left.name.localeCompare(right.name, "ru");
+          return left.name.localeCompare(right.name, locale === "ru" ? "ru" : "en");
         case "program_asc":
-          return left.selectedProgram.localeCompare(right.selectedProgram, "ru");
+          return left.selectedProgram.localeCompare(right.selectedProgram, locale === "ru" ? "ru" : "en");
         case "rpi_desc":
           return (right.reviewPriorityIndex ?? -1) - (left.reviewPriorityIndex ?? -1);
         case "recent":
@@ -169,45 +128,15 @@ function CandidatesPageInner() {
           return new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime();
       }
     });
-
-    return filtered;
-  }, [fixtures, highlightId, processedCandidates, search, sort, sourceFilter]);
+  }, [highlightId, locale, pool, search, sort, stageFilter, t]);
 
   const stats = useMemo(
     () => ({
-      total: items.length,
-      processed: processedCandidates.length,
-      fixtures: fixtures.length,
+      total: pool.length,
+      processed: pool.filter((item) => item.stage === "processed").length,
+      raw: pool.filter((item) => item.stage === "raw").length,
     }),
-    [fixtures.length, items.length, processedCandidates.length],
-  );
-
-  const handleRunFixture = useCallback(
-    async (slug: string) => {
-      if (runState?.status === "running") {
-        return;
-      }
-
-      setRunState({ slug, status: "running", step: 0 });
-      let currentStep = 0;
-      stepTimer.current = setInterval(() => {
-        currentStep += 1;
-        if (currentStep < PIPELINE_STEP_COUNT) {
-          setRunState((previous) => (previous ? { ...previous, step: currentStep } : previous));
-        }
-      }, STEP_INTERVAL_MS);
-
-      try {
-        const result = await demoApi.runFixture(slug);
-        if (stepTimer.current) clearInterval(stepTimer.current);
-        setRunState({ slug, status: "completed", step: PIPELINE_STEP_COUNT });
-        setTimeout(() => router.push(`/dashboard/${result.candidate_id}`), 1200);
-      } catch {
-        if (stepTimer.current) clearInterval(stepTimer.current);
-        setRunState({ slug, status: "error", step: 0 });
-      }
-    },
-    [router, runState?.status],
+    [pool],
   );
 
   return (
@@ -216,39 +145,27 @@ function CandidatesPageInner() {
       <div className="flex">
         <Sidebar />
         <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24 relative">
-          <div className="w-full">
-            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
-              Список кандидатов
-            </h1>
-            <p className="text-[1rem] mb-10 text-muted max-w-[72ch]">
-              Здесь собраны кандидаты, уже прошедшие обработку через загрузку, и
-              демо-сценарии для быстрого запуска пайплайна. По умолчанию открыт
-              табличный вид, карточки можно вернуть в один клик.
-            </p>
+          <div className="container-app">
+            <section className="rounded-[2rem] border px-6 py-8 lg:px-8 lg:py-10 mb-8 page-glow">
+              <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] mb-3 tracking-[-0.05em]">
+                {t("candidates.title")}
+              </h1>
+              <p className="text-[1rem] text-muted max-w-[72ch] leading-relaxed">
+                {t("candidates.description")}
+              </p>
+            </section>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <StatCard label="Всего в списке" value={String(stats.total)} tone="lime" />
-              <StatCard label="Обработанные" value={String(stats.processed)} tone="blue" />
-              <StatCard label="Готовы к запуску" value={String(stats.fixtures)} tone="neutral" />
+              <StatCard label={t("candidates.total")} value={String(stats.total)} tone="lime" />
+              <StatCard label={t("candidates.processed")} value={String(stats.processed)} tone="blue" />
+              <StatCard label={t("candidates.raw")} value={String(stats.raw)} tone="neutral" />
             </div>
 
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
               <div className="flex flex-wrap gap-2">
-                <FilterChip
-                  active={sourceFilter === "all"}
-                  onClick={() => setSourceFilter("all")}
-                  label="Все"
-                />
-                <FilterChip
-                  active={sourceFilter === "processed"}
-                  onClick={() => setSourceFilter("processed")}
-                  label="После обработки"
-                />
-                <FilterChip
-                  active={sourceFilter === "fixture"}
-                  onClick={() => setSourceFilter("fixture")}
-                  label="Демо-сценарии"
-                />
+                <FilterChip active={stageFilter === "all"} onClick={() => setStageFilter("all")} label={t("common.all")} />
+                <FilterChip active={stageFilter === "raw"} onClick={() => setStageFilter("raw")} label={t("common.raw")} />
+                <FilterChip active={stageFilter === "processed"} onClick={() => setStageFilter("processed")} label={t("common.processed")} />
               </div>
 
               <select
@@ -265,7 +182,7 @@ function CandidatesPageInner() {
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.key)}
                   </option>
                 ))}
               </select>
@@ -276,7 +193,7 @@ function CandidatesPageInner() {
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Поиск по имени, программе или типу кандидата..."
+                placeholder={t("candidates.searchPlaceholder")}
                 className="flex-1 px-6 py-4 text-[1rem] font-[600] rounded-[1rem] bg-[var(--surface-subtle)] border border-[var(--brand-line)] outline-none focus:ring-2 focus:ring-[var(--brand-blue)]"
               />
               <div className="flex gap-1 p-1.5 rounded-[1.2rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] shrink-0 w-full sm:w-[320px]">
@@ -288,7 +205,7 @@ function CandidatesPageInner() {
                       : "text-muted hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  Таблица
+                  {t("common.table")}
                 </button>
                 <button
                   onClick={() => setViewMode("grid")}
@@ -298,26 +215,10 @@ function CandidatesPageInner() {
                       : "text-muted hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  Сетка
+                  {t("common.grid")}
                 </button>
               </div>
             </div>
-
-            {runState && (
-              <div className="card card--dark p-6 mb-8 bg-[#181a1b] border border-[var(--brand-blue)]/30">
-                <div className="text-[0.9rem] font-[700] text-[var(--brand-paper)] mb-4">
-                  {runState.status === "running"
-                    ? `В обработке: ${
-                        fixtures.find((fixture) => fixture.meta.slug === runState.slug)?.meta.display_name ??
-                        "кандидат"
-                      }`
-                    : runState.status === "completed"
-                      ? "Кандидат обработан, открываю рейтинг..."
-                      : "Не удалось запустить обработку. Проверьте данные и попробуйте снова."}
-                </div>
-                <PipelineProgress status={runState.status} currentStep={runState.step} />
-              </div>
-            )}
 
             {error && (
               <div className="card p-5 mb-8 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
@@ -329,28 +230,20 @@ function CandidatesPageInner() {
 
             {loading ? (
               <div className="card p-12 text-center text-muted font-[700]">
-                Загружаю список кандидатов...
+                {t("candidates.loading")}
               </div>
             ) : viewMode === "table" ? (
-              <CandidatePoolTable
-                items={items}
-                highlightedId={highlightId}
-                runningSlug={runState?.status === "running" ? runState.slug : null}
-                onRunFixture={handleRunFixture}
-              />
+              <CandidatePoolTable items={items} highlightedId={highlightId} />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {items.map((item) => {
                   const isHighlighted = highlightId === item.id;
-                  const isRunning = Boolean(
-                    item.runSlug && runState?.status === "running" && runState.slug === item.runSlug,
-                  );
-                  const localizedTags = localizeLabels(item.tags.slice(0, 3));
+                  const localizedTags = localizeLabels(item.tags.slice(0, 3), locale);
 
                   return (
                     <div
                       key={item.id}
-                      className="card p-6 flex flex-col h-full transition-all duration-300"
+                      className="card p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1"
                       style={{
                         outline: isHighlighted ? "3px solid var(--brand-blue)" : "none",
                         outlineOffset: "-3px",
@@ -361,15 +254,7 @@ function CandidatesPageInner() {
                           {item.name}
                         </h3>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`badge ${
-                              item.sourceTone === "lime"
-                                ? "badge--lime"
-                                : item.sourceTone === "blue"
-                                  ? "badge--blue"
-                                  : "badge--neutral"
-                            }`}
-                          >
+                          <span className={`badge ${item.kind === "processed" ? "badge--blue" : "badge--neutral"}`}>
                             {item.sourceLabel}
                           </span>
                           {item.recommendationStatus ? (
@@ -381,21 +266,17 @@ function CandidatesPageInner() {
                       </div>
 
                       <p className="text-[0.9rem] text-muted line-clamp-2 mb-5 min-h-[2.8rem] leading-relaxed">
-                        {item.selectedProgram}
+                        {localizeProgramName(item.selectedProgram, locale)}
                       </p>
 
                       <div className="grid grid-cols-2 gap-3 mb-5">
                         <MetricCard
                           label="RPI"
-                          value={
-                            item.reviewPriorityIndex != null
-                              ? formatPercent(item.reviewPriorityIndex)
-                              : "—"
-                          }
+                          value={item.reviewPriorityIndex != null ? formatPercent(item.reviewPriorityIndex) : t("common.none")}
                         />
                         <MetricCard
-                          label="Уверенность"
-                          value={item.confidence != null ? formatPercent(item.confidence) : "—"}
+                          label={t("common.confidence")}
+                          value={item.confidence != null ? formatPercent(item.confidence) : t("common.none")}
                         />
                       </div>
 
@@ -407,26 +288,22 @@ function CandidatesPageInner() {
                             </span>
                           ))
                         ) : (
-                          <span className="text-[0.82rem] text-muted">Метки появятся после обработки</span>
+                          <span className="text-[0.82rem] text-muted">{t("candidates.tags.pending")}</span>
                         )}
                       </div>
 
                       <div className="mt-auto pt-5 flex items-center justify-between border-t border-[var(--brand-line)] gap-3">
                         <span className="text-[0.8rem] font-[700] text-muted font-numbers">
-                          {item.createdAt ? formatDate(item.createdAt) : "Без даты"}
+                          {item.createdAt ? formatDate(item.createdAt, locale) : t("common.unknownDate")}
                         </span>
                         {item.href ? (
-                          <Link href={item.href} className="btn btn--sm btn--dark">
+                          <a href={item.href} className="btn btn--sm btn--dark">
                             {item.actionLabel}
-                          </Link>
+                          </a>
                         ) : (
-                          <button
-                            onClick={() => item.runSlug && handleRunFixture(item.runSlug)}
-                            disabled={!item.runSlug || Boolean(isRunning)}
-                            className="btn btn--sm btn--dark disabled:opacity-50 disabled:cursor-wait"
-                          >
-                            {isRunning ? "В обработке..." : item.actionLabel}
-                          </button>
+                          <div className="btn btn--ghost btn--sm cursor-default opacity-70">
+                            {item.actionLabel}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -437,7 +314,7 @@ function CandidatesPageInner() {
 
             {!loading && items.length === 0 && (
               <div className="text-center py-20 text-muted font-[700] text-[1.1rem]">
-                Кандидаты не найдены
+                {t("candidates.empty")}
               </div>
             )}
           </div>
@@ -448,19 +325,21 @@ function CandidatesPageInner() {
 }
 
 function CandidatesPageFallback() {
-  return (
+  const content = (
     <>
       <Header />
       <div className="flex">
         <Sidebar />
         <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24 relative">
           <div className="card p-12 text-center text-muted font-[700]">
-            Загружаю список кандидатов...
+            Loading...
           </div>
         </main>
       </div>
     </>
   );
+
+  return content;
 }
 
 function StatCard({

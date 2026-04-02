@@ -7,8 +7,9 @@ import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
 import CompareRadar from "@/components/candidate/CompareRadar";
 import PipelineProgress from "@/components/candidate/PipelineProgress";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { demoApi } from "@/lib/api";
-import { SUB_SCORE_LABELS, formatPercent } from "@/lib/utils";
+import { formatPercent, getStatusLabel, localizeLabel } from "@/lib/i18n";
 import type { PipelineResult } from "@/types";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
@@ -27,14 +28,16 @@ interface SlugState {
 }
 
 export default function ComparePage() {
+  const { t } = useLocale();
   return (
-    <Suspense fallback={<div className="p-8 text-center">Загрузка...</div>}>
+    <Suspense fallback={<div className="p-8 text-center">{t("dashboard.compare.loading")}</div>}>
       <ComparePageInner />
     </Suspense>
   );
 }
 
 function ComparePageInner() {
+  const { locale, t } = useLocale();
   const searchParams = useSearchParams();
   const router = useRouter();
   const slugsParam = searchParams.get("slugs") ?? "";
@@ -107,17 +110,16 @@ function ComparePageInner() {
           <div className="container-app">
             <div className="flex items-center gap-4 mb-6">
               <Link href="/candidates" className="text-[0.88rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
-                &larr; Назад
+                &larr; {t("demoCompare.back")}
               </Link>
               <h1
                 className="text-[clamp(1.6rem,1.4rem+1vw,2.4rem)] font-[800]"
                 style={{ letterSpacing: "-0.03em" }}
               >
-                Сравнение кандидатов
+                {t("demoCompare.title")}
               </h1>
             </div>
 
-            {/* Pipeline progress for each candidate */}
             {!allDone && (
               <div className="flex flex-col gap-4 mb-8">
                 {states.map((s) => (
@@ -140,10 +142,8 @@ function ComparePageInner() {
               </div>
             )}
 
-            {/* Results */}
             {allDone && (
               <>
-                {/* Radar */}
                 <CompareRadar
                   candidates={completedResults.map((r, i) => ({
                     name: states[i].slug.replace(/-/g, " "),
@@ -151,7 +151,6 @@ function ComparePageInner() {
                   }))}
                 />
 
-                {/* Status badges */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 my-6">
                   {completedResults.map((r, i) => {
                     const st = STATUS_STYLES[r.score.recommendation_status] ?? STATUS_STYLES.WAITLIST;
@@ -164,7 +163,7 @@ function ComparePageInner() {
                           className="inline-block px-3 py-1 rounded-full text-[0.78rem] font-[800] uppercase"
                           style={{ background: st.bg, color: st.color }}
                         >
-                          {r.score.recommendation_status.replace(/_/g, " ")}
+                          {getStatusLabel(r.score.recommendation_status, locale)}
                         </span>
                         <div className="mt-2 text-[1.2rem] font-[800]">
                           {formatPercent(r.score.review_priority_index)}
@@ -177,14 +176,13 @@ function ComparePageInner() {
                   })}
                 </div>
 
-                {/* Sub-scores table */}
                 <div className="card p-5 overflow-x-auto">
-                  <div className="eyebrow mb-4">Детальное сравнение</div>
+                  <div className="eyebrow mb-4">{t("demoCompare.detail")}</div>
                   <table className="w-full text-[0.84rem]">
                     <thead>
                       <tr>
                         <th className="text-left font-[700] py-2 pr-4" style={{ color: "var(--brand-muted)" }}>
-                          Параметр
+                          {t("dashboard.compare.parameter")}
                         </th>
                         {states.map((s) => (
                           <th key={s.slug} className="text-center font-[700] py-2 px-3">
@@ -197,7 +195,7 @@ function ComparePageInner() {
                       {subScoreKeys.map((key) => (
                         <tr key={key} style={{ borderTop: "1px solid rgba(20,20,20,0.06)" }}>
                           <td className="py-2 pr-4 font-[600]" style={{ color: "var(--brand-muted-strong)" }}>
-                            {SUB_SCORE_LABELS[key] ?? key}
+                            {localizeLabel(key, locale)}
                           </td>
                           {completedResults.map((r, i) => (
                             <td key={states[i].slug} className="text-center py-2 px-3 font-[700]">
@@ -207,7 +205,7 @@ function ComparePageInner() {
                         </tr>
                       ))}
                       <tr style={{ borderTop: "2px solid rgba(20,20,20,0.12)" }}>
-                        <td className="py-2 pr-4 font-[800]">Уверенность</td>
+                        <td className="py-2 pr-4 font-[800]">{t("common.confidence")}</td>
                         {completedResults.map((r, i) => (
                           <td key={states[i].slug} className="text-center py-2 px-3 font-[800]">
                             {formatPercent(r.score.confidence)}
@@ -218,7 +216,6 @@ function ComparePageInner() {
                   </table>
                 </div>
 
-                {/* Links to detail pages */}
                 <div className="flex flex-wrap gap-3 mt-6">
                   {completedResults.map((r, i) => (
                     <Link
@@ -226,7 +223,7 @@ function ComparePageInner() {
                       href={`/dashboard/${r.candidate_id}`}
                       className="btn btn--dark btn--sm"
                     >
-                      Карточка: {states[i].slug.split("-")[0]}
+                      {t("demoCompare.profileLink", { name: states[i].slug.split("-")[0] })}
                     </Link>
                   ))}
                 </div>

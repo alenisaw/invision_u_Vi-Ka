@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ThemeProvider from "@/components/providers/ThemeProvider";
+import { LocaleProvider } from "@/components/providers/LocaleProvider";
 
 export const metadata: Metadata = {
-  title: "inVision U — Панель приёмной комиссии",
-  description: "AI-система отбора кандидатов для inVision University",
+  title: "ПрИИёмная комиссия / AIdmission commitee",
+  description: "Localized AI admissions workspace for inVision U",
 };
 
 export default function RootLayout({
@@ -27,7 +28,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <LocaleProvider>{children}</LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

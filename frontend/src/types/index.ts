@@ -89,11 +89,25 @@ export interface CandidateListItem {
   created_at: string;
 }
 
+export interface CandidatePoolListItem {
+  candidate_id: string;
+  name: string;
+  selected_program: string;
+  pipeline_status: string;
+  stage: "processed" | "raw";
+  review_priority_index: number | null;
+  recommendation_status: RecommendationStatus | null;
+  confidence: number | null;
+  shortlist_eligible: boolean;
+  ranking_position: number | null;
+  top_strengths: string[];
+  caution_flags: string[];
+  created_at: string;
+}
+
 export interface RawCandidateContent {
   essay_text: string | null;
   video_transcript: string | null;
-  project_descriptions: string[];
-  experience_summary: string | null;
 }
 
 export interface CandidateDetail {
@@ -160,7 +174,7 @@ export interface FixtureMeta {
   display_name: string;
   program: string;
   language: string;
-  essay_preview: string;
+  content_preview: string;
 }
 
 export interface FixtureSummary {

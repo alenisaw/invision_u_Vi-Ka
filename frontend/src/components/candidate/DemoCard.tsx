@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/providers/LocaleProvider";
+import { localizeProgramName } from "@/lib/i18n";
 import type { FixtureMeta } from "@/types";
 
 interface DemoCardProps {
@@ -17,8 +19,9 @@ export default function DemoCard({
   viewMode = "grid",
   isRunning,
   isDisabled,
-  actionLabel = "Добавить в очередь",
+  actionLabel,
 }: DemoCardProps) {
+  const { locale, t } = useLocale();
   const isList = viewMode === "list";
 
   return (
@@ -37,9 +40,9 @@ export default function DemoCard({
           </span>
           <span
             className="text-[0.75rem] font-[800] text-muted uppercase tracking-wider leading-snug line-clamp-2"
-            title={meta.program}
+            title={localizeProgramName(meta.program, locale)}
           >
-            {meta.program}
+            {localizeProgramName(meta.program, locale)}
           </span>
         </div>
 
@@ -48,7 +51,7 @@ export default function DemoCard({
         </h3>
 
         <p className={`text-[0.88rem] font-[500] italic text-muted leading-relaxed ${!isList ? "line-clamp-3 min-h-[4rem]" : "truncate"}`}>
-          &ldquo;{meta.essay_preview}&rdquo;
+          &ldquo;{meta.content_preview}&rdquo;
         </p>
       </div>
 
@@ -62,7 +65,7 @@ export default function DemoCard({
               : "btn--dark"
           }`}
         >
-          {isRunning ? "В обработке..." : actionLabel}
+          {isRunning ? t("upload.demo.running") : actionLabel ?? t("upload.demo.run")}
         </button>
       </div>
     </div>

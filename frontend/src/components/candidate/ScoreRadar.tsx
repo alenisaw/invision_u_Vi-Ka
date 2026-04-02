@@ -9,23 +9,25 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import type { SubScores } from "@/types";
-import { SUB_SCORE_LABELS } from "@/lib/utils";
+import { localizeLabel } from "@/lib/i18n";
 
 interface ScoreRadarProps {
   subScores: SubScores;
 }
 
 export default function ScoreRadar({ subScores }: ScoreRadarProps) {
+  const { locale, t } = useLocale();
   const data = Object.entries(subScores).map(([key, value]) => ({
-    dimension: SUB_SCORE_LABELS[key] ?? key,
+    dimension: localizeLabel(key, locale),
     score: Math.round(value * 100),
     fullMark: 100,
   }));
 
   return (
     <div className="card p-6">
-      <div className="eyebrow mb-4">Профиль оценок</div>
+      <div className="eyebrow mb-4">{t("radar.scoreProfile")}</div>
       <ResponsiveContainer width="100%" height={320}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="72%">
           <PolarGrid stroke="var(--brand-line)" />
@@ -55,7 +57,7 @@ export default function ScoreRadar({ subScores }: ScoreRadarProps) {
               fontSize: "0.82rem",
               fontWeight: 700,
             }}
-            formatter={(value: number) => [`${value}%`, "Балл"]}
+            formatter={(value: number) => [`${value}%`, t("radar.tooltipScore")]}
           />
         </RadarChart>
       </ResponsiveContainer>

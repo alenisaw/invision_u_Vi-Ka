@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
+import { getStatusLabel } from "@/lib/i18n";
 import type { RecommendationStatus } from "@/types";
-
-const STATUS_OPTIONS: { value: RecommendationStatus; label: string }[] = [
-  { value: "STRONG_RECOMMEND", label: "Приоритетные" },
-  { value: "RECOMMEND", label: "Рекомендуемые" },
-  { value: "WAITLIST", label: "Лист ожидания" },
-  { value: "DECLINED", label: "Отклоненные" },
-];
 
 interface OverridePanelProps {
   candidateId: string;
@@ -22,6 +17,7 @@ export default function OverridePanel({
   currentStatus,
   onSuccess,
 }: OverridePanelProps) {
+  const { locale, t } = useLocale();
   const [reviewerId, setReviewerId] = useState("committee-reviewer");
   const [newStatus, setNewStatus] = useState<RecommendationStatus>(currentStatus);
   const [comment, setComment] = useState("");
@@ -32,6 +28,13 @@ export default function OverridePanel({
   useEffect(() => {
     setNewStatus(currentStatus);
   }, [currentStatus]);
+
+  const statusOptions: { value: RecommendationStatus; label: string }[] = [
+    { value: "STRONG_RECOMMEND", label: getStatusLabel("STRONG_RECOMMEND", locale) },
+    { value: "RECOMMEND", label: getStatusLabel("RECOMMEND", locale) },
+    { value: "WAITLIST", label: getStatusLabel("WAITLIST", locale) },
+    { value: "DECLINED", label: getStatusLabel("DECLINED", locale) },
+  ];
 
   async function handleSubmit() {
     if (!reviewerId.trim() || !comment.trim() || newStatus === currentStatus) {
@@ -49,12 +52,12 @@ export default function OverridePanel({
         comment: comment.trim(),
       });
       setComment("");
-      setMessage("Изменение сохранено в журнале и применено к кандидату.");
+      setMessage(t("override.success"));
       await onSuccess?.();
     } catch (err) {
       setHasError(true);
       setMessage(
-        err instanceof Error ? err.message : "Не удалось применить изменение решения.",
+        err instanceof Error ? err.message : t("override.error"),
       );
     } finally {
       setSubmitting(false);
@@ -63,15 +66,14 @@ export default function OverridePanel({
 
   return (
     <div className="card p-6">
-      <div className="eyebrow mb-4">Переопределение решения</div>
+      <div className="eyebrow mb-4">{t("override.title")}</div>
       <p className="text-[0.82rem] mb-4 text-muted">
-        Измените рекомендацию ИИ для кандидата{" "}
-        <code className="text-[0.78rem] font-[700]">{candidateId.slice(0, 8)}...</code>
+        {t("override.description", { id: `${candidateId.slice(0, 8)}...` })}
       </p>
 
       <div className="flex flex-col gap-4">
         <div>
-          <label className="text-[0.82rem] font-[700] block mb-2">ID проверяющего</label>
+          <label className="text-[0.82rem] font-[700] block mb-2">{t("override.reviewerId")}</label>
           <input
             type="text"
             value={reviewerId}
@@ -83,14 +85,14 @@ export default function OverridePanel({
         </div>
 
         <div>
-          <label className="text-[0.82rem] font-[700] block mb-2">Новый статус</label>
+          <label className="text-[0.82rem] font-[700] block mb-2">{t("override.newStatus")}</label>
           <select
             value={newStatus}
             onChange={(event) => setNewStatus(event.target.value as RecommendationStatus)}
             data-testid="override-status-select"
             className="w-full px-4 pr-10 py-3 text-[0.88rem] font-[600] rounded-[0.8rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] cursor-pointer outline-none focus:ring-2 focus:ring-[var(--brand-blue)] transition-all"
           >
-            {STATUS_OPTIONS.map((option) => (
+            {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -99,13 +101,11 @@ export default function OverridePanel({
         </div>
 
         <div>
-          <label className="text-[0.82rem] font-[700] block mb-2">
-            Комментарий комиссии
-          </label>
+          <label className="text-[0.82rem] font-[700] block mb-2">{t("override.comment")}</label>
           <textarea
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Укажите причину изменения решения..."
+            placeholder={t("override.commentPlaceholder")}
             rows={3}
             data-testid="override-comment-input"
             className="px-4 py-3 text-[0.88rem] font-[500] resize-y"
@@ -130,7 +130,7 @@ export default function OverridePanel({
           data-testid="submit-override-button"
           className="btn btn--dark btn--sm self-end disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {submitting ? "Сохраняем..." : "Применить решение"}
+          {submitting ? t("override.saving") : t("override.submit")}
         </button>
       </div>
     </div>

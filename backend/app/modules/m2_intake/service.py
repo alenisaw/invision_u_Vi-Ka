@@ -91,7 +91,14 @@ class CandidateIntakeService:
         return CandidateIntakeResponse(candidate_id=str(candidate.id))
 
     def _build_secure_snapshot(self, payload: CandidateIntakeRequest) -> dict[str, Any]:
-        return payload.model_dump(mode="json")
+        snapshot = payload.model_dump(
+            mode="json",
+            include={"personal", "contacts", "parents", "address", "social_status"},
+        )
+        address = snapshot.get("address")
+        if isinstance(address, dict) and not any(bool(value) for value in address.values()):
+            snapshot.pop("address", None)
+        return snapshot
 
     def _check_age_eligibility(self, date_of_birth: date) -> bool:
         today = datetime.now(timezone.utc).date()
@@ -114,28 +121,34 @@ class CandidateIntakeService:
         return score >= threshold
 
     def _compute_completeness(self, payload: CandidateIntakeRequest) -> float:
+        has_narrative_source = bool(
+            payload.content.essay_text
+            or payload.content.transcript_text
+            or payload.content.video_url
+        )
+        has_language_signal = bool(
+            payload.academic.language_exam_type and payload.academic.language_score is not None
+        )
         checks = [
             bool(payload.personal.last_name),
             bool(payload.personal.first_name),
             bool(payload.personal.date_of_birth),
             bool(payload.academic.selected_program),
-            bool(payload.content.essay_text),
             bool(payload.content.video_url),
-            bool(payload.content.project_descriptions),
-            bool(payload.content.experience_summary),
-            bool(payload.contacts.phone),
+            bool(payload.contacts.email),
+            has_narrative_source,
+            has_language_signal,
         ]
         return round(sum(checks) / len(checks), 2)
 
     def _build_data_flags(self, payload: CandidateIntakeRequest) -> list[str]:
         flags: list[str] = []
 
-        if not payload.content.essay_text:
+        has_transcript_substitute = bool(payload.content.transcript_text or payload.content.video_url)
+        if not payload.content.essay_text and not has_transcript_substitute:
             flags.append("missing_essay")
         if not payload.content.video_url:
             flags.append("missing_video")
-        if not payload.content.project_descriptions:
-            flags.append("missing_project_descriptions")
         if self._compute_completeness(payload) < 0.6:
             flags.append("low_profile_completeness")
 

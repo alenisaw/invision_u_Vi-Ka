@@ -3,6 +3,7 @@ import type {
   AuditFeedItem,
   CandidateDetail,
   CandidateListItem,
+  CandidatePoolListItem,
   DashboardStats,
   FixtureDetail,
   FixtureSummary,
@@ -69,6 +70,8 @@ export const reviewerApi = {
   getDashboardStats: () => api.get<DashboardStats>("/api/backend/dashboard/stats"),
   listDashboardCandidates: () =>
     api.get<CandidateListItem[]>("/api/backend/dashboard/candidates"),
+  listCandidatePool: () =>
+    api.get<CandidatePoolListItem[]>("/api/backend/dashboard/candidate-pool"),
   getCandidateDetail: (candidateId: string) =>
     api.get<CandidateDetail>(`/api/backend/dashboard/candidates/${candidateId}`),
   overrideCandidateDecision: (

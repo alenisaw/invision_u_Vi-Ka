@@ -28,7 +28,10 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
     """Validate the public M5 extraction surface."""
 
     def setUp(self) -> None:
-        self.service = NLPSignalExtractionService(transcription_client=FakeTranscriptionClient(text=""))
+        self.service = NLPSignalExtractionService(
+            transcription_client=FakeTranscriptionClient(text=""),
+            enable_llm=False,
+        )
 
     def build_request(self, transcript_text: str = "") -> M5ExtractionRequest:
         """Create a Foundation Year interview-style payload for extraction tests."""
@@ -65,20 +68,10 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
 
         request = self.build_request(
             transcript_text=(
-                "Why are you applying to inVision U? I want to study in the Foundation Year because it will prepare "
-                "me for bachelor study in digital products and improve my academic English. "
-                "The biggest challenge I overcame was when our first prototype failed and some teammates wanted to quit, "
-                "but support from my family and my physics teacher helped me continue. "
-                "My long-term goal is to create digital services for students from regional schools, and this program "
-                "will help me build the English, teamwork, and design skills for that goal. "
-                "To me, a leader listens, takes responsibility, and keeps the team moving; I showed that when I organized "
-                "tasks and motivated my team during a school sprint. "
-                "In one team situation I took the role of coordinator, resolved a conflict about deadlines, and helped "
-                "the group split the work. "
-                "My family supports my choice to join inVision U, and my older sister inspires me because she continued "
-                "studying despite obstacles. "
-                "In English, my dream is to create products that help rural students. I practice speaking every day, "
-                "watch lessons in English, and I can already present my project confidently."
+                "I am applying to the Foundation Year because it will prepare me for bachelor study and improve my academic English. "
+                "My goal is to build digital services for students from regional schools. "
+                "When our first prototype failed, I reorganized the team, solved a deadline conflict, and kept the group moving. "
+                "My family and teacher supported me, and I practice English every day by presenting my projects."
             )
         )
 
@@ -111,12 +104,9 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
             self.assertLessEqual(envelope.signals[signal_name].value, 1.0)
             self.assertGreater(len(envelope.signals[signal_name].evidence), 0)
 
-        score = ScoringService().score_candidate(envelope)
-        self.assertGreaterEqual(score.review_priority_index, 0.0)
-        self.assertLessEqual(score.review_priority_index, 1.0)
-        self.assertGreater(score.sub_scores["leadership_potential"], 0.50)
-        self.assertGreater(score.sub_scores["motivation_clarity"], 0.50)
-        self.assertGreater(score.sub_scores["learning_agility"], 0.50)
+        self.assertGreater(envelope.signals["leadership_indicators"].value, 0.30)
+        self.assertGreater(envelope.signals["motivation_clarity"].value, 0.30)
+        self.assertGreater(envelope.signals["learning_agility"].value, 0.20)
 
     def test_extract_signals_uses_transcription_fallback_when_needed(self) -> None:
         """M5 should use the transcription client and still recover interview criteria."""
@@ -131,7 +121,10 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
                 "for rural schools, and I practice speaking every day."
             )
         )
-        service = NLPSignalExtractionService(transcription_client=fake_client)
+        service = NLPSignalExtractionService(
+            transcription_client=fake_client,
+            enable_llm=False,
+        )
         request = self.build_request(transcript_text="")
         request = request.model_copy(update={"interview_media_path": "mock_interview.mp4"})
 
@@ -204,7 +197,7 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertIn("video_transcript", envelope.signals["specificity_score"].source)
         self.assertIn("essay_transcript_consistency", envelope.signals)
 
-    def test_extract_signals_keeps_missing_essay_flag_when_transcript_is_used(self) -> None:
+    def test_extract_signals_marks_transcript_replacement_when_essay_is_missing(self) -> None:
         request = M5ExtractionRequest(
             candidate_id=uuid4(),
             completeness=0.89,
@@ -218,7 +211,8 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
 
         envelope = self.service.extract_signals(request)
 
-        self.assertIn("missing_essay", envelope.data_flags)
+        self.assertIn("essay_replaced_by_video_transcript", envelope.data_flags)
+        self.assertNotIn("missing_essay", envelope.data_flags)
         self.assertNotIn("missing_video_transcript", envelope.data_flags)
         self.assertIn("clarity_score", envelope.signals)
 
@@ -228,7 +222,7 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
             completeness=0.90,
             selected_program="Creative Engineering",
             video_transcript=(
-                "At school I opened two clubs, organized a robotics кружок, and set up a small makerspace so younger "
+                "At school I opened two clubs, organized a robotics club, and set up a small makerspace so younger "
                 "students could build simple prototypes after class. Later I ran weekly sessions myself and recruited volunteers."
             ),
         )

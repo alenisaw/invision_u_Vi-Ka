@@ -22,7 +22,7 @@ class TestListFixtures:
         assert len(fixtures) >= 12, f"Expected at least 12 fixtures, got {len(fixtures)}"
 
     def test_each_fixture_has_required_meta_fields(self, svc: DemoFixtureService) -> None:
-        required_fields = {"slug", "display_name", "program", "language", "essay_preview"}
+        required_fields = {"slug", "display_name", "program", "language", "content_preview"}
         for f in svc.list_fixtures():
             meta_dict = f.meta.model_dump()
             missing = required_fields - set(meta_dict.keys())
@@ -34,7 +34,7 @@ class TestListFixtures:
             assert m.slug, "slug is empty"
             assert m.display_name, f"{m.slug}: display_name is empty"
             assert m.program, f"{m.slug}: program is empty"
-            assert m.essay_preview, f"{m.slug}: essay_preview is empty"
+            assert m.content_preview, f"{m.slug}: content_preview is empty"
 
     def test_no_expected_outcome_in_meta(self, svc: DemoFixtureService) -> None:
         for f in svc.list_fixtures():
@@ -78,9 +78,10 @@ class TestFixturePayloadParsing:
             assert payload.personal.date_of_birth is not None, f"{f.meta.slug}: missing date_of_birth"
             assert payload.academic.selected_program, f"{f.meta.slug}: missing selected_program"
 
-    def test_fixtures_with_essay_have_meaningful_content(self, svc: DemoFixtureService) -> None:
+    def test_fixtures_with_narrative_have_meaningful_content(self, svc: DemoFixtureService) -> None:
         for f in svc.list_fixtures():
             payload = svc.get_fixture_payload(f.meta.slug)
-            if payload.content.essay_text and payload.content.essay_text.strip():
-                words = len(payload.content.essay_text.split())
-                assert words >= 5, f"{f.meta.slug} essay too short: {words} words"
+            narrative = payload.content.transcript_text or payload.content.essay_text or ""
+            if narrative.strip():
+                words = len(narrative.split())
+                assert words >= 5, f"{f.meta.slug} narrative too short: {words} words"

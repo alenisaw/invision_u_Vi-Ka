@@ -148,7 +148,8 @@ class LocalEmbeddingClient:
         device: str | None = None,
         trust_remote_code: bool | None = None,
     ) -> None:
-        self.model = model or os.getenv("EMBEDDING_MODEL") or DEFAULT_EMBEDDING_MODEL
+        env_model = (os.getenv("EMBEDDING_MODEL") or "").strip()
+        self.model = (model if model is not None else env_model).strip()
         self.task = task or os.getenv("EMBEDDING_TASK") or DEFAULT_EMBEDDING_TASK
         self.device = (device or os.getenv("EMBEDDING_DEVICE") or DEFAULT_EMBEDDING_DEVICE).strip()
         self.trust_remote_code = (

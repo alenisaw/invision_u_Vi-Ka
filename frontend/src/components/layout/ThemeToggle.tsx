@@ -3,9 +3,11 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useLocale } from "@/components/providers/LocaleProvider";
 
 export default function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  const { t } = useLocale();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export default function ThemeToggle() {
     return (
       <button
         type="button"
-        aria-label="Переключить тему"
+        aria-label={t("theme.toggle")}
         className="w-10 h-10 rounded-full border flex items-center justify-center"
         style={buttonStyle}
       >
@@ -37,8 +39,8 @@ export default function ThemeToggle() {
   return (
     <button
       type="button"
-      aria-label="Переключить тему"
-      title={isDark ? "Светлая тема" : "Тёмная тема"}
+      aria-label={t("theme.toggle")}
+      title={isDark ? t("theme.light") : t("theme.dark")}
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className="w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-200 hover:-translate-y-[1px]"
       style={buttonStyle}

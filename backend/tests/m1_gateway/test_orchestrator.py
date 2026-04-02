@@ -11,6 +11,7 @@ from app.modules.m2_intake.schemas import (
     AcademicInfo,
     CandidateIntakeRequest,
     CandidateIntakeResponse,
+    ContactsInfo,
     ContentInfo,
     InternalTestAnswer,
     InternalTestInfo,
@@ -27,8 +28,12 @@ def _make_payload() -> CandidateIntakeRequest:
             last_name="User",
             date_of_birth=date(2005, 1, 1),
         ),
+        contacts=ContactsInfo(email="test.user@example.com"),
         academic=AcademicInfo(selected_program="CS"),
-        content=ContentInfo(essay_text="A test essay with enough words " * 5),
+        content=ContentInfo(
+            video_url="https://youtube.com/watch?v=payload123",
+            essay_text="A test essay with enough words " * 5,
+        ),
         internal_test=InternalTestInfo(
             answers=[InternalTestAnswer(question_id="q1", answer="answer")]
         ),
@@ -137,6 +142,7 @@ class TestPipelineIntegrations:
                 last_name="User",
                 date_of_birth=date(2005, 1, 1),
             ),
+            contacts=ContactsInfo(email="test.user@example.com"),
             academic=AcademicInfo(selected_program="CS"),
             content=ContentInfo(
                 essay_text="A test essay with enough words " * 5,

@@ -149,6 +149,11 @@ class PipelineOrchestrator:
     ) -> tuple[str | None, float | None, list[str]]:
         """Call M13 before privacy separation so transcript enters Layer 3 safely."""
 
+        transcript_override = (payload.content.transcript_text or "").strip()
+        if transcript_override:
+            flags = ["essay_replaced_by_video_transcript"] if not (payload.content.essay_text or "").strip() else []
+            return transcript_override, 1.0, flags
+
         video_reference = (payload.content.video_url or "").strip()
         if not video_reference:
             return None, None, []
@@ -165,7 +170,10 @@ class PipelineOrchestrator:
                 selected_program=payload.academic.selected_program,
             )
             result = asr_service.transcribe(request)
-            return result.transcript, result.mean_confidence, result.flags
+            flags = list(result.flags)
+            if result.transcript and not (payload.content.essay_text or "").strip():
+                flags.append("essay_replaced_by_video_transcript")
+            return result.transcript, result.mean_confidence, list(dict.fromkeys(flags))
         except (ImportError, AttributeError, NotImplementedError, ValueError, RuntimeError, FileNotFoundError) as exc:
             logger.warning(
                 "M13 ASR failed for candidate %s, forcing human review: %s",

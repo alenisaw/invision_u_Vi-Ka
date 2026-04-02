@@ -1,37 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import {
   formatDate,
   formatPercent,
   localizeLabels,
-} from "@/lib/utils";
+  localizeProgramName,
+} from "@/lib/i18n";
 import type { RecommendationStatus } from "@/types";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 
 export interface CandidatePoolTableItem {
   id: string;
-  kind: "processed" | "fixture";
+  kind: "processed" | "raw";
   name: string;
   selectedProgram: string;
   sourceLabel: string;
   sourceTone: "lime" | "blue" | "neutral";
   statusLabel: string;
-  recommendationStatus?: RecommendationStatus;
+  recommendationStatus?: RecommendationStatus | null;
   reviewPriorityIndex?: number | null;
   confidence?: number | null;
   tags: string[];
   createdAt?: string | null;
   actionLabel: string;
   href?: string;
-  runSlug?: string;
 }
 
 interface CandidatePoolTableProps {
   items: CandidatePoolTableItem[];
   highlightedId?: string | null;
-  runningSlug?: string | null;
-  onRunFixture: (slug: string) => void;
 }
 
 const SOURCE_TONE_CLASS: Record<CandidatePoolTableItem["sourceTone"], string> = {
@@ -43,14 +42,14 @@ const SOURCE_TONE_CLASS: Record<CandidatePoolTableItem["sourceTone"], string> = 
 export default function CandidatePoolTable({
   items,
   highlightedId,
-  runningSlug,
-  onRunFixture,
 }: CandidatePoolTableProps) {
+  const { locale, t } = useLocale();
+
   if (items.length === 0) {
     return (
       <div className="card p-12 text-center">
         <p className="text-[1rem] font-[600] text-muted">
-          Ничего не найдено по текущим фильтрам
+          {t("candidates.noResults")}
         </p>
       </div>
     );
@@ -62,21 +61,20 @@ export default function CandidatePoolTable({
         <table className="w-full min-w-[940px]">
           <thead>
             <tr className="text-left" style={{ borderBottom: "1px solid var(--brand-line)" }}>
-              <th className="eyebrow px-5 py-4">Кандидат</th>
-              <th className="eyebrow px-5 py-4">Программа</th>
-              <th className="eyebrow px-5 py-4">Источник</th>
-              <th className="eyebrow px-5 py-4">Статус</th>
-              <th className="eyebrow px-5 py-4">Метрики</th>
-              <th className="eyebrow px-5 py-4">Метки</th>
-              <th className="eyebrow px-5 py-4 w-[140px]">Дата</th>
-              <th className="eyebrow px-5 py-4">Действие</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.candidate")}</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.program")}</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.source")}</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.status")}</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.metrics")}</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.tags")}</th>
+              <th className="eyebrow px-5 py-4 w-[140px]">{t("candidates.table.date")}</th>
+              <th className="eyebrow px-5 py-4">{t("candidates.table.action")}</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item) => {
               const isHighlighted = highlightedId === item.id;
-              const localizedTags = localizeLabels(item.tags.slice(0, 3));
-              const isRunning = Boolean(item.runSlug && runningSlug === item.runSlug);
+              const localizedTags = localizeLabels(item.tags.slice(0, 3), locale);
 
               return (
                 <tr
@@ -90,13 +88,13 @@ export default function CandidatePoolTable({
                         {item.name}
                       </span>
                       <span className="text-[0.78rem] font-[700] text-muted uppercase tracking-[0.08em]">
-                        {item.kind === "processed" ? "обработан" : "готов к запуску"}
+                        {item.kind === "processed" ? t("candidates.status.processed") : t("candidates.status.raw")}
                       </span>
                     </div>
                   </td>
                   <td className="px-5 py-[1rem]">
                     <span className="text-[0.84rem] text-muted-strong">
-                      {item.selectedProgram}
+                      {localizeProgramName(item.selectedProgram, locale)}
                     </span>
                   </td>
                   <td className="px-5 py-[1rem]">
@@ -116,12 +114,12 @@ export default function CandidatePoolTable({
                       <span className="text-[0.82rem] font-[700] text-muted">
                         {item.reviewPriorityIndex != null
                           ? `RPI ${formatPercent(item.reviewPriorityIndex)}`
-                          : "RPI появится после обработки"}
+                          : t("candidates.metrics.pending")}
                       </span>
                       <span className="text-[0.82rem] font-[700] text-muted">
                         {item.confidence != null
-                          ? `Уверенность ${formatPercent(item.confidence)}`
-                          : "Без расчета уверенности"}
+                          ? `${t("common.confidence")} ${formatPercent(item.confidence)}`
+                          : t("candidates.metrics.noConfidence")}
                       </span>
                     </div>
                   </td>
@@ -137,13 +135,13 @@ export default function CandidatePoolTable({
                           </span>
                         ))
                       ) : (
-                        <span className="text-[0.8rem] text-muted">—</span>
+                        <span className="text-[0.8rem] text-muted">{t("common.none")}</span>
                       )}
                     </div>
                   </td>
                   <td className="px-5 py-[1rem] whitespace-nowrap">
                     <span className="text-[0.82rem] text-muted font-numbers">
-                      {item.createdAt ? formatDate(item.createdAt) : "—"}
+                      {item.createdAt ? formatDate(item.createdAt, locale) : t("common.unknownDate")}
                     </span>
                   </td>
                   <td className="px-5 py-[1rem]">
@@ -152,13 +150,9 @@ export default function CandidatePoolTable({
                         {item.actionLabel}
                       </Link>
                     ) : (
-                      <button
-                        onClick={() => item.runSlug && onRunFixture(item.runSlug)}
-                        disabled={!item.runSlug || isRunning}
-                        className="btn btn--sm btn--dark w-full justify-start text-left disabled:opacity-50 disabled:cursor-wait"
-                      >
-                        {isRunning ? "В обработке..." : item.actionLabel}
-                      </button>
+                      <div className="btn btn--ghost btn--sm w-full justify-start text-left cursor-default opacity-70">
+                        {item.actionLabel}
+                      </div>
                     )}
                   </td>
                 </tr>

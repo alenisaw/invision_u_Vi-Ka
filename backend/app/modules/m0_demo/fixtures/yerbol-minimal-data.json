@@ -1,44 +1,46 @@
-{
-  "_meta": {
-    "slug": "yerbol-minimal-data",
-    "display_name": "Ербол Кайратулы",
-    "program": "Креативная инженерия",
-    "language": "kk"
-  },
-  "personal": {
-    "first_name": "Ербол",
-    "last_name": "Кайратулы",
-    "date_of_birth": "2008-03-25",
-    "gender": "male",
-    "citizenship": "KZ"
-  },
-  "contacts": {
-    "phone": "+77012345999"
-  },
-  "parents": {},
-  "address": {
-    "country": "Казахстан",
-    "region": "Туркестанская область",
-    "city": "Туркестан"
-  },
-  "academic": {
-    "selected_program": "Креативная инженерия"
-  },
-  "content": {
-    "essay_text": "Мен инженер болғым келеді. Мектепте физика мен математика пәндерін жақсы білемін. Болашақта зауытта жұмыс істегім келеді.",
-    "video_url": "",
-    "project_descriptions": [],
-    "experience_summary": ""
-  },
-  "social_status": {
-    "has_social_benefit": false
-  },
-  "internal_test": {
-    "answers": [
-      {
-        "question_id": "q1",
-        "answer": "Адал болу керек."
-      }
-    ]
-  }
+﻿{
+    "_meta":  {
+                  "slug":  "yerbol-minimal-data",
+                  "display_name":  "Ербол Кайратулы",
+                  "program":  "Креативная инженерия",
+                  "language":  "kk"
+              },
+    "personal":  {
+                     "first_name":  "Ербол",
+                     "last_name":  "Кайратулы",
+                     "date_of_birth":  "2008-03-25",
+                     "gender":  "male",
+                     "citizenship":  "KZ"
+                 },
+    "contacts":  {
+                     "phone":  "+77012345999",
+                     "email":  "yerbol-minimal-data@demo.invisionu.local"
+                 },
+    "parents":  {
+
+                },
+    "address":  {
+                    "country":  "Казахстан",
+                    "region":  "Туркестанская область",
+                    "city":  "Туркестан"
+                },
+    "academic":  {
+                     "selected_program":  "Креативная инженерия"
+                 },
+    "content":  {
+                    "video_url":  "",
+                    "transcript_text":  "Мен инженер болғым келеді. Мектепте физика мен математика пәндерін жақсы білемін. Болашақта зауытта жұмыс істегім келеді."
+                },
+    "social_status":  {
+                          "has_social_benefit":  false
+                      },
+    "internal_test":  {
+                          "answers":  [
+                                          {
+                                              "question_id":  "q1",
+                                              "answer":  "Адал болу керек."
+                                          }
+                                      ]
+                      }
 }
+

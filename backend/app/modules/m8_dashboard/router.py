@@ -37,6 +37,15 @@ async def list_dashboard_candidates(
     return success_response([candidate.model_dump(mode="json") for candidate in candidates])
 
 
+@router.get("/candidate-pool")
+async def list_dashboard_candidate_pool(
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    service = DashboardService(db)
+    candidates = await service.list_candidate_pool()
+    return success_response([candidate.model_dump(mode="json") for candidate in candidates])
+
+
 @router.get("/candidates/{candidate_id}")
 async def get_dashboard_candidate_detail(
     candidate_id: UUID,

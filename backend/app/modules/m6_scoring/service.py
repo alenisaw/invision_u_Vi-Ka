@@ -383,6 +383,7 @@ class ScoringService:
             "low_completeness": "critical",
             "no_structured_signals": "critical",
             "requires_human_review": "critical",
+            "essay_replaced_by_video_transcript": "advisory",
             "missing_essay": "warning",
             "missing_video": "warning",
             "missing_video_transcript": "warning",
@@ -401,6 +402,7 @@ class ScoringService:
             "low_completeness": "Данных по кандидату недостаточно, поэтому текущую оценку нужно считать предварительной, а не автоматически слабой.",
             "no_structured_signals": "Пайплайн не смог собрать достаточно структурированных сигналов для надежной автоматической интерпретации.",
             "requires_human_review": "Один или несколько жестких quality/policy-check уже требуют ручной проверки комиссией.",
+            "essay_replaced_by_video_transcript": "Текстовое эссе не приложено, поэтому нарратив кандидата собран из транскрипции видео.",
             "missing_essay": "Текстового эссе нет, поэтому часть оценки строится без письменного источника кандидата.",
             "missing_video": "Видеоинтервью не предоставлено, поэтому голосовые и поведенческие сигналы ограничены.",
             "missing_video_transcript": "Транскрипция видео отсутствует, поэтому письменный анализ не может опираться на устную речь кандидата.",
@@ -460,4 +462,3 @@ class ScoringService:
         if completeness < 0.50:
             top_risks.append("low_completeness")
         return list(dict.fromkeys(top_risks))[:3]
-

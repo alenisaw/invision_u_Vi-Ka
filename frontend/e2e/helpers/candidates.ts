@@ -23,6 +23,7 @@ export function buildCandidatePayload(prefix: string): TestCandidateFixture {
         date_of_birth: "2007-06-15",
       },
       contacts: {
+        email: `${uniqueKey}@example.com`,
         phone: "+77010000000",
         telegram: "@e2e_candidate",
       },
@@ -32,13 +33,9 @@ export function buildCandidatePayload(prefix: string): TestCandidateFixture {
         language_score: 6.5,
       },
       content: {
+        video_url: `https://example.com/interview/${uniqueKey}`,
         essay_text:
           "I led a student design club, organized project teams, learned from setbacks, and want to build digital products that improve access to education.",
-        project_descriptions: [
-          "Built a mentoring tracker for new students and coordinated a three-person product team.",
-        ],
-        experience_summary:
-          "Led school initiatives, coordinated volunteers, and documented project outcomes.",
       },
       internal_test: { answers: [] },
     },

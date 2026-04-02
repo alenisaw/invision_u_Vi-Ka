@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core.url_safety import validate_public_video_url
 
 
 class ParentContact(BaseModel):
@@ -32,10 +34,19 @@ class PersonalInfo(BaseModel):
 class ContactsInfo(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    email: str
     phone: str | None = None
     instagram: str | None = None
     telegram: str | None = None
     whatsapp: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not normalized or "@" not in normalized or "." not in normalized.rsplit("@", 1)[-1]:
+            raise ValueError("contacts.email must be a valid email address")
+        return normalized
 
 
 class ParentsInfo(BaseModel):
@@ -67,10 +78,25 @@ class AcademicInfo(BaseModel):
 class ContentInfo(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    video_url: str | None = None
+    video_url: str
     essay_text: str | None = None
-    project_descriptions: list[str] = Field(default_factory=list)
-    experience_summary: str | None = None
+    transcript_text: str | None = None
+
+    @field_validator("video_url")
+    @classmethod
+    def validate_video_url(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("content.video_url is required")
+        return validate_public_video_url(normalized)
+
+    @field_validator("essay_text", "transcript_text")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
 
 class SocialStatusInfo(BaseModel):
@@ -97,7 +123,7 @@ class CandidateIntakeRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     personal: PersonalInfo
-    contacts: ContactsInfo = Field(default_factory=ContactsInfo)
+    contacts: ContactsInfo
     parents: ParentsInfo = Field(default_factory=ParentsInfo)
     address: AddressInfo = Field(default_factory=AddressInfo)
     academic: AcademicInfo

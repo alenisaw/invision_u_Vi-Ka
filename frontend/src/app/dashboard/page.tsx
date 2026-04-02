@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/Sidebar";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import FilterPanel from "@/components/dashboard/FilterPanel";
 import RankingTable from "@/components/dashboard/RankingTable";
 import StatusBadge from "@/components/dashboard/StatusBadge";
@@ -13,19 +14,13 @@ import {
   formatDate,
   formatPercent,
   localizeLabels,
-  STATUS_LABELS,
-} from "@/lib/utils";
+  getStatusLabel,
+} from "@/lib/i18n";
 import type { CandidateListItem, DashboardStats, RecommendationStatus } from "@/types";
-
-const SORT_OPTIONS = [
-  { value: "rpi_desc", label: "Балл: по убыванию" },
-  { value: "rpi_asc", label: "Балл: по возрастанию" },
-  { value: "date_desc", label: "Сначала новые" },
-  { value: "confidence_desc", label: "По уверенности" },
-] as const;
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { locale, t } = useLocale();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +31,13 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const sortOptions = [
+    { value: "rpi_desc", label: t("dashboard.sort.rpi_desc") },
+    { value: "rpi_asc", label: t("dashboard.sort.rpi_asc") },
+    { value: "date_desc", label: t("dashboard.sort.date_desc") },
+    { value: "confidence_desc", label: t("dashboard.sort.confidence_desc") },
+  ] as const;
 
   useEffect(() => {
     void loadDashboard();
@@ -53,7 +55,7 @@ export default function DashboardPage() {
       setStats(nextStats);
       setCandidates(nextCandidates);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки");
+      setError(err instanceof Error ? err.message : t("dashboard.loadError"));
     } finally {
       setLoading(false);
     }
@@ -112,15 +114,15 @@ export default function DashboardPage() {
         <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24">
           <div className="w-full">
             <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
-              Рейтинг кандидатов
+              {t("dashboard.title")}
             </h1>
             <p className="text-[1rem] mb-10 text-muted">
-              Аналитика по обработанным кандидатам inVision U
+              {t("dashboard.description")}
             </p>
 
             {loading && (
               <div className="card p-12 text-center">
-                <p className="text-[1rem] font-[600] text-muted">Загружаю рейтинг...</p>
+                <p className="text-[1rem] font-[600] text-muted">{t("dashboard.loading")}</p>
               </div>
             )}
 
@@ -142,7 +144,7 @@ export default function DashboardPage() {
                         className="rounded-[1.2rem] px-6 py-6 text-center flex flex-col justify-center min-h-[120px] bg-[var(--surface-subtle)]"
                       >
                         <div className="text-[0.75rem] font-[700] uppercase tracking-[0.12em] mb-2 text-muted">
-                          {STATUS_LABELS[status]}
+                          {getStatusLabel(status, locale)}
                         </div>
                         <div className="text-[1.6rem] font-[800] font-numbers">{count}</div>
                       </div>
@@ -150,7 +152,7 @@ export default function DashboardPage() {
                   )}
                   <div className="rounded-[1.2rem] px-6 py-6 text-center flex flex-col justify-center min-h-[120px] bg-[var(--surface-subtle)]">
                     <div className="text-[0.75rem] font-[700] uppercase tracking-[0.12em] mb-2 text-muted">
-                      Ср. уверенность
+                      {t("dashboard.avgConfidence")}
                     </div>
                     <div className="text-[1.6rem] font-[800] font-numbers">
                       {formatPercent(stats.avg_confidence)}
@@ -165,7 +167,7 @@ export default function DashboardPage() {
                     onChange={(event) => setSort(event.target.value)}
                     className="chip py-3 px-6 pr-12 font-[700] w-full lg:w-[350px]"
                   >
-                    {SORT_OPTIONS.map((option) => (
+                    {sortOptions.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -176,7 +178,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col sm:flex-row gap-4 mb-8">
                   <input
                     type="text"
-                    placeholder="Поиск кандидатов..."
+                    placeholder={t("dashboard.searchPlaceholder")}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     className="flex-1 px-6 py-4 text-[1rem] font-[600] rounded-[1rem]"
@@ -190,7 +192,7 @@ export default function DashboardPage() {
                           : "text-muted"
                       }`}
                     >
-                      Таблица
+                      {t("common.table")}
                     </button>
                     <button
                       onClick={() => setViewMode("grid")}
@@ -200,7 +202,7 @@ export default function DashboardPage() {
                           : "text-muted"
                       }`}
                     >
-                      Карточки
+                      {t("dashboard.cards")}
                     </button>
                   </div>
                 </div>
@@ -229,7 +231,7 @@ export default function DashboardPage() {
       {selected.size >= 2 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-8 px-6 py-5 bg-[#111213] border-t border-[var(--brand-line)] backdrop-blur-xl">
           <span className="text-[1rem] font-[800] text-[var(--brand-ink)]">
-            ВЫБРАНО {selected.size} / 3
+            {t("dashboard.selectedCount", { count: selected.size })}
           </span>
           <button
             onClick={() => {
@@ -239,13 +241,13 @@ export default function DashboardPage() {
             className="btn py-3 px-10 text-[0.95rem] font-[800]"
             style={{ background: "var(--brand-blue)", color: "var(--brand-ink)" }}
           >
-            Сравнить
+            {t("dashboard.compare")}
           </button>
           <button
             onClick={() => setSelected(new Set())}
             className="text-[0.9rem] font-[700] text-[var(--brand-ink)] opacity-60 hover:opacity-100 transition-opacity"
           >
-            Сбросить
+            {t("dashboard.reset")}
           </button>
         </div>
       )}
@@ -262,6 +264,8 @@ function CandidateGrid({
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
 }) {
+  const { locale, t } = useLocale();
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
       {candidates.map((candidate) => (
@@ -297,12 +301,12 @@ function CandidateGrid({
           </p>
 
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <MetricCard label="Балл RPI" value={formatPercent(candidate.review_priority_index)} />
-            <MetricCard label="Уверенность" value={formatPercent(candidate.confidence)} />
+            <MetricCard label={t("dashboard.rpiScore")} value={formatPercent(candidate.review_priority_index)} />
+            <MetricCard label={t("common.confidence")} value={formatPercent(candidate.confidence)} />
           </div>
 
           <div className="flex flex-wrap gap-2 mb-6 min-h-[2.5rem]">
-            {localizeLabels(candidate.top_strengths.slice(0, 3)).map((strength) => (
+            {localizeLabels(candidate.top_strengths.slice(0, 3), locale).map((strength) => (
               <span key={`${candidate.candidate_id}-${strength}`} className="badge badge--neutral">
                 {strength}
               </span>
@@ -312,7 +316,7 @@ function CandidateGrid({
           <div className="mt-auto pt-5 flex items-center justify-between border-t border-[var(--brand-line)]">
             <StatusBadge status={candidate.recommendation_status} />
             <span className="text-[0.8rem] font-[700] text-muted font-numbers">
-              {formatDate(candidate.created_at)}
+              {formatDate(candidate.created_at, locale)}
             </span>
           </div>
         </div>

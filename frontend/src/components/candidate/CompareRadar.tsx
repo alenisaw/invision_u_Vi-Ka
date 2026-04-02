@@ -10,10 +10,10 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import type { SubScores } from "@/types";
-import { SUB_SCORE_LABELS } from "@/lib/utils";
+import { localizeLabel } from "@/lib/i18n";
 
-// Используем системные цвета вместо жестко заданных HEX
 const COLORS = [
   "var(--brand-lime)",
   "var(--brand-blue)",
@@ -30,13 +30,14 @@ interface CompareRadarProps {
 }
 
 export default function CompareRadar({ candidates }: CompareRadarProps) {
+  const { locale, t } = useLocale();
   if (candidates.length === 0) return null;
 
   const dimensions = Object.keys(candidates[0].subScores);
 
   const data = dimensions.map((key) => {
     const row: Record<string, string | number> = {
-      dimension: SUB_SCORE_LABELS[key] ?? key,
+      dimension: localizeLabel(key, locale),
     };
     candidates.forEach((c, i) => {
       row[`candidate_${i}`] = Math.round((c.subScores[key] ?? 0) * 100);
@@ -46,7 +47,7 @@ export default function CompareRadar({ candidates }: CompareRadarProps) {
 
   return (
     <div className="card p-6">
-      <div className="eyebrow mb-4">Сравнение профилей</div>
+      <div className="eyebrow mb-4">{t("radar.compareProfiles")}</div>
       <ResponsiveContainer width="100%" height={380}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="68%">
           <PolarGrid stroke="var(--brand-line)" />
@@ -64,7 +65,6 @@ export default function CompareRadar({ candidates }: CompareRadarProps) {
               key={c.name}
               name={c.name}
               dataKey={`candidate_${i}`}
-              // Берем цвета по кругу, если кандидатов больше 3
               stroke={COLORS[i % COLORS.length]}
               fill={COLORS[i % COLORS.length]}
               fillOpacity={0.15}
@@ -80,7 +80,7 @@ export default function CompareRadar({ candidates }: CompareRadarProps) {
               fontSize: "0.82rem",
               fontWeight: 700,
             }}
-            formatter={(value: number) => [`${value}%`, "Балл"]}
+            formatter={(value: number) => [`${value}%`, t("radar.tooltipScore")]}
           />
           <Legend
             wrapperStyle={{ 
