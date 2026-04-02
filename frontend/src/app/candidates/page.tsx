@@ -350,39 +350,37 @@ function CandidatesPageInner() {
                   return (
                     <div
                       key={item.id}
-                      className="card p-6 flex flex-col transition-all duration-300"
+                      className="card p-6 flex flex-col h-full transition-all duration-300"
                       style={{
                         outline: isHighlighted ? "3px solid var(--brand-blue)" : "none",
                         outlineOffset: "-3px",
                       }}
                     >
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span
-                              className={`badge ${
-                                item.sourceTone === "lime"
-                                  ? "badge--lime"
-                                  : item.sourceTone === "blue"
-                                    ? "badge--blue"
-                                    : "badge--neutral"
-                              }`}
-                            >
-                              {item.sourceLabel}
-                            </span>
-                            {item.recommendationStatus ? (
-                              <StatusBadge status={item.recommendationStatus} />
-                            ) : (
-                              <span className="badge badge--neutral">{item.statusLabel}</span>
-                            )}
-                          </div>
-                          <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight">
-                            {item.name}
-                          </h3>
+                      <div className="mb-4 min-h-[5.5rem]">
+                        <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight mb-3 min-h-[2.75rem]">
+                          {item.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`badge ${
+                              item.sourceTone === "lime"
+                                ? "badge--lime"
+                                : item.sourceTone === "blue"
+                                  ? "badge--blue"
+                                  : "badge--neutral"
+                            }`}
+                          >
+                            {item.sourceLabel}
+                          </span>
+                          {item.recommendationStatus ? (
+                            <StatusBadge status={item.recommendationStatus} />
+                          ) : (
+                            <span className="badge badge--neutral">{item.statusLabel}</span>
+                          )}
                         </div>
                       </div>
 
-                      <p className="text-[0.9rem] text-muted line-clamp-2 mb-5 h-[2.8rem] leading-relaxed">
+                      <p className="text-[0.9rem] text-muted line-clamp-2 mb-5 min-h-[2.8rem] leading-relaxed">
                         {item.selectedProgram}
                       </p>
 
@@ -401,7 +399,7 @@ function CandidatesPageInner() {
                         />
                       </div>
 
-                      <div className="flex flex-wrap gap-2 mb-6 min-h-[2.5rem]">
+                      <div className="flex flex-wrap content-start gap-2 mb-6 min-h-[3.25rem]">
                         {localizedTags.length > 0 ? (
                           localizedTags.map((tag) => (
                             <span key={`${item.id}-${tag}`} className="badge badge--neutral">

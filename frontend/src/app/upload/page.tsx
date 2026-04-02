@@ -315,7 +315,7 @@ export default function UploadPage() {
                     />
                     {form.language_exam_type && (
                       <FormInput
-                        label="Бал"
+                        label="Балл"
                         type="number"
                         value={form.language_score}
                         onChange={(value) => updateField("language_score", value)}

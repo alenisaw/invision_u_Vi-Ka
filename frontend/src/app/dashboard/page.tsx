@@ -18,8 +18,8 @@ import {
 import type { CandidateListItem, DashboardStats, RecommendationStatus } from "@/types";
 
 const SORT_OPTIONS = [
-  { value: "rpi_desc", label: "Бал: по убыванию" },
-  { value: "rpi_asc", label: "Бал: по возрастанию" },
+  { value: "rpi_desc", label: "Балл: по убыванию" },
+  { value: "rpi_asc", label: "Балл: по возрастанию" },
   { value: "date_desc", label: "Сначала новые" },
   { value: "confidence_desc", label: "По уверенности" },
 ] as const;
@@ -297,7 +297,7 @@ function CandidateGrid({
           </p>
 
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <MetricCard label="Бал RPI" value={formatPercent(candidate.review_priority_index)} />
+            <MetricCard label="Балл RPI" value={formatPercent(candidate.review_priority_index)} />
             <MetricCard label="Уверенность" value={formatPercent(candidate.confidence)} />
           </div>
 

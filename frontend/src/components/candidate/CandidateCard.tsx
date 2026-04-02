@@ -24,7 +24,7 @@ export default function CandidateCard({ score }: CandidateCardProps) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <MetricCard label="Бал RPI" value={formatPercent(score.review_priority_index)} accent />
+        <MetricCard label="Балл RPI" value={formatPercent(score.review_priority_index)} accent />
         <MetricCard label="Уверенность" value={formatPercent(score.confidence)} />
         <MetricCard label="Диапазон" value={score.confidence_band} />
         <MetricCard label="Ранг" value={score.ranking_position ? `#${score.ranking_position}` : "—"} />

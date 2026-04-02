@@ -29,7 +29,8 @@ class ExplainabilityServiceTests(unittest.TestCase):
         self.assertGreaterEqual(len(report.positive_factors), 1)
         self.assertIsInstance(report.reviewer_guidance, str)
         self.assertTrue(any(block.evidence for block in report.positive_factors))
-        self.assertTrue(any("evidence" in block.summary.lower() for block in report.positive_factors))
+        self.assertTrue(any("подтверж" in block.summary.lower() for block in report.positive_factors))
+        self.assertIn("кандидат", report.summary.lower())
 
     def test_low_quality_case_surfaces_guidance(self) -> None:
         scoring = ScoringService()
@@ -42,6 +43,7 @@ class ExplainabilityServiceTests(unittest.TestCase):
         self.assertTrue(report.caution_blocks or report.data_quality_notes)
         self.assertTrue(report.reviewer_guidance)
         self.assertTrue(any(block.severity in {"warning", "critical"} for block in report.caution_blocks))
+        self.assertTrue(any(ord(char) > 127 for char in report.reviewer_guidance))
 
     def test_generate_uses_passed_score_contract(self) -> None:
         scoring = ScoringService()
@@ -94,5 +96,4 @@ class ExplainabilityServiceGenerateTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 

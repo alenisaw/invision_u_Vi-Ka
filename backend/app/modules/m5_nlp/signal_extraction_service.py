@@ -403,6 +403,10 @@ class GroupedNLPSignalExtractionService:
         merged_signals: dict[str, SignalPayload],
         data_flags: list[str],
     ) -> list[str]:
+        if not (request.essay_text or "").strip():
+            data_flags.append("missing_essay")
+        if not (transcript_text or "").strip():
+            data_flags.append("missing_video_transcript")
         if not self._has_minimum_signal_coverage(merged_signals):
             data_flags.append("requires_human_review")
         if self._is_foundation_year_request(request):

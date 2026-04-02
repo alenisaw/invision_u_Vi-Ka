@@ -180,6 +180,7 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertIn("motivation_clarity", envelope.signals)
         self.assertIn("clarity_score", envelope.signals)
         self.assertEqual(envelope.signals["clarity_score"].source, ["essay"])
+        self.assertIn("missing_video_transcript", envelope.data_flags)
 
     def test_extract_signals_combines_essay_and_video_transcript_when_both_exist(self) -> None:
         request = M5ExtractionRequest(
@@ -202,6 +203,24 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         self.assertIn("essay", envelope.signals["specificity_score"].source)
         self.assertIn("video_transcript", envelope.signals["specificity_score"].source)
         self.assertIn("essay_transcript_consistency", envelope.signals)
+
+    def test_extract_signals_keeps_missing_essay_flag_when_transcript_is_used(self) -> None:
+        request = M5ExtractionRequest(
+            candidate_id=uuid4(),
+            completeness=0.89,
+            selected_program="Creative Engineering",
+            essay_text="",
+            video_transcript=(
+                "I explained how I rebuilt a broken prototype, learned from the failure, "
+                "and kept iterating until the team could demo the final version."
+            ),
+        )
+
+        envelope = self.service.extract_signals(request)
+
+        self.assertIn("missing_essay", envelope.data_flags)
+        self.assertNotIn("missing_video_transcript", envelope.data_flags)
+        self.assertIn("clarity_score", envelope.signals)
 
     def test_extract_signals_recovers_initiative_from_video_transcript(self) -> None:
         request = M5ExtractionRequest(

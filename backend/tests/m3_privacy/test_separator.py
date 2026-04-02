@@ -189,6 +189,26 @@ class TestSeparate:
         assert result.layer3.asr_confidence == 0.92
         assert result.layer3.asr_flags == ["low_volume"]
 
+    def test_layer3_masks_profanity_before_model_input(self) -> None:
+        payload = _make_payload(
+            content=ContentInfo(
+                essay_text="Это был пиздец, но я не сдался и закончил проект.",
+                project_descriptions=["Сделал охуенный прототип для клуба."],
+            ),
+        )
+        result = separate(
+            payload,
+            age_eligible=True,
+            language_threshold_met=True,
+            data_completeness=0.7,
+            data_flags=[],
+            video_transcript="Бля, было трудно, но я доделал задачу.",
+        )
+
+        assert "[нецензурно]" in (result.layer3.essay_text or "")
+        assert "[нецензурно]" in result.layer3.project_descriptions[0]
+        assert "[нецензурно]" in (result.layer3.video_transcript or "")
+
     def test_none_fields_stay_none(self) -> None:
         payload = _make_payload(
             content=ContentInfo(),

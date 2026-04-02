@@ -383,6 +383,13 @@ class ScoringService:
             "low_completeness": "critical",
             "no_structured_signals": "critical",
             "requires_human_review": "critical",
+            "missing_essay": "warning",
+            "missing_video": "warning",
+            "missing_video_transcript": "warning",
+            "missing_project_descriptions": "advisory",
+            "low_profile_completeness": "warning",
+            "asr_processing_failed": "warning",
+            "low_asr_confidence": "warning",
             "possible_ai_use": "warning",
             "authenticity_or_ai_risk": "warning",
             "low_cross_source_consistency": "warning",
@@ -391,15 +398,22 @@ class ScoringService:
             "generic_evidence": "advisory",
         }
         reason_map = {
-            "low_completeness": "The available material is incomplete, so the score should be treated as provisional rather than low-potential by default.",
-            "no_structured_signals": "The pipeline could not recover enough structured evidence to support a reliable automated reading.",
-            "requires_human_review": "One or more hard quality or policy checks already require reviewer intervention.",
-            "possible_ai_use": "The available narrative shows possible AI-assisted or otherwise low-authenticity patterns, so it should be checked manually.",
-            "authenticity_or_ai_risk": "The available narrative shows possible AI-assisted or otherwise low-authenticity patterns, so it should be checked manually.",
-            "low_cross_source_consistency": "Core claims do not align strongly across essay, transcript, and supporting descriptions.",
-            "weak_claim_support": "Some important claims are not backed by concrete examples or project evidence.",
-            "voice_inconsistency": "Written and spoken narratives do not align strongly enough to trust them without review.",
-            "generic_evidence": "The available narrative relies on broad statements more than concrete examples.",
+            "low_completeness": "Данных по кандидату недостаточно, поэтому текущую оценку нужно считать предварительной, а не автоматически слабой.",
+            "no_structured_signals": "Пайплайн не смог собрать достаточно структурированных сигналов для надежной автоматической интерпретации.",
+            "requires_human_review": "Один или несколько жестких quality/policy-check уже требуют ручной проверки комиссией.",
+            "missing_essay": "Текстового эссе нет, поэтому часть оценки строится без письменного источника кандидата.",
+            "missing_video": "Видеоинтервью не предоставлено, поэтому голосовые и поведенческие сигналы ограничены.",
+            "missing_video_transcript": "Транскрипция видео отсутствует, поэтому письменный анализ не может опираться на устную речь кандидата.",
+            "missing_project_descriptions": "Нет описаний проектов, поэтому практические примеры и подтверждение достижений ограничены.",
+            "low_profile_completeness": "Профиль заполнен неполно, поэтому часть выводов строится на ограниченном наборе данных.",
+            "asr_processing_failed": "ASR не смог корректно обработать видео, поэтому устный источник временно исключен из анализа.",
+            "low_asr_confidence": "Уверенность ASR низкая, поэтому транскрипцию нужно трактовать осторожно.",
+            "possible_ai_use": "В нарративе есть признаки возможного использования ИИ или другой низкой аутентичности, поэтому кейс стоит проверить вручную.",
+            "authenticity_or_ai_risk": "В нарративе есть признаки возможного использования ИИ или другой низкой аутентичности, поэтому кейс стоит проверить вручную.",
+            "low_cross_source_consistency": "Ключевые утверждения слабо совпадают между эссе, транскрипцией и сопроводительными описаниями.",
+            "weak_claim_support": "Часть значимых заявлений не подтверждена конкретными примерами, проектами или измеримыми результатами.",
+            "voice_inconsistency": "Письменная и устная версии истории кандидата различаются сильнее допустимого для уверенного решения без проверки.",
+            "generic_evidence": "В распоряжении системы в основном общие формулировки, а не конкретные факты и примеры.",
         }
         return [
             ExplainabilityCautionFlag(
@@ -446,5 +460,4 @@ class ScoringService:
         if completeness < 0.50:
             top_risks.append("low_completeness")
         return list(dict.fromkeys(top_risks))[:3]
-
 

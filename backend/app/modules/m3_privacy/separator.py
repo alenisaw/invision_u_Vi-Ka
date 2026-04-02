@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.core.text_sanitizer import mask_profanity, mask_profanity_list
 from app.modules.m2_intake.schemas import CandidateIntakeRequest
 from app.modules.m3_privacy.redactor import collect_known_names, redact_text, redact_texts
 
@@ -105,12 +106,12 @@ def separate(
     )
 
     # Layer 3: redacted model input
-    clean_essay = _clean_text(payload.content.essay_text)
-    clean_experience = _clean_text(payload.content.experience_summary)
-    clean_transcript = _clean_text(video_transcript)
-    clean_projects = [
-        _clean_text(p) or "" for p in payload.content.project_descriptions if p
-    ]
+    clean_essay = mask_profanity(_clean_text(payload.content.essay_text))
+    clean_experience = mask_profanity(_clean_text(payload.content.experience_summary))
+    clean_transcript = mask_profanity(_clean_text(video_transcript))
+    clean_projects = mask_profanity_list(
+        [_clean_text(project) or "" for project in payload.content.project_descriptions if project]
+    )
 
     redacted_essay = redact_text(clean_essay, known_names) if clean_essay else None
     redacted_experience = (
@@ -124,7 +125,7 @@ def separate(
     redacted_answers = [
         {
             "question_id": a.question_id,
-            "answer": redact_text(a.answer, known_names),
+            "answer": redact_text(mask_profanity(a.answer) or "", known_names),
         }
         for a in payload.internal_test.answers
     ]

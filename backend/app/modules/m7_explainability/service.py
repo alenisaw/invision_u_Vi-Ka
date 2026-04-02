@@ -17,7 +17,7 @@ except ImportError:  # pragma: no cover
 from ..m6_scoring.schemas import CandidateScore, SignalEnvelope
 from ..m6_scoring.service import ScoringService
 from .evidence import collect_factor_evidence, collect_factor_signal_contexts
-from .factors import caution_block, factor_summary, factor_title
+from .factors import caution_block, factor_summary, factor_title, source_label
 from .schemas import ExplainabilityInput, ExplainabilityReport, FactorBlock
 
 
@@ -119,7 +119,7 @@ class ExplainabilityService:
         factor_blocks: list[FactorBlock],
         caution_blocks: list,
     ) -> str:
-        strengths = ", ".join(block.title for block in factor_blocks[:2]) or "moderate signal support"
+        strengths = ", ".join(block.title for block in factor_blocks[:2]) or "умеренно подтвержденный потенциал"
         evidence_sources = sorted(
             {
                 item.source
@@ -129,31 +129,50 @@ class ExplainabilityService:
             }
         )
         source_clause = (
-            f" Supporting evidence comes primarily from {', '.join(evidence_sources[:2])}."
+            f" Основные подтверждения пришли из источников: {', '.join(self._format_sources(evidence_sources[:2]))}."
             if evidence_sources
             else ""
         )
         if handoff.manual_review_required:
             return (
-                f"The candidate shows {strengths}, but the case still requires manual review because the current evidence is incomplete or unstable."
+                f"Кандидат показывает сильные стороны по направлениям {strengths}, "
+                "но кейс все еще требует ручной проверки, потому что текущая доказательная база неполная или нестабильная."
                 f"{source_clause}"
             )
         if caution_blocks:
             caution_titles = ", ".join(block.title for block in caution_blocks[:2])
             return (
-                f"The candidate shows {strengths}, but reviewers should weigh caution signals such as {caution_titles} before making a final decision."
+                f"Кандидат демонстрирует сильные стороны по направлениям {strengths}, "
+                f"однако перед финальным решением комиссии нужно отдельно взвесить сигналы риска: {caution_titles}."
                 f"{source_clause}"
             )
-        return f"The candidate shows {strengths}, and the current evidence looks stable enough for standard committee review.{source_clause}"
+        return (
+            f"Кандидат демонстрирует сильные стороны по направлениям {strengths}, "
+            "а текущая доказательная база выглядит достаточно устойчивой для стандартного рассмотрения комиссией."
+            f"{source_clause}"
+        )
 
     def _build_reviewer_guidance(self, handoff: ExplainabilityInput, caution_blocks: list) -> str:
         if handoff.manual_review_required:
-            return "Review evidence consistency, input quality, and caution flags before making a final committee decision. Incomplete evidence should be treated as insufficient data, not as proof of low potential."
+            return (
+                "Проверьте согласованность доказательств, качество входных материалов и предупреждающие флаги "
+                "перед финальным решением комиссии. Неполные данные нужно трактовать как нехватку информации, "
+                "а не как автоматическое подтверждение слабого потенциала."
+            )
         if caution_blocks:
-            return "Use the score as a working signal, but inspect the caution blocks before final routing."
+            return (
+                "Используйте score как рабочий ориентир, но обязательно пройдитесь по блокам предупреждений "
+                "до окончательной маршрутизации кандидата."
+            )
         if handoff.review_recommendation == "FAST_TRACK_REVIEW":
-            return "The case is suitable for faster committee review, while still checking the supporting evidence."
-        return "Use the explanation bundle as decision support; the final outcome remains with the committee."
+            return (
+                "Кейс подходит для ускоренного рассмотрения, но подтверждающие факты и примеры "
+                "все равно стоит быстро перепроверить."
+            )
+        return (
+            "Используйте explainability как опору для решения: итоговый вердикт остается за комиссией, "
+            "но ключевые положительные факторы и предупреждения уже структурированы для обсуждения."
+        )
 
     def _build_factor_summary(self, handoff: ExplainabilityInput, factor) -> str:
         contexts = collect_factor_signal_contexts(handoff, factor.factor)
@@ -163,8 +182,6 @@ class ExplainabilityService:
         direct_support = 0
         indirect_support = 0
         sources: list[str] = []
-        reason_fragments: list[str] = []
-
         for _, signal in contexts:
             if "direct behavioral evidence" in signal.reasoning.lower():
                 direct_support += 1
@@ -173,18 +190,24 @@ class ExplainabilityService:
             for source_name in signal.source:
                 if source_name not in sources:
                     sources.append(source_name)
-            if signal.reasoning and signal.reasoning not in reason_fragments:
-                reason_fragments.append(signal.reasoning)
 
-        support_label = "direct evidence" if direct_support else "indirect evidence"
+        support_label = "прямыми наблюдаемыми примерами" if direct_support else "косвенными подтверждениями"
         if direct_support and indirect_support:
-            support_label = "direct and indirect evidence"
-        source_label = ", ".join(sources[:3]) if sources else "available narrative sources"
-        rationale = reason_fragments[0] if reason_fragments else factor_summary(factor)
+            support_label = "комбинацией прямых и косвенных подтверждений"
+        source_names = ", ".join(self._format_sources(sources[:3])) if sources else "доступными материалами кандидата"
         return (
-            f"{factor_title(factor.factor)} materially influenced the recommendation "
-            f"(score {factor.score:.2f}, contribution {factor.score_contribution:.2f}). "
-            f"It is supported by {support_label} from {source_label}. {rationale}"
+            f"{factor_title(factor.factor)} заметно повлиял на рекомендацию "
+            f"(оценка {factor.score:.2f}, вклад {factor.score_contribution:.2f}). "
+            f"Фактор подтверждается {support_label} из источников: {source_names}. {factor_summary(factor)}"
         )
 
-
+    @staticmethod
+    def _format_sources(source_names: list[str]) -> list[str]:
+        formatted: list[str] = []
+        for raw_name in source_names:
+            if not raw_name:
+                continue
+            parts = [source_label(part.strip()) for part in raw_name.split(",") if part.strip()]
+            if parts:
+                formatted.append(", ".join(parts))
+        return formatted

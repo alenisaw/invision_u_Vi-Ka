@@ -1,4 +1,5 @@
 import type { EvidenceItem } from "@/types";
+import { localizeLabel } from "@/lib/utils";
 
 interface EvidenceListProps {
   evidence: EvidenceItem[];
@@ -21,7 +22,10 @@ export default function EvidenceList({ evidence }: EvidenceListProps) {
               className="text-[0.72rem] font-[700] mt-1 inline-block px-2 py-0.5 rounded-full text-muted-strong"
               style={{ background: "var(--surface-subtle-2)" }}
             >
-              {item.source}
+              {item.source
+                .split(",")
+                .map((part) => localizeLabel(part.trim()))
+                .join(", ")}
             </span>
           </div>
         </div>

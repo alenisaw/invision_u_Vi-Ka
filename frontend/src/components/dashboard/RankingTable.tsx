@@ -32,7 +32,7 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
               <th className="eyebrow px-5 py-4">#</th>
               <th className="eyebrow px-5 py-4">Кандидат</th>
               <th className="eyebrow px-5 py-4">Программа</th>
-              <th className="eyebrow px-5 py-4">Бал RPI</th>
+              <th className="eyebrow px-5 py-4">Балл RPI</th>
               <th className="eyebrow px-5 py-4 text-center">Уверенность</th>
               <th className="eyebrow px-5 py-4">Статус</th>
               <th className="eyebrow px-5 py-4">Сильные стороны</th>

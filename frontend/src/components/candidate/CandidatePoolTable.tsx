@@ -69,7 +69,7 @@ export default function CandidatePoolTable({
               <th className="eyebrow px-5 py-4">Метрики</th>
               <th className="eyebrow px-5 py-4">Метки</th>
               <th className="eyebrow px-5 py-4 w-[140px]">Дата</th>
-              <th className="eyebrow px-5 py-4 text-right">Действие</th>
+              <th className="eyebrow px-5 py-4">Действие</th>
             </tr>
           </thead>
           <tbody>
@@ -146,16 +146,16 @@ export default function CandidatePoolTable({
                       {item.createdAt ? formatDate(item.createdAt) : "—"}
                     </span>
                   </td>
-                  <td className="px-5 py-[1rem] text-right">
+                  <td className="px-5 py-[1rem]">
                     {item.href ? (
-                      <Link href={item.href} className="btn btn--sm btn--dark">
+                      <Link href={item.href} className="btn btn--sm btn--dark w-full justify-start text-left">
                         {item.actionLabel}
                       </Link>
                     ) : (
                       <button
                         onClick={() => item.runSlug && onRunFixture(item.runSlug)}
                         disabled={!item.runSlug || isRunning}
-                        className="btn btn--sm btn--dark disabled:opacity-50 disabled:cursor-wait"
+                        className="btn btn--sm btn--dark w-full justify-start text-left disabled:opacity-50 disabled:cursor-wait"
                       >
                         {isRunning ? "В обработке..." : item.actionLabel}
                       </button>
