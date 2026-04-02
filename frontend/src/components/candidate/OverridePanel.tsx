@@ -22,6 +22,7 @@ export default function OverridePanel({
   currentStatus,
   onSuccess,
 }: OverridePanelProps) {
+  const [reviewerId, setReviewerId] = useState("committee-reviewer");
   const [newStatus, setNewStatus] = useState<RecommendationStatus>(currentStatus);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -33,7 +34,7 @@ export default function OverridePanel({
   }, [currentStatus]);
 
   async function handleSubmit() {
-    if (!comment.trim() || newStatus === currentStatus) {
+    if (!reviewerId.trim() || !comment.trim() || newStatus === currentStatus) {
       return;
     }
 
@@ -43,6 +44,7 @@ export default function OverridePanel({
 
     try {
       await reviewerApi.overrideCandidateDecision(candidateId, {
+        reviewer_id: reviewerId.trim(),
         new_status: newStatus,
         comment: comment.trim(),
       });
@@ -62,22 +64,31 @@ export default function OverridePanel({
   return (
     <div className="card p-6">
       <div className="eyebrow mb-4">Переопределение решения</div>
-      <p className="text-[0.82rem] mb-4" style={{ color: "var(--brand-muted)" }}>
+      <p className="text-[0.82rem] mb-4 text-muted">
         Изменить рекомендацию ИИ для кандидата <code className="text-[0.78rem] font-[700]">{candidateId.slice(0, 8)}...</code>
       </p>
 
       <div className="flex flex-col gap-4">
+
+        <div>
+          <label className="text-[0.82rem] font-[700] block mb-2">ID рецензента</label>
+          <input
+            type="text"
+            value={reviewerId}
+            onChange={(e) => setReviewerId(e.target.value)}
+            placeholder="committee-reviewer"
+            data-testid="reviewer-id-input"
+            className="w-full px-4 py-3 text-[0.88rem] font-[500] rounded-[0.8rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] outline-none focus:ring-2 focus:ring-[var(--brand-blue)] transition-all"
+          />
+        </div>
+
         <div>
           <label className="text-[0.82rem] font-[700] block mb-2">Новый статус</label>
           <select
             value={newStatus}
             onChange={(e) => setNewStatus(e.target.value as RecommendationStatus)}
             data-testid="override-status-select"
-            className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[600] outline-none"
-            style={{
-              border: "1px solid rgba(20, 20, 20, 0.1)",
-              background: "rgba(255, 255, 255, 0.82)",
-            }}
+            className="w-full px-4 pr-10 py-3 text-[0.88rem] font-[600] rounded-[0.8rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] cursor-pointer outline-none focus:ring-2 focus:ring-[var(--brand-blue)] transition-all"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -95,23 +106,17 @@ export default function OverridePanel({
             placeholder="Укажите причину изменения решения..."
             rows={3}
             data-testid="override-comment-input"
-            className="w-full px-4 py-3 rounded-[1rem] text-[0.88rem] font-[500] outline-none resize-none"
-            style={{
-              border: "1px solid rgba(20, 20, 20, 0.1)",
-              background: "rgba(255, 255, 255, 0.82)",
-            }}
+            className="px-4 py-3 text-[0.88rem] font-[500] resize-y"
           />
         </div>
 
         {message ? (
           <div
-            className="rounded-[var(--radius-md)] px-4 py-3 text-[0.84rem] font-[600]"
-            style={{
-              background: hasError
-                ? "rgba(255, 142, 112, 0.14)"
-                : "rgba(193, 241, 29, 0.18)",
-              color: hasError ? "#ac472e" : "#415005",
-            }}
+            className={`rounded-[1rem] px-4 py-3 text-[0.84rem] font-[700] ${
+                hasError
+                  ? "bg-[var(--danger-soft-bg)] text-[var(--danger-soft-text)]"
+                  : "bg-[var(--badge-lime-bg)] text-[var(--badge-lime-text)]"
+              }`}
           >
             {message}
           </div>
@@ -121,25 +126,12 @@ export default function OverridePanel({
           onClick={handleSubmit}
           disabled={
             submitting ||
+            !reviewerId.trim() ||
             !comment.trim() ||
             newStatus === currentStatus
           }
           data-testid="submit-override-button"
-          className="btn btn--dark btn--sm self-end"
-          style={{
-            opacity:
-              submitting ||
-              !comment.trim() ||
-              newStatus === currentStatus
-                ? 0.4
-                : 1,
-            cursor:
-              submitting ||
-              !comment.trim() ||
-              newStatus === currentStatus
-                ? "not-allowed"
-                : "pointer",
-          }}
+          className="btn btn--dark btn--sm self-end disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {submitting ? "Сохраняем..." : "Отправить"}
         </button>

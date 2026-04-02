@@ -29,19 +29,19 @@ export default function PipelineProgress({ status, currentStep }: PipelineProgre
               className="px-3 py-1.5 rounded-full text-[0.78rem] font-[700] transition-all duration-300"
               style={{
                 background: isError
-                  ? "rgba(255, 142, 112, 0.22)"
+                  ? "rgba(255, 100, 80, 0.85)"
                   : isCompleted
-                    ? "rgba(193, 241, 29, 0.22)"
+                    ? "var(--brand-lime)"
                     : isCurrent
-                      ? "rgba(61, 237, 241, 0.22)"
-                      : "rgba(20, 20, 20, 0.06)",
+                      ? "var(--brand-blue)"
+                      : "rgba(255, 255, 255, 0.12)",
                 color: isError
-                  ? "#ac472e"
+                  ? "#ffffff"
                   : isCompleted
-                    ? "#415005"
+                    ? "#1a1a1a"
                     : isCurrent
-                      ? "#0a6a6d"
-                      : "var(--brand-muted)",
+                      ? "#1a1a1a"
+                      : "rgba(255, 255, 255, 0.5)",
                 ...(isCurrent
                   ? { animation: "pulse-step 1.2s ease-in-out infinite" }
                   : {}),

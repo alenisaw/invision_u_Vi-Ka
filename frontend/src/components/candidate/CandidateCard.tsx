@@ -12,7 +12,7 @@ export default function CandidateCard({ score }: CandidateCardProps) {
       <div className="flex items-start justify-between mb-5">
         <div>
           <div className="eyebrow mb-2">Обзор кандидата</div>
-          <h2 className="text-[1.22rem] font-[800]" style={{ lineHeight: 1.1 }}>
+          <h2 className="text-[1.22rem] font-[800] leading-[1.1]">
             {score.selected_program}
           </h2>
         </div>
@@ -32,9 +32,9 @@ export default function CandidateCard({ score }: CandidateCardProps) {
           <div
             key={key}
             className="flex items-center justify-between px-3 py-2.5 rounded-[1rem]"
-            style={{ background: "rgba(20, 20, 20, 0.03)" }}
+            style={{ background: "var(--surface-subtle)" }}
           >
-            <span className="text-[0.78rem] font-[600]" style={{ color: "var(--brand-muted-strong)" }}>
+            <span className="text-[0.78rem] font-[600] text-muted-strong">
               {SUB_SCORE_LABELS[key] ?? key}
             </span>
             <span className="text-[0.88rem] font-[800]">{formatPercent(value)}</span>
@@ -72,13 +72,17 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
     <div
       className="rounded-[var(--radius-md)] px-4 py-3"
       style={{
-        background: accent ? "linear-gradient(180deg, #c1f11d, #defb75)" : "rgba(20, 20, 20, 0.03)",
+        background: accent ? "var(--brand-lime)" : "var(--surface-subtle)",
       }}
     >
-      <div className="text-[0.72rem] font-[700] uppercase tracking-[0.1em] mb-1" style={{ color: accent ? "rgba(20, 20, 20, 0.6)" : "var(--brand-muted)" }}>
+      <div 
+        className={`text-[0.72rem] font-[700] uppercase tracking-[0.1em] mb-1 ${accent ? 'opacity-70 text-black' : 'text-muted'}`}
+      >
         {label}
       </div>
-      <div className="text-[1.16rem] font-[800]">{value}</div>
+      <div className={`text-[1.16rem] font-[800] ${accent ? 'text-black' : ''}`}>
+        {value}
+      </div>
     </div>
   );
 }

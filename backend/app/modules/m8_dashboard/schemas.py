@@ -53,6 +53,28 @@ class DashboardCandidateListItem(ReviewerCandidateIdentity):
     created_at: datetime
 
 
+class RawCandidateContent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    essay_text: str | None = None
+    video_transcript: str | None = None
+    project_descriptions: list[str] = Field(default_factory=list)
+    experience_summary: str | None = None
+
+
+class ReviewerActionItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: UUID
+    candidate_id: UUID
+    reviewer_id: str
+    action_type: str
+    previous_status: str | None = None
+    new_status: str | None = None
+    comment: str | None = None
+    created_at: datetime
+
+
 class DashboardCandidateDetailResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -60,6 +82,8 @@ class DashboardCandidateDetailResponse(BaseModel):
     name: str
     score: CandidateScorePayload
     explanation: ExplainabilityReport
+    raw_content: RawCandidateContent | None = None
+    audit_logs: list[ReviewerActionItem] = Field(default_factory=list)
 
 
 class DashboardShortlistResponse(RootModel[list[DashboardCandidateListItem]]):

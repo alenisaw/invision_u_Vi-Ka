@@ -13,7 +13,12 @@ import {
 import type { SubScores } from "@/types";
 import { SUB_SCORE_LABELS } from "@/lib/utils";
 
-const COLORS = ["#c1f11d", "#3dedf1", "#ff8e70"];
+// Используем системные цвета вместо жестко заданных HEX
+const COLORS = [
+  "var(--brand-lime)",
+  "var(--brand-blue)",
+  "var(--brand-coral)"
+];
 
 interface CandidateData {
   name: string;
@@ -44,40 +49,45 @@ export default function CompareRadar({ candidates }: CompareRadarProps) {
       <div className="eyebrow mb-4">Сравнение профилей</div>
       <ResponsiveContainer width="100%" height={380}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="68%">
-          <PolarGrid stroke="rgba(20, 20, 20, 0.08)" />
+          <PolarGrid stroke="var(--brand-line)" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fontWeight: 700, fill: "rgba(20, 20, 20, 0.62)" }}
+            tick={{ fontSize: 11, fontWeight: 700, fill: "var(--brand-muted-strong)" }}
           />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}
-            tick={{ fontSize: 10, fill: "rgba(20, 20, 20, 0.4)" }}
+            tick={{ fontSize: 10, fill: "var(--brand-muted)" }}
           />
           {candidates.map((c, i) => (
             <Radar
               key={c.name}
               name={c.name}
               dataKey={`candidate_${i}`}
-              stroke={COLORS[i]}
-              fill={COLORS[i]}
+              // Берем цвета по кругу, если кандидатов больше 3
+              stroke={COLORS[i % COLORS.length]}
+              fill={COLORS[i % COLORS.length]}
               fillOpacity={0.15}
               strokeWidth={2}
             />
           ))}
           <Tooltip
             contentStyle={{
-              background: "#141414",
-              color: "#ffffff",
+              background: "var(--brand-ink)",
+              color: "var(--brand-paper)",
               border: "none",
-              borderRadius: "0.9rem",
+              borderRadius: "1rem",
               fontSize: "0.82rem",
               fontWeight: 700,
             }}
             formatter={(value: number) => [`${value}%`, "Балл"]}
           />
           <Legend
-            wrapperStyle={{ fontSize: "0.82rem", fontWeight: 700 }}
+            wrapperStyle={{ 
+              fontSize: "0.82rem", 
+              fontWeight: 700, 
+              color: "var(--brand-muted-strong)" 
+            }}
           />
         </RadarChart>
       </ResponsiveContainer>

@@ -34,6 +34,7 @@ export interface CandidateScore {
   scoring_version: string;
 }
 
+
 export interface EvidenceItem {
   source: string;
   quote: string;
@@ -88,11 +89,20 @@ export interface CandidateListItem {
   created_at: string;
 }
 
+export interface RawCandidateContent {
+  essay_text: string | null;
+  video_transcript: string | null;
+  project_descriptions: string[];
+  experience_summary: string | null;
+}
+
 export interface CandidateDetail {
   candidate_id: string;
   name: string;
   score: CandidateScore;
   explanation: ExplainabilityReport;
+  raw_content?: RawCandidateContent | null;
+  audit_logs?: ReviewerAction[];
 }
 
 export interface ReviewerAction {

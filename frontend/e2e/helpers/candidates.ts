@@ -40,15 +40,7 @@ export function buildCandidatePayload(prefix: string): TestCandidateFixture {
         experience_summary:
           "Led school initiatives, coordinated volunteers, and documented project outcomes.",
       },
-      internal_test: {
-        answers: [
-          {
-            question_id: "q1",
-            answer:
-              "I would choose the fair option because responsibility and long-term trust matter more than a quick result.",
-          },
-        ],
-      },
+      internal_test: { answers: [] },
     },
   };
 }

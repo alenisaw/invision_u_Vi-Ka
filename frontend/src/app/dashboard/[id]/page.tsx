@@ -9,7 +9,8 @@ import ScoreRadar from "@/components/candidate/ScoreRadar";
 import ExplanationBlock from "@/components/candidate/ExplanationBlock";
 import OverridePanel from "@/components/candidate/OverridePanel";
 import { ApiError, reviewerApi } from "@/lib/api";
-import type { CandidateDetail } from "@/types";
+import { formatDate } from "@/lib/utils"; // Убедись, что импорт formatDate есть
+import type { CandidateDetail, RawCandidateContent, RecommendationStatus } from "@/types";
 
 export default function CandidateDetailPage({
   params,
@@ -121,6 +122,8 @@ export default function CandidateDetailPage({
     );
   }
 
+  const historyLogs = detail.audit_logs ?? [];
+
   return (
     <>
       <Header />
@@ -152,7 +155,10 @@ export default function CandidateDetailPage({
             <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-6">
               <div className="flex flex-col gap-6">
                 <CandidateCard score={detail.score} />
-                <ExplanationBlock explanation={detail.explanation} />
+                <ExplanationBlock
+                  explanation={detail.explanation}
+                  insertAfterConclusion={detail.raw_content ? <RawContentSection content={detail.raw_content} /> : undefined}
+                />
               </div>
 
               <div className="flex flex-col gap-6">
@@ -162,11 +168,138 @@ export default function CandidateDetailPage({
                   currentStatus={detail.score.recommendation_status}
                   onSuccess={loadDetail}
                 />
+                
+                {/* Компонент истории изменений */}
+                <DecisionHistory logs={historyLogs} />
               </div>
             </div>
           </div>
         </main>
       </div>
     </>
+  );
+}
+
+
+function RawContentSection({ content }: { content: RawCandidateContent }) {
+  const [open, setOpen] = useState(false);
+
+  const hasAny = content.essay_text || content.video_transcript || content.project_descriptions.length > 0 || content.experience_summary;
+  if (!hasAny) return null;
+
+  return (
+    <div className="card p-6">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full"
+      >
+        <div className="eyebrow">Исходные материалы кандидата</div>
+        <span className="text-[0.82rem] font-[700] text-muted">
+          {open ? "Свернуть" : "Развернуть"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="flex flex-col gap-6 mt-5">
+          {content.essay_text && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Эссе</div>
+              <div
+                className="text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem] whitespace-pre-wrap"
+                style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+              >
+                {content.essay_text}
+              </div>
+            </div>
+          )}
+
+          {content.project_descriptions.length > 0 && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Описание проектов</div>
+              <div className="flex flex-col gap-2">
+                {content.project_descriptions.map((p, i) => (
+                  <div
+                    key={i}
+                    className="text-[0.86rem] font-[500] p-3 rounded-[0.8rem]"
+                    style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+                  >
+                    {p}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {content.experience_summary && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Опыт</div>
+              <div
+                className="text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem]"
+                style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+              >
+                {content.experience_summary}
+              </div>
+            </div>
+          )}
+
+          {content.video_transcript && (
+            <div>
+              <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">Транскрипция видео</div>
+              <div
+                className="text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem] whitespace-pre-wrap"
+                style={{ background: "var(--surface-subtle)", border: "1px solid var(--brand-line)" }}
+              >
+                {content.video_transcript}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  STRONG_RECOMMEND: "text-[var(--brand-lime)]",
+  RECOMMEND: "text-[var(--brand-blue)]",
+  WAITLIST: "text-[var(--brand-coral)]",
+  DECLINED: "text-[var(--danger-soft-text)]",
+};
+
+function DecisionHistory({ logs }: { logs: any[] }) {
+  if (!logs || logs.length === 0) return null;
+
+  return (
+    <div className="card p-6">
+      <div className="eyebrow mb-4">История решений</div>
+      <div className="flex flex-col gap-4">
+        {logs.map((log) => (
+          <div key={log.id} className="pb-4 border-b border-[var(--brand-line)] last:border-0 last:pb-0">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[0.75rem] font-[800] uppercase tracking-wider text-muted-strong">
+                {log.reviewer_id}
+              </span>
+              <span className="text-[0.7rem] font-[600] text-muted font-numbers">
+                {new Date(log.created_at).toLocaleDateString("en-US", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2 mb-2 text-[0.8rem] font-[700]">
+              <span className="text-muted line-through">{log.previous_status}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+              <span className={`${STATUS_COLORS[log.new_status] || "text-[var(--brand-paper)]"}`}>
+                {log.new_status}
+              </span>
+            </div>
+            
+            <div className="text-[0.85rem] text-muted bg-[var(--surface-subtle)] p-3 rounded-[0.5rem] italic">
+              «{log.comment}»
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
