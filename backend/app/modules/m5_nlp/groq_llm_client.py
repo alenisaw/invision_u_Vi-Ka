@@ -17,7 +17,7 @@ import httpx
 from app.modules.m6_scoring.schemas import SignalPayload
 
 from .embeddings import clamp, normalize_text
-from .gemini_client import (
+from .llm_shared import (
     BACKOFF_BASE_SECONDS,
     MAX_LLM_ATTEMPTS,
     RETRYABLE_STATUS_CODES,
@@ -220,5 +220,4 @@ class GroqSignalClient:
             return float(value)
         except (TypeError, ValueError):
             return 0.0
-
 

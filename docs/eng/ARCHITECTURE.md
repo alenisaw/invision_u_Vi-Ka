@@ -207,7 +207,6 @@ Transcribes interview media and exposes transcript quality markers used by downs
 | Module | Model | Role |
 |---|---|---|
 | `M5` | `meta-llama/llama-4-scout-17b-16e-instruct` | primary grouped structured signal extraction through Groq |
-| `M5` | `gemini-2.5-flash` | optional grouped extraction fallback when `GEMINI_API_KEY` is configured and Groq is unavailable |
 | `M5` | heuristic extractor | deterministic fallback extraction |
 | `M7` | deterministic formatter | explainability report construction from persisted M6 output |
 

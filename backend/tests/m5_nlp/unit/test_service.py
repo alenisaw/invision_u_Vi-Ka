@@ -85,7 +85,7 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
         envelope = self.service.extract_signals(request)
 
         self.assertEqual(envelope.signal_schema_version, "v1")
-        self.assertEqual(envelope.m5_model_version, "heuristic-gemini-v1")
+        self.assertEqual(envelope.m5_model_version, "heuristic-v1")
         self.assertEqual(envelope.selected_program, "Foundation Year")
         self.assertTrue(envelope.program_id)
         self.assertGreater(len(envelope.signals), 12)
@@ -205,5 +205,4 @@ class M5SignalExtractionServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 

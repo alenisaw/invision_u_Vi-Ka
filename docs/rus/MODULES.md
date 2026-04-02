@@ -181,7 +181,7 @@ flowchart LR
 ### Функциональная область
 
 - нормализует safe input в reusable source bundles
-- сначала вызывает Groq для grouped signal extraction и может откатиться на Gemini при конфигурации `GEMINI_API_KEY`
+- вызывает Groq для grouped Llama-based signal extraction
 - включает heuristic fallback extraction
 - использует embeddings и authenticity checks как advisory-помощь
 - отдает канонический `SignalEnvelope` для `M6`
@@ -192,8 +192,8 @@ flowchart LR
 |---|---|
 | `backend/app/modules/m5_nlp/schemas.py` | request schema и validation |
 | `backend/app/modules/m5_nlp/client.py` | safe local-media transcription fallback client |
-| `backend/app/modules/m5_nlp/gemini_client.py` | optional Gemini integration |
 | `backend/app/modules/m5_nlp/groq_llm_client.py` | primary Groq-backed integration |
+| `backend/app/modules/m5_nlp/llm_shared.py` | shared LLM request/response helpers |
 | `backend/app/modules/m5_nlp/source_bundle.py` | сборка safe-source |
 | `backend/app/modules/m5_nlp/extractor.py` | heuristic fallback extraction |
 | `backend/app/modules/m5_nlp/signal_extraction_service.py` | grouped extraction flow |

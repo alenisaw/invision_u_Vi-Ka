@@ -24,7 +24,7 @@ The module:
 
 1. normalizes safe text inputs into a reusable source bundle;
 2. optionally transcribes interview media through the supported fallback ASR path;
-3. runs grouped Groq extraction first and can fall back to Gemini when configured;
+3. runs grouped Groq extraction with the configured Llama model;
 4. falls back to deterministic heuristic extraction when needed;
 5. merges signals into a single canonical envelope with value, confidence, source, evidence, and reasoning.
 
@@ -34,7 +34,7 @@ The module:
 flowchart LR
     Input["M5ExtractionRequest"]
     Bundle["Source Bundle"]
-    LLM["Groq / Gemini Extraction"]
+    LLM["Groq Llama Extraction"]
     Heuristic["Heuristic Fallback"]
     Merge["Signal Merge"]
     Envelope["SignalEnvelope"]
@@ -94,8 +94,8 @@ Each signal contains:
 |---|---|
 | `schemas.py` | request validation and safe input constraints |
 | `client.py` | safe local-media transcription fallback client |
-| `gemini_client.py` | optional Gemini-based grouped extraction client |
 | `groq_llm_client.py` | primary Groq-based grouped extraction client |
+| `llm_shared.py` | shared LLM request/response helpers |
 | `source_bundle.py` | normalized source assembly and shared helpers |
 | `extractor.py` | deterministic heuristic signal extraction |
 | `signal_extraction_service.py` | grouped extraction orchestration and merge logic |

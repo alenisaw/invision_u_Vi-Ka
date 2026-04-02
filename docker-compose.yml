@@ -31,9 +31,7 @@ services:
       API_KEY: ${API_KEY:-test-reviewer-key}
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:-change-me-to-a-32-byte-minimum-secret-for-development}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       M5_LLM_MODEL: ${M5_LLM_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
-      M5_LLM_FAST_MODEL: ${M5_LLM_FAST_MODEL:-gemini-2.5-flash}
       M13_ASR_MODEL: ${M13_ASR_MODEL:-whisper-large-v3-turbo}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-jinaai/jina-embeddings-v5-text-nano}
       EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-cpu}

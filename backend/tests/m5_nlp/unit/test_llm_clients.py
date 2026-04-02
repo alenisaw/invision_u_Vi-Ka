@@ -3,11 +3,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from app.modules.m5_nlp.gemini_client import (
-    GeminiSignalClient,
-    SignalGroupSpec,
-    normalize_signal_container,
-)
+from app.modules.m5_nlp.groq_llm_client import GroqSignalClient
+from app.modules.m5_nlp.llm_shared import SignalGroupSpec, normalize_signal_container
 from app.modules.m5_nlp.source_bundle import SourceBundle
 
 
@@ -75,9 +72,9 @@ class LLMClientTests(unittest.TestCase):
         self.assertIn("leadership_potential", normalized)
         self.assertEqual(normalized["leadership_potential"]["value"], 0.9)
 
-    def test_gemini_client_uses_header_auth_without_query_string(self) -> None:
+    def test_groq_client_uses_bearer_auth_header(self) -> None:
         dummy_client = _DummyClient()
-        client = GeminiSignalClient(api_key="gemini-secret-key")
+        client = GroqSignalClient(api_key="groq-secret-key")
         spec = SignalGroupSpec(
             name="motivation",
             signals=("motivation_clarity",),
@@ -86,15 +83,14 @@ class LLMClientTests(unittest.TestCase):
         )
         sources = SourceBundle(essay="I want to build products.")
 
-        with patch("app.modules.m5_nlp.gemini_client.httpx.Client", return_value=dummy_client):
+        with patch("app.modules.m5_nlp.groq_llm_client.httpx.Client", return_value=dummy_client):
             result = client.extract_group(spec, "candidate-1", sources)
 
         self.assertIn("motivation_clarity", result)
         assert dummy_client.last_kwargs is not None
-        self.assertNotIn("params", dummy_client.last_kwargs)
         self.assertEqual(
-            dummy_client.last_kwargs["headers"]["x-goog-api-key"],
-            "gemini-secret-key",
+            dummy_client.last_kwargs["headers"]["Authorization"],
+            "Bearer groq-secret-key",
         )
 
 

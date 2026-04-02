@@ -193,7 +193,7 @@ Provides pre-built candidate fixtures for demonstration. Loads realistic payload
 ### Functional Scope
 
 - normalizes safe inputs into reusable source bundles
-- calls Groq first for grouped signal extraction and can fall back to Gemini when configured
+- calls Groq for grouped Llama-based signal extraction
 - applies heuristic fallback extraction when necessary
 - uses local Hugging Face embeddings and authenticity checks as advisory support
 - emits a canonical `SignalEnvelope` for `M6`
@@ -204,8 +204,8 @@ Provides pre-built candidate fixtures for demonstration. Loads realistic payload
 |---|---|
 | `backend/app/modules/m5_nlp/schemas.py` | request schema and validation |
 | `backend/app/modules/m5_nlp/client.py` | safe local-media transcription fallback client |
-| `backend/app/modules/m5_nlp/gemini_client.py` | optional Gemini provider integration |
 | `backend/app/modules/m5_nlp/groq_llm_client.py` | primary Groq-backed LLM integration |
+| `backend/app/modules/m5_nlp/llm_shared.py` | shared LLM request/response helpers |
 | `backend/app/modules/m5_nlp/source_bundle.py` | shared safe-source assembly |
 | `backend/app/modules/m5_nlp/extractor.py` | heuristic fallback extraction |
 | `backend/app/modules/m5_nlp/signal_extraction_service.py` | grouped extraction flow |

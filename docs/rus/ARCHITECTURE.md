@@ -157,7 +157,6 @@ Reviewer-маршруты требуют `X-API-Key`. Next.js proxy добавл
 | Модуль | Модель | Роль |
 |---|---|---|
 | `M5` | `meta-llama/llama-4-scout-17b-16e-instruct` | основной grouped structured signal extraction через Groq |
-| `M5` | `gemini-2.5-flash` | опциональный fallback grouped extraction при настроенном `GEMINI_API_KEY` |
 | `M5` | heuristic extractor | детерминированный fallback |
 | `M7` | deterministic formatter | сборка explainability-report из сохраненного M6 output |
 

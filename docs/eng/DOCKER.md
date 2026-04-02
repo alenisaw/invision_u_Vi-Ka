@@ -46,7 +46,7 @@ It includes:
 Current behavior:
 
 - `backend` runs Alembic migrations on startup and then launches `uvicorn`
-- `backend` receives model configuration through env, including `M5_LLM_MODEL`, `M5_LLM_FAST_MODEL`, `M13_ASR_MODEL`, `EMBEDDING_MODEL`, and `EMBEDDING_DEVICE`
+- `backend` receives model configuration through env, including `M5_LLM_MODEL`, `M13_ASR_MODEL`, `EMBEDDING_MODEL`, and `EMBEDDING_DEVICE`
 - `frontend` receives `BACKEND_URL` and `REVIEWER_API_KEY` through environment variables
 - reviewer pages use the Next.js proxy and forward `X-API-Key` only on the server side
 - the default stack needs only `GROQ_API_KEY` for the primary LLM + ASR path; local embeddings do not require a Jina API key

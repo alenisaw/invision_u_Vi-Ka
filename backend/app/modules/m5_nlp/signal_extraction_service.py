@@ -1,6 +1,6 @@
 """
 File: signal_extraction_service.py
-Purpose: Grouped M5 NLP extraction with Groq/Gemini LLM support and heuristic fallback.
+Purpose: Grouped M5 NLP extraction with Groq-backed Llama support and heuristic fallback.
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ from .ai_detector import (
 from .client import GroqTranscriptionClient
 from .embeddings import clamp, tokenize
 from .extractor import HeuristicSignalExtractor
-from .gemini_client import GeminiSignalClient, SignalGroupSpec
 from .groq_llm_client import GroqSignalClient
+from .llm_shared import SignalGroupSpec
 from .schemas import M5ExtractionRequest
 from .source_bundle import SourceBundle, build_source_bundle, default_evidence, keyword_signal
 
@@ -143,7 +143,7 @@ class GroupedNLPSignalExtractionService:
         self,
         extractor: HeuristicSignalExtractor | None = None,
         transcription_client: GroqTranscriptionClient | None = None,
-        llm_client: GeminiSignalClient | GroqSignalClient | None = None,
+        llm_client: GroqSignalClient | None = None,
         enable_llm: bool | None = None,
     ) -> None:
         self.extractor = extractor or HeuristicSignalExtractor()
@@ -152,18 +152,14 @@ class GroupedNLPSignalExtractionService:
         self.enable_llm = self.llm_client.enabled if enable_llm is None else bool(enable_llm and self.llm_client.enabled)
 
     @staticmethod
-    def _build_default_llm_client() -> GeminiSignalClient | GroqSignalClient:
-        """Pick the best available LLM client: Groq first (higher rate limits), Gemini as fallback."""
+    def _build_default_llm_client() -> GroqSignalClient:
+        """Use Groq as the only active LLM backend for M5."""
         groq_client = GroqSignalClient()
         if groq_client.enabled:
             logger.info("M5 LLM backend: Groq (%s)", groq_client.primary_model)
             return groq_client
-        gemini_client = GeminiSignalClient()
-        if gemini_client.enabled:
-            logger.info("M5 LLM backend: Gemini (%s)", gemini_client.primary_model)
-            return gemini_client
         logger.warning("M5 LLM backend: none (heuristic-only mode)")
-        return gemini_client
+        return groq_client
 
     def extract_signals(self, request: M5ExtractionRequest) -> SignalEnvelope:
         return self.extract_signal_groups(request).envelope
@@ -258,11 +254,7 @@ class GroupedNLPSignalExtractionService:
         )
 
     def _llm_backend_name(self) -> str:
-        if isinstance(self.llm_client, GroqSignalClient):
-            return "groq"
-        if isinstance(self.llm_client, GeminiSignalClient):
-            return "gemini"
-        return "llm"
+        return "groq"
 
     def _merge_group_signals(
         self,
@@ -440,4 +432,3 @@ class GroupedNLPSignalExtractionService:
     def _is_foundation_year_request(request: M5ExtractionRequest) -> bool:
         selected_program = request.selected_program.strip().lower()
         return any(marker in selected_program for marker in FOUNDATION_YEAR_MARKERS)
-

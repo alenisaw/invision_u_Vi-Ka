@@ -84,7 +84,7 @@ scripts/
 
 ## Quick Start
 
-Create a local env file from `.env.example` and set at least `GROQ_API_KEY` for the default pipeline path. `GEMINI_API_KEY` remains optional, and the embedding model runs locally without a Jina API key.
+Create a local env file from `.env.example` and set `GROQ_API_KEY` for the active Llama-based pipeline path. The embedding model runs locally without a Jina API key.
 
 The local embedding model is downloaded from Hugging Face on first use and then reused from the local cache.
 
