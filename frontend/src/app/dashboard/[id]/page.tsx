@@ -7,7 +7,6 @@ import ExplanationBlock from "@/components/candidate/ExplanationBlock";
 import OverridePanel from "@/components/candidate/OverridePanel";
 import ScoreRadar from "@/components/candidate/ScoreRadar";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { ApiError, reviewerApi } from "@/lib/api";
 import {
@@ -125,10 +124,8 @@ export default function CandidateDetailPage({
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="container-app">
+      <main className="p-6 lg:p-8">
+        <div className="container-app">
             <div className="flex items-center gap-4 mb-6">
               <Link
                 href="/dashboard"
@@ -171,14 +168,15 @@ export default function CandidateDetailPage({
                 <OverridePanel
                   candidateId={detail.score.candidate_id}
                   currentStatus={detail.score.recommendation_status}
+                  committeeMembers={detail.committee_members ?? []}
+                  auditLogs={detail.audit_logs ?? []}
                   onSuccess={loadDetail}
                 />
                 <DecisionHistory logs={detail.audit_logs ?? []} locale={locale} copy={copy} />
               </div>
             </div>
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }
@@ -195,23 +193,20 @@ function StateLayout({
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-8">
-          <div className="container-app">
-            <div className="card p-12 text-center">
-              <h2 className="text-[1.22rem] font-[800] mb-3">{title}</h2>
-              <p
-                className="text-[0.88rem] mb-6"
-                style={{ color: "var(--brand-muted)" }}
-              >
-                {description}
-              </p>
-              {action}
-            </div>
+      <main className="p-8">
+        <div className="container-app">
+          <div className="card p-12 text-center">
+            <h2 className="text-[1.22rem] font-[800] mb-3">{title}</h2>
+            <p
+              className="text-[0.88rem] mb-6"
+              style={{ color: "var(--brand-muted)" }}
+            >
+              {description}
+            </p>
+            {action}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }

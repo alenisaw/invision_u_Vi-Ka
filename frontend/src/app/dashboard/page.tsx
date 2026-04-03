@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import FilterPanel from "@/components/dashboard/FilterPanel";
 import RankingTable from "@/components/dashboard/RankingTable";
@@ -109,10 +108,8 @@ export default function DashboardPage() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24">
-          <div className="w-full">
+      <main className="min-w-0 p-6 lg:p-10 pb-24">
+        <div className="container-app">
             <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
               {t("dashboard.title")}
             </h1>
@@ -224,9 +221,8 @@ export default function DashboardPage() {
                 </div>
               </>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
 
       {selected.size >= 2 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-8 px-6 py-5 bg-[#111213] border-t border-[var(--brand-line)] backdrop-blur-xl">

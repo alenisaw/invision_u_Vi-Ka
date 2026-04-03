@@ -7,9 +7,11 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decrypt_json
+from app.modules.auth.schemas import UserResponse
 from app.modules.m6_scoring.schemas import CandidateScore as CandidateScorePayload
 from app.modules.m7_explainability.schemas import ExplainabilityReport
 from app.modules.m8_dashboard.schemas import (
+    CommitteeMemberStatus,
     DashboardCandidateDetailResponse,
     DashboardCandidateListItem,
     DashboardCandidatePoolItem,
@@ -90,6 +92,7 @@ class DashboardService:
     async def get_candidate_detail(
         self,
         candidate_id: UUID,
+        current_user: UserResponse,
     ) -> DashboardCandidateDetailResponse:
         candidate = await self.repository.get_candidate_with_related(candidate_id)
         if candidate is None:
@@ -101,7 +104,7 @@ class DashboardService:
         if candidate.explanation_record is None:
             raise ValueError(f"Candidate {candidate_id} has no explanation record")
 
-        return self._project_candidate_detail(candidate)
+        return await self._project_candidate_detail(candidate, current_user)
 
     async def list_shortlist(self) -> list[DashboardCandidateListItem]:
         shortlisted = [
@@ -163,9 +166,10 @@ class DashboardService:
             created_at=self._candidate_created_at(candidate, score),
         )
 
-    def _project_candidate_detail(
+    async def _project_candidate_detail(
         self,
         candidate: Candidate,
+        current_user: UserResponse,
     ) -> DashboardCandidateDetailResponse:
         if candidate.score_record is None:
             raise ValueError(f"Candidate {candidate.id} has no score record")
@@ -185,7 +189,7 @@ class DashboardService:
             )
         )
         raw_content = self._extract_raw_content(candidate)
-        audit_logs = [
+        all_audit_logs = [
             ReviewerActionItem(
                 id=a.id,
                 candidate_id=a.candidate_id,
@@ -198,6 +202,8 @@ class DashboardService:
             )
             for a in (candidate.reviewer_actions or [])
         ]
+        audit_logs = self._filter_audit_logs_for_user(all_audit_logs, current_user)
+        committee_members = await self._build_committee_members(candidate, current_user)
         return DashboardCandidateDetailResponse(
             candidate_id=identity.candidate_id,
             name=identity.name,
@@ -205,6 +211,7 @@ class DashboardService:
             explanation=explanation,
             raw_content=raw_content,
             audit_logs=audit_logs,
+            committee_members=committee_members,
         )
 
     def _extract_raw_content(self, candidate: Candidate) -> RawCandidateContent | None:
@@ -226,6 +233,8 @@ class DashboardService:
             selected_program=self._selected_program(candidate, score),
             pipeline_status=self._clean_text(candidate.pipeline_status) or "pending",
             stage="processed" if score is not None else "raw",
+            data_completeness=self._metadata_completeness(candidate),
+            data_flags=self._metadata_flags(candidate),
             review_priority_index=float(score.review_priority_index) if score and score.review_priority_index is not None else None,
             recommendation_status=recommendation_status,
             confidence=float(score.confidence) if score and score.confidence is not None else None,
@@ -412,6 +421,82 @@ class DashboardService:
                 return selected_program
 
         return ""
+
+    async def _build_committee_members(
+        self,
+        candidate: Candidate,
+        current_user: UserResponse,
+    ) -> list[CommitteeMemberStatus]:
+        if current_user.role == "reviewer":
+            return []
+
+        reviewers = await self.repository.list_users_by_roles("reviewer")
+        actions = list(candidate.reviewer_actions or [])
+        statuses: list[CommitteeMemberStatus] = []
+
+        for reviewer in reviewers:
+            reviewer_actions = [
+                action
+                for action in actions
+                if self._clean_text(action.reviewer_id) == reviewer.full_name.strip()
+            ]
+            latest_action = max(reviewer_actions, key=lambda action: action.created_at, default=None)
+            latest_recommendation = max(
+                (
+                    action
+                    for action in reviewer_actions
+                    if action.action_type in {"recommendation", "override"}
+                ),
+                key=lambda action: action.created_at,
+                default=None,
+            )
+            has_viewed = any(action.action_type == "viewed" for action in reviewer_actions) or bool(reviewer_actions)
+            statuses.append(
+                CommitteeMemberStatus(
+                    user_id=reviewer.id,
+                    full_name=reviewer.full_name,
+                    role=reviewer.role,
+                    has_viewed=has_viewed,
+                    has_recommendation=latest_recommendation is not None,
+                    recommendation_status=(
+                        self._recommendation_status(latest_recommendation.new_status)
+                        if latest_recommendation and latest_recommendation.new_status
+                        else None
+                    ),
+                    recommendation_comment=self._clean_text(
+                        latest_recommendation.comment if latest_recommendation else None
+                    )
+                    or None,
+                    last_activity_at=latest_action.created_at if latest_action else None,
+                )
+            )
+
+        return statuses
+
+    def _filter_audit_logs_for_user(
+        self,
+        audit_logs: list[ReviewerActionItem],
+        current_user: UserResponse,
+    ) -> list[ReviewerActionItem]:
+        if current_user.role == "reviewer":
+            reviewer_id = current_user.full_name.strip() or current_user.email.strip()
+            return [log for log in audit_logs if self._clean_text(log.reviewer_id) == reviewer_id]
+        return audit_logs
+
+    def _metadata_completeness(self, candidate: Candidate) -> float | None:
+        metadata = candidate.metadata_record
+        if metadata is None or metadata.data_completeness is None:
+            return None
+        return float(metadata.data_completeness)
+
+    def _metadata_flags(self, candidate: Candidate) -> list[str]:
+        metadata = candidate.metadata_record
+        if metadata is None:
+            return []
+        raw_flags = metadata.data_flags
+        if not isinstance(raw_flags, list):
+            return []
+        return [item.strip() for item in raw_flags if isinstance(item, str) and item.strip()]
 
     def _candidate_created_at(
         self,

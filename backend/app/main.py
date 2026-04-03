@@ -16,12 +16,16 @@ from fastapi.routing import APIRouter
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import Settings, get_settings
+from app.core.database import AsyncSessionLocal
+from app.modules.auth.service import AuthService
 from app.schemas.common import error_response
 
 
 logger = logging.getLogger(__name__)
 
 ROUTER_MODULES = (
+    "app.modules.auth.router",
+    "app.modules.admin.router",
     "app.modules.m0_demo.router",
     "app.modules.m1_gateway.router",
     "app.modules.m2_intake.router",
@@ -49,6 +53,7 @@ def create_application() -> FastAPI:
 
     _register_exception_handlers(app)
     _register_core_routes(app)
+    _register_startup_hooks(app)
     _include_available_routers(app)
     return app
 
@@ -152,7 +157,15 @@ def _http_exception_payload(
         message = str(exc.detail)
         details = {}
 
-    return code, message, details
+        return code, message, details
+
+
+def _register_startup_hooks(app: FastAPI) -> None:
+    @app.on_event("startup")
+    async def bootstrap_admin_user() -> None:
+        async with AsyncSessionLocal() as session:
+            service = AuthService(session)
+            await service.bootstrap_admin_user()
 
 
 def _include_available_routers(app: FastAPI) -> None:

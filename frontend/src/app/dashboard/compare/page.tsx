@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import CompareRadar from "@/components/candidate/CompareRadar";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
@@ -105,10 +104,8 @@ function ComparePageInner() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8 pb-24">
-          <div className="container-app">
+      <main className="p-6 lg:p-8 pb-24">
+        <div className="container-app">
             <div className="flex items-center gap-4 mb-8">
               <Link href="/dashboard" className="btn btn--sm btn--ghost min-w-0 px-3">&larr;</Link>
               <h1 className="text-[clamp(1.6rem,1.4rem+1vw,2.4rem)] font-[800] tracking-tight">
@@ -222,9 +219,8 @@ function ComparePageInner() {
                 </div>
               </div>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }

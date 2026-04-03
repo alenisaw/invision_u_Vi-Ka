@@ -4,6 +4,8 @@ export type RecommendationStatus =
   | "WAITLIST"
   | "DECLINED";
 
+export type UserRole = "admin" | "chair" | "reviewer";
+
 export type ReviewRecommendation =
   | "FAST_TRACK_REVIEW"
   | "STANDARD_REVIEW"
@@ -95,6 +97,8 @@ export interface CandidatePoolListItem {
   selected_program: string;
   pipeline_status: string;
   stage: "processed" | "raw";
+  data_completeness: number | null;
+  data_flags: string[];
   review_priority_index: number | null;
   recommendation_status: RecommendationStatus | null;
   confidence: number | null;
@@ -117,6 +121,7 @@ export interface CandidateDetail {
   explanation: ExplainabilityReport;
   raw_content?: RawCandidateContent | null;
   audit_logs?: ReviewerAction[];
+  committee_members?: CommitteeMemberStatus[];
 }
 
 export interface ReviewerAction {
@@ -128,6 +133,17 @@ export interface ReviewerAction {
   new_status: string;
   comment: string;
   created_at: string;
+}
+
+export interface CommitteeMemberStatus {
+  user_id: string;
+  full_name: string;
+  role: UserRole;
+  has_viewed: boolean;
+  has_recommendation: boolean;
+  recommendation_status: RecommendationStatus | null;
+  recommendation_comment: string | null;
+  last_activity_at: string | null;
 }
 
 export interface AuditFeedItem {
@@ -160,6 +176,23 @@ export interface ApiResponse<T> {
   error: { code: string; message: string; details?: Record<string, unknown> } | null;
   meta: { timestamp: string; version: string };
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  is_active: boolean;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface SessionInfo {
+  user: AuthUser;
+  expires_at: string;
+}
+
+export interface AdminUser extends AuthUser {}
 
 export interface PipelineResult {
   candidate_id: string;

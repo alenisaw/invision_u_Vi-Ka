@@ -7,7 +7,12 @@ from uuid import uuid4
 
 import pytest
 
-from app.modules.m10_audit.schemas import CandidateOverrideRequest, ReviewerActionCreateRequest
+from app.modules.auth.schemas import UserResponse
+from app.modules.m10_audit.schemas import (
+    CandidateOverrideRequest,
+    CommitteeDecisionRequest,
+    ReviewerActionCreateRequest,
+)
 from app.modules.m10_audit.service import AuditService
 
 
@@ -55,6 +60,19 @@ def _make_action(candidate_id, **overrides):
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+def _make_user(*, role: str, full_name: str, email: str) -> UserResponse:
+    now = datetime(2026, 4, 4, 9, 0, tzinfo=timezone.utc)
+    return UserResponse(
+        id=uuid4(),
+        email=email,
+        full_name=full_name,
+        role=role,
+        is_active=True,
+        last_login_at=now,
+        created_at=now,
+    )
 
 
 @pytest.mark.asyncio
@@ -196,3 +214,77 @@ async def test_list_audit_feed_flattens_audit_log_details() -> None:
     assert feed[0].action_type == "override"
     assert feed[0].reviewer_id == "reviewer-1"
     assert feed[0].new_status == "RECOMMEND"
+
+
+@pytest.mark.asyncio
+async def test_reviewer_committee_recommendation_is_recorded_without_overwriting_final_score() -> None:
+    service = AuditService(MagicMock())
+    service.repository = AsyncMock()
+
+    candidate = _make_candidate(status="WAITLIST", shortlist_eligible=False)
+    action = _make_action(
+        candidate.id,
+        reviewer_id="Miras Reviewer",
+        action_type="recommendation",
+        previous_status="WAITLIST",
+        new_status="RECOMMEND",
+        comment="Strong motivation and a coherent program fit.",
+    )
+    service.repository.get_candidate_with_related.return_value = candidate
+    service.repository.create_reviewer_action.return_value = action
+
+    response = await service.submit_committee_decision(
+        candidate.id,
+        actor=_make_user(role="reviewer", full_name="Miras Reviewer", email="reviewer@invisionu.local"),
+        payload=CommitteeDecisionRequest(
+            new_status="RECOMMEND",
+            comment="Strong motivation and a coherent program fit.",
+        ),
+    )
+
+    service.repository.upsert_candidate_score.assert_not_awaited()
+    service.repository.upsert_candidate_explanation.assert_not_awaited()
+    audit_entry = service.repository.create_audit_log.await_args.kwargs
+    assert audit_entry["action"] == "recommendation"
+    assert audit_entry["details"]["role"] == "reviewer"
+    assert response.action_type == "recommendation"
+    assert response.reviewer_id == "Miras Reviewer"
+
+
+@pytest.mark.asyncio
+async def test_chair_committee_decision_updates_final_score() -> None:
+    service = AuditService(MagicMock())
+    service.repository = AsyncMock()
+
+    candidate = _make_candidate(status="WAITLIST", shortlist_eligible=False)
+    action = _make_action(
+        candidate.id,
+        reviewer_id="Dana Chair",
+        action_type="chair_decision",
+        previous_status="WAITLIST",
+        new_status="STRONG_RECOMMEND",
+        comment="The committee recommendation is approved for admission priority.",
+    )
+    service.repository.get_candidate_with_related.return_value = candidate
+    service.repository.create_reviewer_action.return_value = action
+
+    response = await service.submit_committee_decision(
+        candidate.id,
+        actor=_make_user(role="chair", full_name="Dana Chair", email="chair@invisionu.local"),
+        payload=CommitteeDecisionRequest(
+            new_status="STRONG_RECOMMEND",
+            comment="The committee recommendation is approved for admission priority.",
+        ),
+    )
+
+    persisted_score = service.repository.upsert_candidate_score.await_args.kwargs
+    assert persisted_score["recommendation_status"] == "STRONG_RECOMMEND"
+    assert persisted_score["shortlist_eligible"] is True
+
+    persisted_explanation = service.repository.upsert_candidate_explanation.await_args.kwargs
+    assert persisted_explanation["recommendation_status"] == "STRONG_RECOMMEND"
+
+    audit_entry = service.repository.create_audit_log.await_args.kwargs
+    assert audit_entry["action"] == "chair_decision"
+    assert audit_entry["details"]["role"] == "chair"
+    assert response.action_type == "chair_decision"

@@ -2,16 +2,13 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import CandidatePoolTable, {
   type CandidatePoolTableItem,
 } from "@/components/candidate/CandidatePoolTable";
-import StatusBadge from "@/components/dashboard/StatusBadge";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
 import {
   formatDate,
-  formatPercent,
   localizeLabels,
   localizeProgramName,
 } from "@/lib/i18n";
@@ -30,6 +27,7 @@ type ViewMode = "table" | "grid";
 type StageFilter = "all" | "raw" | "processed";
 
 type CandidatePoolItem = CandidatePoolTableItem & {
+  reviewPriorityIndex?: number | null;
   searchText: string;
 };
 
@@ -40,17 +38,14 @@ function buildPoolItem(candidate: CandidatePoolListItem, viewLabel: string, pend
     kind: processed ? "processed" : "raw",
     name: candidate.name,
     selectedProgram: candidate.selected_program,
-    sourceLabel: viewLabel,
-    sourceTone: processed ? "blue" : "neutral",
-    statusLabel: processed ? "Processed" : pendingLabel,
-    recommendationStatus: candidate.recommendation_status ?? undefined,
+    stageLabel: processed ? "common.processed" : "common.raw",
+    completeness: candidate.data_completeness,
+    notes: candidate.data_flags.length > 0 ? candidate.data_flags : processed ? candidate.top_strengths : [candidate.pipeline_status],
     reviewPriorityIndex: candidate.review_priority_index,
-    confidence: candidate.confidence,
-    tags: processed ? [...candidate.top_strengths, ...candidate.caution_flags].slice(0, 3) : [candidate.pipeline_status],
     createdAt: candidate.created_at,
     actionLabel: processed ? viewLabel : pendingLabel,
     href: processed ? `/dashboard/${candidate.candidate_id}` : undefined,
-    searchText: `${candidate.name} ${candidate.selected_program} ${candidate.pipeline_status}`.toLowerCase(),
+    searchText: `${candidate.name} ${candidate.selected_program} ${candidate.pipeline_status} ${candidate.data_flags.join(" ")}`.toLowerCase(),
   };
 }
 
@@ -97,7 +92,7 @@ function CandidatesPageInner() {
   const items = useMemo(() => {
     const prepared = pool.map((candidate) =>
       buildPoolItem(candidate, t("candidates.action.view"), t("candidates.status.raw")),
-    );
+    ).map((item) => ({ ...item, stageLabel: t(item.stageLabel) }));
 
     const query = search.trim().toLowerCase();
     const filtered = prepared.filter((item) => {
@@ -142,10 +137,8 @@ function CandidatesPageInner() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24 relative">
-          <div className="container-app">
+      <main className="min-w-0 p-6 lg:p-10 pb-24 relative">
+        <div className="container-app">
             <div className="mb-8">
               <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] mb-3 tracking-[-0.05em]">
                 {t("candidates.title")}
@@ -238,7 +231,7 @@ function CandidatesPageInner() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {items.map((item) => {
                   const isHighlighted = highlightId === item.id;
-                  const localizedTags = localizeLabels(item.tags.slice(0, 3), locale);
+                  const localizedNotes = localizeLabels(item.notes.slice(0, 3), locale);
 
                   return (
                     <div
@@ -253,42 +246,31 @@ function CandidatesPageInner() {
                         <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight mb-3 min-h-[2.75rem]">
                           {item.name}
                         </h3>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`badge ${item.kind === "processed" ? "badge--blue" : "badge--neutral"}`}>
-                            {item.sourceLabel}
-                          </span>
-                          {item.recommendationStatus ? (
-                            <StatusBadge status={item.recommendationStatus} />
-                          ) : (
-                            <span className="badge badge--neutral">{item.statusLabel}</span>
-                          )}
-                        </div>
+                        <span className={`badge ${item.kind === "processed" ? "badge--blue" : "badge--neutral"}`}>
+                          {item.stageLabel}
+                        </span>
                       </div>
 
                       <p className="text-[0.9rem] text-muted line-clamp-2 mb-5 min-h-[2.8rem] leading-relaxed">
                         {localizeProgramName(item.selectedProgram, locale)}
                       </p>
 
-                      <div className="grid grid-cols-2 gap-3 mb-5">
+                      <div className="grid grid-cols-1 gap-3 mb-5">
                         <MetricCard
-                          label="RPI"
-                          value={item.reviewPriorityIndex != null ? formatPercent(item.reviewPriorityIndex) : t("common.none")}
-                        />
-                        <MetricCard
-                          label={t("common.confidence")}
-                          value={item.confidence != null ? formatPercent(item.confidence) : t("common.none")}
+                          label={t("candidates.table.completeness")}
+                          value={item.completeness != null ? `${Math.round(item.completeness * 100)}%` : t("candidates.completeness.pending")}
                         />
                       </div>
 
                       <div className="flex flex-wrap content-start gap-2 mb-6 min-h-[3.25rem]">
-                        {localizedTags.length > 0 ? (
-                          localizedTags.map((tag) => (
-                            <span key={`${item.id}-${tag}`} className="badge badge--neutral">
-                              {tag}
+                        {localizedNotes.length > 0 ? (
+                          localizedNotes.map((note) => (
+                            <span key={`${item.id}-${note}`} className="badge badge--neutral">
+                              {note}
                             </span>
                           ))
                         ) : (
-                          <span className="text-[0.82rem] text-muted">{t("candidates.tags.pending")}</span>
+                          <span className="text-[0.82rem] text-muted">{t("candidates.notes.empty")}</span>
                         )}
                       </div>
 
@@ -317,9 +299,8 @@ function CandidatesPageInner() {
                 {t("candidates.empty")}
               </div>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }
@@ -328,14 +309,13 @@ function CandidatesPageFallback() {
   const content = (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 min-w-0 p-6 lg:p-10 pb-24 relative">
+      <main className="min-w-0 p-6 lg:p-10 pb-24 relative">
+        <div className="container-app">
           <div className="card p-12 text-center text-muted font-[700]">
             Loading...
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 

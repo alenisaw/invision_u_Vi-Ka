@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 from uuid import UUID
 
@@ -18,6 +19,8 @@ from app.modules.m9_storage.models import (
     NLPSignal,
     Program,
     ReviewerAction,
+    User,
+    UserSession,
 )
 
 
@@ -240,6 +243,107 @@ class StorageRepository(Generic[ModelT]):
         stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def create_user(
+        self,
+        *,
+        email: str,
+        full_name: str,
+        password_hash: str,
+        role: str,
+        is_active: bool = True,
+    ) -> User:
+        user = User(
+            email=email,
+            full_name=full_name,
+            password_hash=password_hash,
+            role=role,
+            is_active=is_active,
+        )
+        self.session.add(user)
+        await self.session.flush()
+        await self.session.refresh(user)
+        return user
+
+    async def get_user(self, user_id: UUID) -> User | None:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        stmt = select(User).where(User.email == email)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_users(self) -> list[User]:
+        stmt = select(User).order_by(User.created_at.asc())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_users_by_roles(
+        self,
+        *roles: str,
+        active_only: bool = True,
+    ) -> list[User]:
+        stmt = select(User).where(User.role.in_(roles))
+        if active_only:
+            stmt = stmt.where(User.is_active.is_(True))
+        stmt = stmt.order_by(User.created_at.asc())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_users(self) -> int:
+        stmt = select(User.id)
+        result = await self.session.execute(stmt)
+        return len(result.scalars().all())
+
+    async def create_user_session(
+        self,
+        *,
+        user_id: UUID,
+        token_hash: str,
+        expires_at: datetime,
+    ) -> UserSession:
+        session = UserSession(
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            last_seen_at=datetime.now(timezone.utc),
+        )
+        self.session.add(session)
+        await self.session.flush()
+        await self.session.refresh(session)
+        return session
+
+    async def get_user_session_by_token_hash(self, token_hash: str) -> UserSession | None:
+        stmt = (
+            select(UserSession)
+            .where(
+                UserSession.token_hash == token_hash,
+                UserSession.expires_at > datetime.now(timezone.utc),
+            )
+            .options(selectinload(UserSession.user))
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete_user_session_by_token_hash(self, token_hash: str) -> bool:
+        session = await self.get_user_session_by_token_hash(token_hash)
+        if session is None:
+            return False
+        await self.session.delete(session)
+        await self.session.flush()
+        return True
+
+    async def delete_user_sessions_for_user(self, user_id: UUID) -> None:
+        stmt = (
+            select(UserSession)
+            .where(UserSession.user_id == user_id)
+        )
+        result = await self.session.execute(stmt)
+        for session in result.scalars().all():
+            await self.session.delete(session)
+        await self.session.flush()
 
     async def refresh_score_rankings(self) -> None:
         stmt = select(CandidateScore).order_by(
