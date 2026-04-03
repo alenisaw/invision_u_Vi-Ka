@@ -1,0 +1,16 @@
+# File: requirements-m6.txt
+# Purpose: Standalone dependency set for running the M6 module, tests, evaluation, and notebook.
+
+pydantic==2.10.3
+PyYAML==6.0.2
+numpy==2.1.3
+pandas==2.2.3
+scipy==1.14.1
+scikit-learn==1.6.0
+joblib==1.4.2
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+jupyterlab==4.3.4
+matplotlib==3.9.3
+seaborn==0.13.2
+

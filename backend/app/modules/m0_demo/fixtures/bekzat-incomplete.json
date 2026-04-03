@@ -1,0 +1,39 @@
+﻿{
+    "_meta":  {
+                  "slug":  "bekzat-incomplete",
+                  "display_name":  "Бекзат Серикулы",
+                  "program":  "General Admissions",
+                  "language":  "ru"
+              },
+    "personal":  {
+                     "first_name":  "Бекзат",
+                     "last_name":  "Серикулы",
+                     "date_of_birth":  "2008-07-03",
+                     "gender":  "male",
+                     "citizenship":  "KZ"
+                 },
+    "contacts":  {
+                     "email":  "bekzat-incomplete@demo.invisionu.local"
+                 },
+    "parents":  {
+
+                },
+    "address":  {
+                    "country":  "Казахстан"
+                },
+    "academic":  {
+                     "selected_program":  "General Admissions"
+                 },
+    "content":  {
+                    "video_url":  ""
+                },
+    "social_status":  {
+                          "has_social_benefit":  false
+                      },
+    "internal_test":  {
+                          "answers":  [
+
+                                      ]
+                      }
+}
+
