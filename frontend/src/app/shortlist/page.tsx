@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
@@ -38,10 +37,8 @@ export default function ShortlistPage() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="container-app">
+      <main className="p-6 lg:p-8">
+        <div className="container-app">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h1
@@ -137,9 +134,8 @@ export default function ShortlistPage() {
               ))}
             </div>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }

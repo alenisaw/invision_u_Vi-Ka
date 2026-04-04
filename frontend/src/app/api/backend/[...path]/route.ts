@@ -33,6 +33,10 @@ function buildHeaders(request: NextRequest, path: string[], hasBody: boolean): H
     headers.set("content-type", request.headers.get("content-type")!);
   }
 
+  if (request.headers.get("cookie")) {
+    headers.set("cookie", request.headers.get("cookie")!);
+  }
+
   if (reviewerApiKey && (rootSegment === "dashboard" || rootSegment === "audit")) {
     headers.set("X-API-Key", reviewerApiKey);
   }
@@ -59,10 +63,16 @@ async function proxyRequest(
   const responseBody = await backendResponse.text();
   const contentType =
     backendResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
+  const setCookie = backendResponse.headers.get("set-cookie");
+  const responseHeaders = new Headers({ "content-type": contentType });
+
+  if (setCookie) {
+    responseHeaders.set("set-cookie", setCookie);
+  }
 
   return new NextResponse(responseBody, {
     status: backendResponse.status,
-    headers: { "content-type": contentType },
+    headers: responseHeaders,
   });
 }
 
@@ -74,6 +84,13 @@ export async function GET(
 }
 
 export async function POST(
+  request: NextRequest,
+  context: { params: { path: string[] } },
+): Promise<NextResponse> {
+  return proxyRequest(request, context);
+}
+
+export async function PATCH(
   request: NextRequest,
   context: { params: { path: string[] } },
 ): Promise<NextResponse> {

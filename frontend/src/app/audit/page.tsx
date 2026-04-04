@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
 import { formatDateTime, getStatusLabel } from "@/lib/i18n";
@@ -16,15 +17,23 @@ const ACTION_STYLES: Record<string, { bg: string; color: string }> = {
 };
 
 export default function AuditPage() {
+  const router = useRouter();
   const { locale, t } = useLocale();
+  const { user, loading: authLoading } = useAuth();
   const [actions, setActions] = useState<AuditFeedItem[]>([]);
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    void loadAudit();
-  }, []);
+    if (!authLoading && (!user || user.role !== "admin")) {
+      router.replace("/login");
+      return;
+    }
+    if (user?.role === "admin") {
+      void loadAudit();
+    }
+  }, [authLoading, router, user]);
 
   async function loadAudit() {
     setLoading(true);
@@ -51,10 +60,8 @@ export default function AuditPage() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="container-app">
+      <main className="p-6 lg:p-8">
+        <div className="container-app">
             <h1
               className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800] mb-2"
               style={{ letterSpacing: "-0.04em" }}
@@ -149,9 +156,8 @@ export default function AuditPage() {
               </table>
             </div>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }

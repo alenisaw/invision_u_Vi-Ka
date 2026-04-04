@@ -9,6 +9,8 @@ from app.modules.m9_storage.models import (
     NLPSignal,
     Program,
     ReviewerAction,
+    User,
+    UserSession,
 )
 from app.modules.m9_storage.repository import StorageRepository
 
@@ -24,5 +26,7 @@ __all__ = [
     "NLPSignal",
     "Program",
     "ReviewerAction",
+    "User",
+    "UserSession",
     "StorageRepository",
 ]

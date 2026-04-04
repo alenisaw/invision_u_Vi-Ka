@@ -59,6 +59,8 @@ class DashboardCandidatePoolItem(ReviewerCandidateIdentity):
     selected_program: str = ""
     pipeline_status: str = "pending"
     stage: str = "raw"
+    data_completeness: float | None = None
+    data_flags: list[str] = Field(default_factory=list)
     review_priority_index: float | None = None
     recommendation_status: RecommendationStatus | None = None
     confidence: float | None = None
@@ -89,6 +91,19 @@ class ReviewerActionItem(BaseModel):
     created_at: datetime
 
 
+class CommitteeMemberStatus(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    user_id: UUID
+    full_name: str
+    role: str
+    has_viewed: bool = False
+    has_recommendation: bool = False
+    recommendation_status: RecommendationStatus | None = None
+    recommendation_comment: str | None = None
+    last_activity_at: datetime | None = None
+
+
 class DashboardCandidateDetailResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -98,6 +113,7 @@ class DashboardCandidateDetailResponse(BaseModel):
     explanation: ExplainabilityReport
     raw_content: RawCandidateContent | None = None
     audit_logs: list[ReviewerActionItem] = Field(default_factory=list)
+    committee_members: list[CommitteeMemberStatus] = Field(default_factory=list)
 
 
 class DashboardShortlistResponse(RootModel[list[DashboardCandidateListItem]]):

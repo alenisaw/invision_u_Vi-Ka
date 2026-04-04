@@ -2,19 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
+import BrandMark from "./BrandMark";
 import ThemeToggle from "./ThemeToggle";
 import LanguageToggle from "./LanguageToggle";
+import UserMenu from "./UserMenu";
 
 export default function Header() {
   const pathname = usePathname();
   const { t } = useLocale();
+  const { user } = useAuth();
 
   const navLinks = [
     { href: "/candidates", label: t("nav.candidates") },
     { href: "/dashboard", label: t("nav.dashboard") },
     { href: "/upload", label: t("nav.upload") },
-    { href: "/audit", label: t("nav.audit") },
+    ...(user?.role === "admin" ? [{ href: "/admin/users", label: t("nav.users") }] : []),
+    ...(user?.role === "admin" ? [{ href: "/audit", label: t("nav.audit") }] : []),
   ];
 
   return (
@@ -26,28 +31,11 @@ export default function Header() {
         borderColor: "var(--brand-line)",
       }}
     >
-      <div className="flex items-center gap-4 mr-6 lg:mr-12 min-w-0">
-        <div
-          className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center font-[900] text-[0.95rem]"
-          style={{
-            background: "var(--brand-lime)",
-            color: "#101311",
-            boxShadow: "0 0 0 6px color-mix(in srgb, var(--brand-lime) 16%, transparent)",
-          }}
-        >
-          U
-        </div>
-        <div className="min-w-0">
-          <div
-            className="font-[900] text-[1.02rem] whitespace-nowrap leading-none"
-            style={{ letterSpacing: "-0.04em", color: "var(--brand-ink)" }}
-          >
-            inVision U
-          </div>
-        </div>
+      <div className="flex items-center mr-6 lg:mr-12 min-w-0">
+        <BrandMark />
       </div>
 
-      <nav className="hidden md:flex items-center gap-6 lg:gap-8 min-w-0">
+      <nav className="hidden md:flex items-center gap-6 lg:gap-8 min-w-0 mr-auto">
         {navLinks.map((link) => {
           const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
           return (
@@ -73,23 +61,9 @@ export default function Header() {
       </nav>
 
       <div className="ml-auto flex items-center gap-3 lg:gap-4">
-        <LanguageToggle />
+        <UserMenu />
         <ThemeToggle />
-        <div className="hidden xl:flex items-center">
-          <a
-            href="https://youtu.be/dQw4w9WgXcQ"
-            target="_blank"
-            rel="noreferrer"
-            title={t("header.rickroll")}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[0.8rem] font-[900]"
-            style={{
-              background: "var(--brand-ink)",
-              color: "var(--brand-paper)",
-            }}
-          >
-            {t("brand.badge")}
-          </a>
-        </div>
+        <LanguageToggle />
       </div>
     </header>
   );

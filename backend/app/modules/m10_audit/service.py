@@ -5,9 +5,11 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.auth.schemas import UserResponse
 from app.modules.m10_audit.schemas import (
     AuditFeedItemResponse,
     CandidateOverrideRequest,
+    CommitteeDecisionRequest,
     ReviewerActionCreateRequest,
     ReviewerActionResponse,
 )
@@ -102,6 +104,143 @@ class AuditService:
                 "new_status": payload.new_status,
                 "comment": payload.comment.strip(),
                 "shortlist_eligible": shortlist_eligible,
+            },
+        )
+        await self.repository.commit()
+        return self._reviewer_action_response(action)
+
+    async def submit_committee_decision(
+        self,
+        candidate_id: UUID,
+        *,
+        actor: UserResponse,
+        payload: CommitteeDecisionRequest,
+    ) -> ReviewerActionResponse:
+        candidate = await self._get_candidate_or_raise(candidate_id)
+
+        if actor.role not in {"reviewer", "chair"}:
+            raise AuditWorkflowError(
+                "Only committee members can submit decisions",
+                status_code=403,
+            )
+
+        previous_status = self._current_status(candidate)
+        reviewer_id = actor.full_name.strip() or actor.email.strip()
+        comment = payload.comment.strip()
+
+        if actor.role == "chair":
+            if candidate.score_record is None:
+                raise AuditWorkflowError(
+                    f"Candidate {candidate_id} has no score record",
+                    status_code=409,
+                )
+
+            shortlist_eligible = payload.new_status in SHORTLIST_ELIGIBLE_STATUSES
+            updated_score_payload = self._updated_score_payload(
+                candidate.score_record.score_payload,
+                recommendation_status=payload.new_status,
+                manual_review_required=False,
+                human_in_loop_required=False,
+                review_recommendation="STANDARD_REVIEW",
+                shortlist_eligible=shortlist_eligible,
+            )
+            await self.repository.upsert_candidate_score(
+                candidate_id=candidate_id,
+                recommendation_status=payload.new_status,
+                manual_review_required=False,
+                human_in_loop_required=False,
+                review_recommendation="STANDARD_REVIEW",
+                shortlist_eligible=shortlist_eligible,
+                score_payload=updated_score_payload,
+            )
+
+            if candidate.explanation_record is not None:
+                updated_report_payload = self._updated_report_payload(
+                    candidate.explanation_record.report_payload,
+                    recommendation_status=payload.new_status,
+                    manual_review_required=False,
+                    human_in_loop_required=False,
+                    review_recommendation="STANDARD_REVIEW",
+                )
+                await self.repository.upsert_candidate_explanation(
+                    candidate_id=candidate_id,
+                    recommendation_status=payload.new_status,
+                    manual_review_required=False,
+                    human_in_loop_required=False,
+                    review_recommendation="STANDARD_REVIEW",
+                    report_payload=updated_report_payload,
+                )
+
+            action_type = "chair_decision"
+            audit_action = "chair_decision"
+        else:
+            shortlist_eligible = None
+            action_type = "recommendation"
+            audit_action = "recommendation"
+
+        action = await self.repository.create_reviewer_action(
+            candidate_id=candidate_id,
+            reviewer_id=reviewer_id,
+            action_type=action_type,
+            previous_status=previous_status,
+            new_status=payload.new_status,
+            comment=comment,
+        )
+        await self.repository.create_audit_log(
+            entity_type="candidate",
+            entity_id=candidate_id,
+            action=audit_action,
+            actor=actor.email,
+            details={
+                "reviewer_id": reviewer_id,
+                "previous_status": previous_status,
+                "new_status": payload.new_status,
+                "comment": comment,
+                "role": actor.role,
+                "shortlist_eligible": shortlist_eligible,
+            },
+        )
+        await self.repository.commit()
+        return self._reviewer_action_response(action)
+
+    async def record_candidate_view(
+        self,
+        candidate_id: UUID,
+        *,
+        actor: UserResponse,
+    ) -> ReviewerActionResponse:
+        candidate = await self._get_candidate_or_raise(candidate_id)
+
+        if actor.role not in {"reviewer", "chair"}:
+            raise AuditWorkflowError(
+                "Only committee members can record view activity",
+                status_code=403,
+            )
+
+        reviewer_id = actor.full_name.strip() or actor.email.strip()
+        for existing in candidate.reviewer_actions or []:
+            if existing.reviewer_id == reviewer_id and existing.action_type == "viewed":
+                return self._reviewer_action_response(existing)
+
+        current_status = self._current_status(candidate)
+        action = await self.repository.create_reviewer_action(
+            candidate_id=candidate_id,
+            reviewer_id=reviewer_id,
+            action_type="viewed",
+            previous_status=current_status,
+            new_status=current_status,
+            comment="",
+        )
+        await self.repository.create_audit_log(
+            entity_type="candidate",
+            entity_id=candidate_id,
+            action="viewed",
+            actor=actor.email,
+            details={
+                "reviewer_id": reviewer_id,
+                "previous_status": current_status,
+                "new_status": current_status,
+                "role": actor.role,
             },
         )
         await self.repository.commit()

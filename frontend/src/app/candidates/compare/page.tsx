@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import CompareRadar from "@/components/candidate/CompareRadar";
 import PipelineProgress from "@/components/candidate/PipelineProgress";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -104,10 +103,8 @@ function ComparePageInner() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8">
-          <div className="container-app">
+      <main className="p-6 lg:p-8">
+        <div className="container-app">
             <div className="flex items-center gap-4 mb-6">
               <Link href="/candidates" className="text-[0.88rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
                 &larr; {t("demoCompare.back")}
@@ -229,9 +226,8 @@ function ComparePageInner() {
                 </div>
               </>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }

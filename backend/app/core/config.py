@@ -27,6 +27,12 @@ class Settings(BaseSettings):
 
     api_v1_prefix: str = "/api/v1"
     api_key: str | None = None
+    session_cookie_name: str = "invisionu_session"
+    session_ttl_hours: int = 168
+    session_secret: str = "change-me-auth-session-secret"
+    bootstrap_admin_email: str = "admin@invisionu.local"
+    bootstrap_admin_password: str = "admin"
+    bootstrap_admin_full_name: str = "Main Admin"
 
     postgres_host: str = "localhost"
     postgres_port: int = 5432

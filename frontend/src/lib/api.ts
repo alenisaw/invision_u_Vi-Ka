@@ -1,5 +1,7 @@
 import type {
+  AdminUser,
   ApiResponse,
+  AuthUser,
   AuditFeedItem,
   CandidateDetail,
   CandidateListItem,
@@ -10,6 +12,7 @@ import type {
   PipelineResult,
   RecommendationStatus,
   ReviewerAction,
+  SessionInfo,
 } from "@/types";
 
 export class ApiError extends Error {
@@ -33,6 +36,7 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
       ...(options?.headers ?? {}),
@@ -64,6 +68,9 @@ export const api = {
 
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+
+  patch: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
 };
 
 export const reviewerApi = {
@@ -86,6 +93,15 @@ export const reviewerApi = {
       `/api/backend/dashboard/candidates/${candidateId}/override`,
       body,
     ),
+  recordCandidateViewed: (candidateId: string) =>
+    api.post<ReviewerAction>(`/api/backend/dashboard/candidates/${candidateId}/viewed`, {}),
+  submitCommitteeDecision: (
+    candidateId: string,
+    body: {
+      new_status: RecommendationStatus;
+      comment: string;
+    },
+  ) => api.post<ReviewerAction>(`/api/backend/dashboard/candidates/${candidateId}/decision`, body),
   listShortlist: () => api.get<CandidateListItem[]>("/api/backend/dashboard/shortlist"),
   listAuditFeed: (limit = 100) =>
     api.get<AuditFeedItem[]>(`/api/backend/audit/feed?limit=${limit}`),
@@ -94,6 +110,34 @@ export const reviewerApi = {
 export const pipelineApi = {
   submitCandidate: (body: unknown) =>
     api.post<PipelineResult>("/api/backend/pipeline/submit", body),
+};
+
+export const authApi = {
+  login: (body: { email: string; password: string }) =>
+    api.post<SessionInfo>("/api/backend/auth/login", body),
+  me: () => api.get<AuthUser>("/api/backend/auth/me"),
+  logout: () =>
+    api.post<{ logged_out: boolean; user_id: string }>("/api/backend/auth/logout", {}),
+};
+
+export const adminApi = {
+  listUsers: () => api.get<AdminUser[]>("/api/backend/admin/users"),
+  createUser: (body: {
+    email: string;
+    full_name: string;
+    password: string;
+    role: "admin" | "chair" | "reviewer";
+    is_active: boolean;
+  }) => api.post<AdminUser>("/api/backend/admin/users", body),
+  updateUser: (
+    userId: string,
+    body: Partial<{
+      full_name: string;
+      password: string;
+      role: "admin" | "chair" | "reviewer";
+      is_active: boolean;
+    }>,
+  ) => api.patch<AdminUser>(`/api/backend/admin/users/${userId}`, body),
 };
 
 export const demoApi = {

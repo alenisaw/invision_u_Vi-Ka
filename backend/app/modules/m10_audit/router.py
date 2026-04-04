@@ -5,7 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, require_reviewer_api_key
+from app.core.dependencies import get_db, require_reviewer_api_key, require_roles
+from app.modules.auth.schemas import UserResponse
 from app.modules.m10_audit.schemas import ReviewerActionCreateRequest
 from app.modules.m10_audit.service import AuditService, AuditWorkflowError
 from app.schemas.common import success_response
@@ -20,7 +21,6 @@ dashboard_router = APIRouter(
 audit_router = APIRouter(
     prefix="/api/v1/audit",
     tags=["audit"],
-    dependencies=[Depends(require_reviewer_api_key)],
 )
 
 
@@ -54,6 +54,7 @@ async def list_candidate_reviewer_actions(
 @audit_router.get("/feed")
 async def get_audit_feed(
     limit: int = Query(default=100, ge=1, le=500),
+    current_user: UserResponse = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     service = AuditService(db)

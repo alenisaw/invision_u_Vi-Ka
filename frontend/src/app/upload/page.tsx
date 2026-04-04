@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
-import Sidebar from "@/components/layout/Sidebar";
 import PipelineProgress from "@/components/candidate/PipelineProgress";
 import DemoCard from "@/components/candidate/DemoCard";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -44,7 +43,7 @@ const INITIAL_FORM: FormState = {
   date_of_birth: "",
   gender: "",
   citizenship: "KZ",
-  selected_program: "Цифровые медиа и маркетинг",
+  selected_program: "Foundation",
   language_exam_type: "IELTS",
   language_score: "",
   essay_text: "",
@@ -123,6 +122,13 @@ export default function UploadPage() {
 
   const programOptions = useMemo(() => getProgramOptions(locale), [locale]);
   const countryOptions = useMemo(() => getCountryOptions(locale), [locale]);
+  const fixturesByLanguage = useMemo(
+    () => ({
+      ru: fixtures.filter((item) => item.meta.language === "ru"),
+      en: fixtures.filter((item) => item.meta.language === "en"),
+    }),
+    [fixtures],
+  );
   const statusPanelStyle = useMemo(() => {
     if (status === "error") {
       return {
@@ -225,10 +231,8 @@ export default function UploadPage() {
   return (
     <>
       <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8 pb-20">
-          <div className="container-app max-w-6xl">
+      <main className="p-6 lg:p-8 pb-20">
+        <div className="container-app max-w-6xl">
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
               <div className="max-w-[56rem]">
                 <div className="eyebrow mb-3">{t("nav.upload")}</div>
@@ -507,24 +511,27 @@ export default function UploadPage() {
                 ) : fixtures.length === 0 ? (
                   <div className="text-muted font-[700]">{t("upload.demo.empty")}</div>
                 ) : (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                    {fixtures.map((fixture) => (
-                      <DemoCard
-                        key={fixture.meta.slug}
-                        meta={fixture.meta}
-                        onRun={handleRunFixture}
-                        isRunning={runningDemoSlug === fixture.meta.slug}
-                        isDisabled={Boolean(runningDemoSlug && runningDemoSlug !== fixture.meta.slug)}
-                        actionLabel={t("upload.demo.run")}
-                      />
-                    ))}
+                  <div className="space-y-8">
+                    <DemoGroup
+                      title="Foundation / RU"
+                      fixtures={fixturesByLanguage.ru}
+                      onRun={handleRunFixture}
+                      runningDemoSlug={runningDemoSlug}
+                      actionLabel={t("upload.demo.run")}
+                    />
+                    <DemoGroup
+                      title="Main Programs / EN"
+                      fixtures={fixturesByLanguage.en}
+                      onRun={handleRunFixture}
+                      runningDemoSlug={runningDemoSlug}
+                      actionLabel={t("upload.demo.run")}
+                    />
                   </div>
                 )}
               </section>
             )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </>
   );
 }
@@ -638,6 +645,38 @@ function CollapsibleSection({
         <span className="text-[0.82rem] font-[700] text-muted">{open ? "−" : "+"}</span>
       </button>
       {open && <div className="mt-4">{children}</div>}
+    </div>
+  );
+}
+
+function DemoGroup({
+  title,
+  fixtures,
+  onRun,
+  runningDemoSlug,
+  actionLabel,
+}: {
+  title: string;
+  fixtures: FixtureSummary[];
+  onRun: (slug: string) => void;
+  runningDemoSlug: string | null;
+  actionLabel: string;
+}) {
+  return (
+    <div>
+      <div className="eyebrow mb-4">{title}</div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        {fixtures.map((fixture) => (
+          <DemoCard
+            key={fixture.meta.slug}
+            meta={fixture.meta}
+            onRun={onRun}
+            isRunning={runningDemoSlug === fixture.meta.slug}
+            isDisabled={Boolean(runningDemoSlug && runningDemoSlug !== fixture.meta.slug)}
+            actionLabel={actionLabel}
+          />
+        ))}
+      </div>
     </div>
   );
 }

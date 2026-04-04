@@ -45,6 +45,17 @@ class TestListFixtures:
         slugs = [f.meta.slug for f in svc.list_fixtures()]
         assert len(slugs) == len(set(slugs)), f"Duplicate slugs found: {slugs}"
 
+    def test_fixture_languages_are_balanced(self, svc: DemoFixtureService) -> None:
+        fixtures = svc.list_fixtures()
+        ru_count = sum(1 for fixture in fixtures if fixture.meta.language == "ru")
+        en_count = sum(1 for fixture in fixtures if fixture.meta.language == "en")
+        assert ru_count == en_count == len(fixtures) // 2
+
+    def test_russian_fixtures_are_foundation(self, svc: DemoFixtureService) -> None:
+        for fixture in svc.list_fixtures():
+            if fixture.meta.language == "ru":
+                assert fixture.meta.program == "Foundation"
+
 
 
 
