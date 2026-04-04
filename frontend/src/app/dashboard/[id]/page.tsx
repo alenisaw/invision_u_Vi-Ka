@@ -17,6 +17,11 @@ import type {
   ReviewerAction,
 } from "@/types";
 
+const RU_INTERFACE = "\u041d\u0430 \u044f\u0437\u044b\u043a\u0435 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430";
+const RU_ORIGINAL = "\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b";
+const RU_NOT_AVAILABLE =
+  "\u041c\u0430\u0442\u0435\u0440\u0438\u0430\u043b \u043f\u043e\u043a\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d";
+
 export default function CandidateDetailPage({
   params,
 }: {
@@ -46,9 +51,7 @@ export default function CandidateDetailPage({
         setNotFound(true);
         setDetail(null);
       } else {
-        setError(
-          err instanceof Error ? err.message : t("candidateDetail.loadErrorCard"),
-        );
+        setError(err instanceof Error ? err.message : t("candidateDetail.loadErrorCard"));
       }
     } finally {
       setLoading(false);
@@ -64,15 +67,13 @@ export default function CandidateDetailPage({
       loadErrorDescription: t("candidateDetail.loadErrorDescription"),
       backToRanking: t("candidateDetail.backToRanking"),
       rawTitle: t("candidateDetail.rawTitle"),
-      expand: t("candidateDetail.expand"),
-      collapse: t("candidateDetail.collapse"),
       essay: t("candidateDetail.essay"),
       transcript: t("candidateDetail.transcript"),
       history: t("candidateDetail.history"),
       unknownComment: t("candidateDetail.unknownComment"),
-      interfaceLanguage: locale === "ru" ? "На языке интерфейса" : "Interface language",
-      original: locale === "ru" ? "Оригинал" : "Original",
-      notAvailable: locale === "ru" ? "Материал пока недоступен" : "Material is not available yet",
+      interfaceLanguage: locale === "ru" ? RU_INTERFACE : "Interface language",
+      original: locale === "ru" ? RU_ORIGINAL : "Original",
+      notAvailable: locale === "ru" ? RU_NOT_AVAILABLE : "Material is not available yet",
     }),
     [locale, t],
   );
@@ -202,7 +203,6 @@ function RawContentSection({
   content: RawCandidateContent;
   copy: Record<string, string>;
 }) {
-  const [open, setOpen] = useState(true);
   const hasAny = Boolean(content.essay || content.video_transcript);
 
   if (!hasAny) {
@@ -211,26 +211,18 @@ function RawContentSection({
 
   return (
     <div className="card p-6">
-      <button onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between">
-        <div className="text-[0.95rem] font-[800] text-[var(--brand-ink)]">{copy.rawTitle}</div>
-        <span className="text-[0.82rem] font-[700] text-muted">
-          {open ? copy.collapse : copy.expand}
-        </span>
-      </button>
-
-      {open ? (
-        <div className="mt-5 flex flex-col gap-6">
-          {content.essay ? <ContentBlock title={copy.essay} content={content.essay} copy={copy} /> : null}
-          {content.video_transcript ? (
-            <ContentBlock
-              title={copy.transcript}
-              content={content.video_transcript}
-              copy={copy}
-              preserveWhitespace
-            />
-          ) : null}
-        </div>
-      ) : null}
+      <div className="mb-5 text-[1rem] font-[800] text-[var(--brand-ink)]">{copy.rawTitle}</div>
+      <div className="flex flex-col gap-6">
+        {content.essay ? <ContentBlock title={copy.essay} content={content.essay} copy={copy} /> : null}
+        {content.video_transcript ? (
+          <ContentBlock
+            title={copy.transcript}
+            content={content.video_transcript}
+            copy={copy}
+            preserveWhitespace
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -272,11 +264,13 @@ function ContentBlock({
   }
 
   return (
-    <div>
+    <div className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-5 py-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">{title}</div>
+        <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+          {title}
+        </div>
         {hasLocalizedView ? (
-          <div className="flex rounded-full border border-[var(--brand-line)] bg-[var(--surface-subtle)] p-1">
+          <div className="flex rounded-full border border-[var(--brand-line)] bg-[var(--surface-soft)] p-1">
             <button
               type="button"
               onClick={() => setViewMode("interface")}
@@ -302,14 +296,11 @@ function ContentBlock({
           </div>
         ) : null}
       </div>
+
       <div
-        className={`rounded-[1rem] p-4 text-[0.88rem] font-[500] leading-[1.75] text-[var(--brand-ink)] ${
+        className={`text-[0.9rem] font-[500] leading-[1.8] text-[var(--brand-ink)] ${
           preserveWhitespace ? "whitespace-pre-wrap" : ""
         }`}
-        style={{
-          background: "var(--surface-subtle)",
-          border: "1px solid var(--brand-line)",
-        }}
       >
         {displayText || copy.notAvailable}
       </div>

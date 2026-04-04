@@ -15,6 +15,12 @@ interface ExplanationBlockProps {
   insertAfterConclusion?: React.ReactNode;
 }
 
+const RU_INTERFACE = "\u041d\u0430 \u044f\u0437\u044b\u043a\u0435 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430";
+const RU_ORIGINAL = "\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b";
+const RU_AI_TITLE = "\u0412\u044b\u0432\u043e\u0434\u044b \u043e\u0442 \u0418\u0418";
+const RU_VERIFY =
+  "\u0441\u0432\u0435\u0440\u0438\u0442\u044c \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e\u0449\u0438\u0435 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u044b \u0438 \u0444\u043e\u0440\u043c\u0443\u043b\u0438\u0440\u043e\u0432\u043a\u0438 \u043a\u0430\u043d\u0434\u0438\u0434\u0430\u0442\u0430";
+
 export default function ExplanationBlock({
   explanation,
   insertAfterConclusion,
@@ -35,11 +41,11 @@ export default function ExplanationBlock({
 
   const labels = useMemo(
     () => ({
-      title: t("explanation.title"),
+      title: locale === "ru" ? RU_AI_TITLE : t("explanation.title"),
       strengths: t("explanation.positive"),
       cautions: t("explanation.cautions"),
-      localized: locale === "ru" ? "На языке интерфейса" : "Interface language",
-      original: locale === "ru" ? "Оригинал" : "Original",
+      localized: locale === "ru" ? RU_INTERFACE : "Interface language",
+      original: locale === "ru" ? RU_ORIGINAL : "Original",
     }),
     [locale, t],
   );
@@ -81,6 +87,7 @@ export default function ExplanationBlock({
             </div>
           ) : null}
         </div>
+
         <p className="text-[0.95rem] font-[500] leading-[1.9] text-muted-strong">
           {summaryText}
         </p>
@@ -88,7 +95,7 @@ export default function ExplanationBlock({
 
       {insertAfterConclusion}
 
-      {explanation.positive_factors.length > 0 && (
+      {explanation.positive_factors.length > 0 ? (
         <div className="card p-6">
           <div className="eyebrow mb-5">{labels.strengths}</div>
           <div className="flex flex-col gap-4">
@@ -109,19 +116,21 @@ export default function ExplanationBlock({
                     +{(factor.score_contribution * 100).toFixed(0)}%
                   </span>
                 </div>
+
                 <p className="mb-4 text-[0.85rem] leading-relaxed text-muted-strong">
                   {viewMode === "localized" && hasAltView
                     ? buildLocalizedFactorSummary(factor, locale)
                     : factor.summary}
                 </p>
+
                 {factor.evidence.length > 0 ? <EvidenceList evidence={factor.evidence} /> : null}
               </div>
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {explanation.caution_blocks.length > 0 && (
+      {explanation.caution_blocks.length > 0 ? (
         <div className="card p-6">
           <div className="eyebrow mb-5">{labels.cautions}</div>
           <div className="flex flex-col gap-4">
@@ -142,18 +151,17 @@ export default function ExplanationBlock({
                     {localizeLabel(caution.flag, locale) || caution.title}
                   </h4>
                 </div>
+
                 <p className="mb-3 text-[0.85rem] leading-relaxed text-muted-strong">
                   {viewMode === "localized" && hasAltView
                     ? buildLocalizedCautionSummary(caution, locale)
                     : caution.summary}
                 </p>
+
                 <p className="mt-2 inline-block rounded-[0.5rem] bg-[var(--brand-coral)]/10 px-3 py-1.5 text-[0.82rem] font-[700] text-[var(--brand-coral)]">
                   {viewMode === "localized" && hasAltView
                     ? t("explanation.check", {
-                        action:
-                          locale === "ru"
-                            ? "сверить подтверждающие материалы и формулировки кандидата"
-                            : "review the supporting materials and the candidate wording",
+                        action: locale === "ru" ? RU_VERIFY : "review the supporting materials and the candidate wording",
                       })
                     : t("explanation.check", { action: caution.suggested_action })}
                 </p>
@@ -161,7 +169,7 @@ export default function ExplanationBlock({
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
