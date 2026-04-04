@@ -42,17 +42,21 @@ export default function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="relative text-[0.94rem] font-[700] transition-colors"
+              className={`group relative text-[0.94rem] font-[700] transition-colors duration-200 ${
+                isActive ? "" : "hover:text-[var(--brand-ink)]"
+              }`}
               style={{
                 color: isActive ? "var(--brand-ink)" : "var(--brand-muted-strong)",
               }}
             >
               {link.label}
               <span
-                className="absolute -bottom-1 left-0 w-full h-[2px] transition-transform duration-[350ms] ease-in-out origin-left"
+                className={`absolute -bottom-1 left-0 h-[2px] transition-all duration-[350ms] ease-in-out origin-left ${
+                  isActive ? "scale-x-100 opacity-100" : "scale-x-[0.32] opacity-30 group-hover:scale-x-100 group-hover:opacity-100"
+                }`}
                 style={{
                   background: "var(--brand-lime)",
-                  transform: isActive ? "scaleX(1)" : "scaleX(0)",
+                  width: "100%",
                 }}
               />
             </Link>

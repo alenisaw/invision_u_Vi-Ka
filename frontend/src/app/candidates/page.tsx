@@ -140,12 +140,9 @@ function CandidatesPageInner() {
       <main className="min-w-0 p-6 lg:p-10 pb-24 relative">
         <div className="container-app">
             <div className="mb-8">
-              <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] mb-3 tracking-[-0.05em]">
+              <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] tracking-[-0.05em]">
                 {t("candidates.title")}
               </h1>
-              <p className="text-[1rem] text-muted max-w-[72ch] leading-relaxed">
-                {t("candidates.description")}
-              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">

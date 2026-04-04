@@ -285,18 +285,18 @@ Provides pre-built candidate fixtures for demonstration. Loads realistic payload
 ### Current State
 
 - implemented in this branch
-- exposes dashboard stats, ranking lists, candidate detail views, shortlist reads, live candidate-pool reads, and safe reviewer identity projection
+- exposes dashboard stats, ranking lists, candidate detail views, live candidate-pool reads, and safe reviewer identity projection
 - builds candidate display names by decrypting stored PII inside the backend projection layer
 - includes raw safe content and reviewer action history in detail responses
-- requires reviewer API key access before returning reviewer-facing data
+- requires session auth and RBAC before returning committee-facing data
 
 ### Files
 
 | File | Responsibility |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | reviewer-facing read routes and override entrypoint |
+| `backend/app/modules/m8_dashboard/router.py` | committee-facing read routes and decision/view entrypoints |
 | `backend/app/modules/m8_dashboard/service.py` | safe reviewer projection logic and dashboard aggregation |
-| `backend/app/modules/m8_dashboard/schemas.py` | reviewer DTOs for stats, lists, detail, and shortlist |
+| `backend/app/modules/m8_dashboard/schemas.py` | committee DTOs for stats, lists, detail, and candidate-pool responses |
 
 ---
 
@@ -331,17 +331,17 @@ Provides pre-built candidate fixtures for demonstration. Loads realistic payload
 ### Current State
 
 - implemented in this branch
-- stores overrides, comments, shortlist actions, and pipeline audit entries
-- exposes candidate action endpoints and a reviewer-facing audit feed
-- updates shortlist state and status overrides through the shared persistence layer
+- stores committee recommendations, chair decisions, view activity, and pipeline audit entries
+- exposes audit feed access for admins and committee write flows for authenticated users
+- updates persisted candidate status through the shared persistence layer
 
 ### Files
 
 | File | Responsibility |
 |---|---|
 | `backend/app/modules/m10_audit/logger.py` | audit logging helpers and future extension point |
-| `backend/app/modules/m10_audit/service.py` | override workflows, reviewer action writes, audit feed shaping |
-| `backend/app/modules/m10_audit/router.py` | reviewer action and audit feed routes |
+| `backend/app/modules/m10_audit/service.py` | committee decision workflows, reviewer action writes, audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | committee action and audit feed routes |
 | `backend/app/modules/m10_audit/schemas.py` | request and response contracts |
 
 ---

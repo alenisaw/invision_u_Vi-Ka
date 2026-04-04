@@ -9,13 +9,10 @@ import ScoreRadar from "@/components/candidate/ScoreRadar";
 import Header from "@/components/layout/Header";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { ApiError, reviewerApi } from "@/lib/api";
-import {
-  formatDateTime,
-  getStatusLabel,
-  localizeProgramName,
-} from "@/lib/i18n";
+import { formatDateTime, getStatusLabel, localizeProgramName } from "@/lib/i18n";
 import type {
   CandidateDetail,
+  LocalizedTextContent,
   RawCandidateContent,
   ReviewerAction,
 } from "@/types";
@@ -34,7 +31,7 @@ export default function CandidateDetailPage({
   useEffect(() => {
     void loadDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [params.id, locale]);
 
   async function loadDetail() {
     setLoading(true);
@@ -42,7 +39,7 @@ export default function CandidateDetailPage({
     setNotFound(false);
 
     try {
-      const data = await reviewerApi.getCandidateDetail(params.id);
+      const data = await reviewerApi.getCandidateDetail(params.id, locale);
       setDetail(data);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
@@ -50,9 +47,7 @@ export default function CandidateDetailPage({
         setDetail(null);
       } else {
         setError(
-          err instanceof Error
-            ? err.message
-            : t("candidateDetail.loadErrorCard"),
+          err instanceof Error ? err.message : t("candidateDetail.loadErrorCard"),
         );
       }
     } finally {
@@ -75,17 +70,15 @@ export default function CandidateDetailPage({
       transcript: t("candidateDetail.transcript"),
       history: t("candidateDetail.history"),
       unknownComment: t("candidateDetail.unknownComment"),
+      interfaceLanguage: locale === "ru" ? "На языке интерфейса" : "Interface language",
+      original: locale === "ru" ? "Оригинал" : "Original",
+      notAvailable: locale === "ru" ? "Материал пока недоступен" : "Material is not available yet",
     }),
-    [t],
+    [locale, t],
   );
 
   if (loading && !detail) {
-    return (
-      <StateLayout
-        title={copy.loadingTitle}
-        description={copy.loadingDescription}
-      />
-    );
+    return <StateLayout title={copy.loadingTitle} description={copy.loadingDescription} />;
   }
 
   if (notFound) {
@@ -126,55 +119,49 @@ export default function CandidateDetailPage({
       <Header />
       <main className="p-6 lg:p-8">
         <div className="container-app">
-            <div className="flex items-center gap-4 mb-6">
-              <Link
-                href="/dashboard"
-                className="btn btn--ghost btn--sm"
-                style={{ minWidth: 0 }}
+          <div className="mb-6 flex items-center gap-4">
+            <Link href="/dashboard" className="btn btn--ghost btn--sm" style={{ minWidth: 0 }}>
+              &larr; {t("common.back")}
+            </Link>
+            <div>
+              <h1
+                className="text-[clamp(1.4rem,1.2rem+1vw,2rem)] font-[800]"
+                style={{ letterSpacing: "-0.03em" }}
               >
-                &larr; {t("common.back")}
-              </Link>
-              <div>
-                <h1
-                  className="text-[clamp(1.4rem,1.2rem+1vw,2rem)] font-[800]"
-                  style={{ letterSpacing: "-0.03em" }}
-                >
-                  {detail.name}
-                </h1>
-                <p
-                  className="text-[0.82rem]"
-                  style={{ color: "var(--brand-muted)" }}
-                >
-                  {localizeProgramName(detail.score.selected_program, locale)}
-                </p>
-              </div>
+                {detail.name}
+              </h1>
+              <p className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>
+                {localizeProgramName(detail.score.selected_program, locale)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+            <div className="flex flex-col gap-6">
+              <CandidateCard score={detail.score} />
+              <ExplanationBlock
+                explanation={detail.explanation}
+                insertAfterConclusion={
+                  detail.raw_content ? (
+                    <RawContentSection content={detail.raw_content} copy={copy} />
+                  ) : undefined
+                }
+              />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-6">
-              <div className="flex flex-col gap-6">
-                <CandidateCard score={detail.score} />
-                <ExplanationBlock
-                  explanation={detail.explanation}
-                  insertAfterConclusion={
-                    detail.raw_content ? (
-                      <RawContentSection content={detail.raw_content} copy={copy} />
-                    ) : undefined
-                  }
-                />
-              </div>
-
-              <div className="flex flex-col gap-6">
-                <ScoreRadar subScores={detail.score.sub_scores} />
-                <OverridePanel
-                  candidateId={detail.score.candidate_id}
-                  currentStatus={detail.score.recommendation_status}
-                  committeeMembers={detail.committee_members ?? []}
-                  auditLogs={detail.audit_logs ?? []}
-                  onSuccess={loadDetail}
-                />
-                <DecisionHistory logs={detail.audit_logs ?? []} locale={locale} copy={copy} />
-              </div>
+            <div className="flex flex-col gap-6">
+              <ScoreRadar subScores={detail.score.sub_scores} />
+              <OverridePanel
+                candidateId={detail.score.candidate_id}
+                currentStatus={detail.score.recommendation_status}
+                committeeMembers={detail.committee_members ?? []}
+                committeeResolution={detail.committee_resolution ?? null}
+                auditLogs={detail.audit_logs ?? []}
+                onSuccess={loadDetail}
+              />
+              <DecisionHistory logs={detail.audit_logs ?? []} locale={locale} copy={copy} />
             </div>
+          </div>
         </div>
       </main>
     </>
@@ -196,11 +183,8 @@ function StateLayout({
       <main className="p-8">
         <div className="container-app">
           <div className="card p-12 text-center">
-            <h2 className="text-[1.22rem] font-[800] mb-3">{title}</h2>
-            <p
-              className="text-[0.88rem] mb-6"
-              style={{ color: "var(--brand-muted)" }}
-            >
+            <h2 className="mb-3 text-[1.22rem] font-[800]">{title}</h2>
+            <p className="mb-6 text-[0.88rem]" style={{ color: "var(--brand-muted)" }}>
               {description}
             </p>
             {action}
@@ -218,8 +202,8 @@ function RawContentSection({
   content: RawCandidateContent;
   copy: Record<string, string>;
 }) {
-  const [open, setOpen] = useState(false);
-  const hasAny = Boolean(content.essay_text || content.video_transcript);
+  const [open, setOpen] = useState(true);
+  const hasAny = Boolean(content.essay || content.video_transcript);
 
   if (!hasAny) {
     return null;
@@ -227,26 +211,23 @@ function RawContentSection({
 
   return (
     <div className="card p-6">
-      <button
-        onClick={() => setOpen((current) => !current)}
-        className="flex items-center justify-between w-full"
-      >
-        <div className="eyebrow">{copy.rawTitle}</div>
+      <button onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between">
+        <div className="text-[0.95rem] font-[800] text-[var(--brand-ink)]">{copy.rawTitle}</div>
         <span className="text-[0.82rem] font-[700] text-muted">
           {open ? copy.collapse : copy.expand}
         </span>
       </button>
 
       {open ? (
-        <div className="flex flex-col gap-6 mt-5">
-          {content.essay_text ? (
-            <ContentBlock title={copy.essay}>{content.essay_text}</ContentBlock>
-          ) : null}
-
+        <div className="mt-5 flex flex-col gap-6">
+          {content.essay ? <ContentBlock title={copy.essay} content={content.essay} copy={copy} /> : null}
           {content.video_transcript ? (
-            <ContentBlock title={copy.transcript} preserveWhitespace>
-              {content.video_transcript}
-            </ContentBlock>
+            <ContentBlock
+              title={copy.transcript}
+              content={content.video_transcript}
+              copy={copy}
+              preserveWhitespace
+            />
           ) : null}
         </div>
       ) : null}
@@ -256,20 +237,73 @@ function RawContentSection({
 
 function ContentBlock({
   title,
-  children,
+  content,
+  copy,
   preserveWhitespace = false,
 }: {
   title: string;
-  children: string;
+  content: LocalizedTextContent;
+  copy: Record<string, string>;
   preserveWhitespace?: boolean;
 }) {
+  const { locale } = useLocale();
+  const hasLocalizedView = Boolean(
+    content.interface_text &&
+      content.interface_locale &&
+      content.original_locale &&
+      content.interface_locale !== content.original_locale,
+  );
+  const [viewMode, setViewMode] = useState<"interface" | "original">(
+    hasLocalizedView ? "interface" : "original",
+  );
+
+  useEffect(() => {
+    setViewMode(hasLocalizedView ? "interface" : "original");
+  }, [hasLocalizedView, locale]);
+
+  const text =
+    viewMode === "interface" && hasLocalizedView
+      ? content.interface_text ?? content.original_text
+      : content.original_text;
+  const displayText = (text || content.original_text || content.interface_text || "").trim();
+
+  if (!displayText) {
+    return null;
+  }
+
   return (
     <div>
-      <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">
-        {title}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">{title}</div>
+        {hasLocalizedView ? (
+          <div className="flex rounded-full border border-[var(--brand-line)] bg-[var(--surface-subtle)] p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("interface")}
+              className={`rounded-full px-3 py-1.5 text-[0.72rem] font-[800] transition-colors ${
+                viewMode === "interface"
+                  ? "bg-[var(--brand-ink)] text-[var(--brand-paper)]"
+                  : "text-muted-strong"
+              }`}
+            >
+              {copy.interfaceLanguage}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("original")}
+              className={`rounded-full px-3 py-1.5 text-[0.72rem] font-[800] transition-colors ${
+                viewMode === "original"
+                  ? "bg-[var(--brand-ink)] text-[var(--brand-paper)]"
+                  : "text-muted-strong"
+              }`}
+            >
+              {copy.original}
+            </button>
+          </div>
+        ) : null}
       </div>
       <div
-        className={`text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem] ${
+        className={`rounded-[1rem] p-4 text-[0.88rem] font-[500] leading-[1.75] text-[var(--brand-ink)] ${
           preserveWhitespace ? "whitespace-pre-wrap" : ""
         }`}
         style={{
@@ -277,7 +311,7 @@ function ContentBlock({
           border: "1px solid var(--brand-line)",
         }}
       >
-        {children}
+        {displayText || copy.notAvailable}
       </div>
     </div>
   );
@@ -303,18 +337,18 @@ function DecisionHistory({
         {logs.map((log) => (
           <div
             key={log.id}
-            className="pb-4 border-b border-[var(--brand-line)] last:border-0 last:pb-0"
+            className="border-b border-[var(--brand-line)] pb-4 last:border-0 last:pb-0"
           >
-            <div className="flex justify-between items-start mb-2">
+            <div className="mb-2 flex items-start justify-between">
               <span className="text-[0.75rem] font-[800] uppercase tracking-wider text-muted-strong">
-                {log.reviewer_id}
+                {log.reviewer_name}
               </span>
-              <span className="text-[0.7rem] font-[600] text-muted font-numbers">
+              <span className="font-numbers text-[0.7rem] font-[600] text-muted">
                 {formatDateTime(log.created_at, locale)}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 mb-2 text-[0.8rem] font-[700]">
+            <div className="mb-2 flex items-center gap-2 text-[0.8rem] font-[700]">
               <span className="text-muted line-through">
                 {getStatusLabel(log.previous_status, locale)}
               </span>
@@ -334,7 +368,7 @@ function DecisionHistory({
               </span>
             </div>
 
-            <div className="text-[0.85rem] text-muted bg-[var(--surface-subtle)] p-3 rounded-[0.5rem] italic">
+            <div className="rounded-[0.5rem] bg-[var(--surface-subtle)] p-3 text-[0.85rem] italic text-muted">
               "{log.comment || copy.unknownComment}"
             </div>
           </div>

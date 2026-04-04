@@ -10,10 +10,15 @@ import { formatDateTime, getStatusLabel } from "@/lib/i18n";
 import type { AuditFeedItem } from "@/types";
 
 const ACTION_STYLES: Record<string, { bg: string; color: string }> = {
-  shortlist_add: { bg: "rgba(193, 241, 29, 0.28)", color: "#415005" },
-  override: { bg: "rgba(255, 142, 112, 0.18)", color: "#ac472e" },
-  comment: { bg: "rgba(61, 237, 241, 0.18)", color: "#0a6a6d" },
-  shortlist_remove: { bg: "rgba(20, 20, 20, 0.06)", color: "rgba(20, 20, 20, 0.76)" },
+  viewed: { bg: "rgba(61, 237, 241, 0.18)", color: "#0a6a6d" },
+  recommendation: { bg: "rgba(193, 241, 29, 0.28)", color: "#415005" },
+  chair_decision: { bg: "rgba(255, 142, 112, 0.18)", color: "#ac472e" },
+};
+
+const ACTION_LABEL_KEYS: Record<string, string> = {
+  viewed: "audit.actionViewed",
+  recommendation: "audit.actionRecommendation",
+  chair_decision: "audit.actionChairDecision",
 };
 
 export default function AuditPage() {
@@ -63,14 +68,11 @@ export default function AuditPage() {
       <main className="p-6 lg:p-8">
         <div className="container-app">
             <h1
-              className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800] mb-2"
+              className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800] mb-8"
               style={{ letterSpacing: "-0.04em" }}
             >
               {t("audit.title")}
             </h1>
-            <p className="text-[0.95rem] mb-8" style={{ color: "var(--brand-muted)" }}>
-              {t("audit.description")}
-            </p>
 
             {loading ? (
               <div className="card p-12 text-center">
@@ -103,7 +105,7 @@ export default function AuditPage() {
                     const candidateName = action.candidate_id
                       ? candidateNames[action.candidate_id]
                       : undefined;
-                    const style = ACTION_STYLES[action.action_type] ?? ACTION_STYLES.comment;
+                    const style = ACTION_STYLES[action.action_type] ?? ACTION_STYLES.viewed;
 
                     return (
                       <tr
@@ -117,7 +119,7 @@ export default function AuditPage() {
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-[0.88rem] font-[700]">
-                            {action.reviewer_id ?? action.actor}
+                            {action.reviewer_name ?? action.actor}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -130,7 +132,7 @@ export default function AuditPage() {
                             className="badge text-[0.72rem]"
                             style={{ background: style.bg, color: style.color }}
                           >
-                            {action.action_type.replace(/_/g, " ")}
+                            {t(ACTION_LABEL_KEYS[action.action_type] ?? "audit.action")}
                           </span>
                         </td>
                         <td className="px-5 py-4">

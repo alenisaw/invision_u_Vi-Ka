@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
@@ -9,24 +9,10 @@ import { getRoleLabel, getUserInitials } from "@/lib/auth-ui";
 
 export default function UserMenu() {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { user, logout, loading } = useAuth();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-
-  const labels = useMemo(
-    () =>
-      locale === "ru"
-        ? {
-            login: "Войти",
-            logout: "Выйти из аккаунта",
-          }
-        : {
-            login: "Sign in",
-            logout: "Sign out",
-          },
-    [locale],
-  );
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -62,7 +48,7 @@ export default function UserMenu() {
           color: "var(--brand-ink)",
         }}
       >
-        {labels.login}
+        {t("userMenu.login")}
       </Link>
     );
   }
@@ -72,7 +58,7 @@ export default function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex items-center gap-3 rounded-full border px-2 py-2 pr-4 text-left transition-all duration-200 hover:-translate-y-[1px]"
+        className="inline-flex items-center gap-3 rounded-full border px-2 py-2 pr-4 text-left"
         style={{
           borderColor: "var(--brand-line)",
           background: "var(--surface-soft)",
@@ -99,7 +85,7 @@ export default function UserMenu() {
 
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+0.75rem)] w-[18rem] rounded-[1.35rem] border p-2"
+          className="absolute left-0 top-[calc(100%+0.75rem)] w-[18rem] rounded-[1.35rem] border p-2"
           style={{
             borderColor: "var(--brand-line)",
             background: "var(--surface-soft)",
@@ -126,7 +112,7 @@ export default function UserMenu() {
               color: "var(--brand-ink)",
             }}
           >
-            {labels.logout}
+            {t("userMenu.logout")}
           </button>
         </div>
       )}

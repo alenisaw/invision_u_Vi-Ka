@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  RadarChart,
-  PolarGrid,
   PolarAngleAxis,
+  PolarGrid,
   PolarRadiusAxis,
   Radar,
+  RadarChart,
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
@@ -34,8 +34,7 @@ function CustomAngleTick(props: CustomTickProps) {
   const dy = y - cy;
   const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
-  const offset = 20;
-
+  const offset = 36;
   const newX = x + (dx / distance) * offset;
   const newY = y + (dy / distance) * offset;
 
@@ -47,17 +46,28 @@ function CustomAngleTick(props: CustomTickProps) {
     textAnchor = "end";
   }
 
+  const words = String(payload?.value ?? "").split(" ");
+  const midpoint = Math.ceil(words.length / 2);
+  const lines =
+    words.length > 1
+      ? [words.slice(0, midpoint).join(" "), words.slice(midpoint).join(" ")]
+      : words;
+
   return (
     <text
       x={newX}
       y={newY}
       textAnchor={textAnchor}
       dominantBaseline="middle"
-      fontSize={11}
+      fontSize={11.5}
       fontWeight={700}
       fill="var(--brand-muted-strong)"
     >
-      {payload?.value}
+      {lines.map((line, index) => (
+        <tspan key={`${line}-${index}`} x={newX} dy={index === 0 ? 0 : 13}>
+          {line}
+        </tspan>
+      ))}
     </text>
   );
 }
@@ -72,33 +82,39 @@ export default function ScoreRadar({ subScores }: ScoreRadarProps) {
   }));
 
   return (
-    <div className="card p-6">
+    <div
+      className="card p-6"
+      style={{
+        background:
+          "radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--badge-lime-bg) 20%, transparent), transparent 42%), var(--surface-card)",
+      }}
+    >
       <div className="eyebrow mb-4">{t("radar.scoreProfile")}</div>
 
-      <ResponsiveContainer width="100%" height={360}>
-        <RadarChart data={data} cx="50%" cy="50%" outerRadius="58%">
+      <ResponsiveContainer width="100%" height={450}>
+        <RadarChart data={data} cx="50%" cy="52%" outerRadius="62%">
+          <defs>
+            <linearGradient id="scoreRadarFill" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="var(--brand-lime)" stopOpacity={0.62} />
+              <stop offset="100%" stopColor="var(--brand-blue)" stopOpacity={0.18} />
+            </linearGradient>
+          </defs>
+
           <PolarGrid stroke="var(--brand-line)" />
-
-          <PolarAngleAxis
-            dataKey="dimension"
-            tick={<CustomAngleTick />}
-          />
-
+          <PolarAngleAxis dataKey="dimension" tick={<CustomAngleTick />} />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 100]}
             tick={{ fontSize: 10, fill: "var(--brand-muted)" }}
           />
-
           <Radar
             name="Score"
             dataKey="score"
             stroke="var(--brand-lime)"
-            fill="var(--brand-lime)"
-            fillOpacity={0.35}
-            strokeWidth={2}
+            fill="url(#scoreRadarFill)"
+            fillOpacity={1}
+            strokeWidth={2.6}
           />
-
           <Tooltip
             contentStyle={{
               background: "var(--brand-paper)",

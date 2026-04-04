@@ -295,12 +295,20 @@ class ReviewerAction(TimestampMixin, Base):
         index=True,
     )
     reviewer_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    reviewer_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    reviewer_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     previous_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     new_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     candidate: Mapped[Candidate] = relationship(back_populates="reviewer_actions")
+    reviewer_user: Mapped[User | None] = relationship()
 
 
 class AuditLog(TimestampMixin, Base):

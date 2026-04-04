@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
 import { getRoleLabel } from "@/lib/auth-ui";
 import { formatDateTime, getStatusLabel } from "@/lib/i18n";
-import type { CommitteeMemberStatus, RecommendationStatus, ReviewerAction } from "@/types";
+import type {
+  CommitteeMemberStatus,
+  CommitteeResolutionSummary,
+  RecommendationStatus,
+  ReviewerAction,
+} from "@/types";
 
 interface OverridePanelProps {
   candidateId: string;
   currentStatus: RecommendationStatus;
   committeeMembers?: CommitteeMemberStatus[];
+  committeeResolution?: CommitteeResolutionSummary | null;
   auditLogs?: ReviewerAction[];
   onSuccess?: () => Promise<void> | void;
 }
@@ -27,10 +33,11 @@ export default function OverridePanel({
   candidateId,
   currentStatus,
   committeeMembers = [],
+  committeeResolution = null,
   auditLogs = [],
   onSuccess,
 }: OverridePanelProps) {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { user } = useAuth();
   const [newStatus, setNewStatus] = useState<RecommendationStatus>(currentStatus);
   const [comment, setComment] = useState("");
@@ -38,75 +45,57 @@ export default function OverridePanel({
   const [message, setMessage] = useState("");
   const [hasError, setHasError] = useState(false);
 
-  const labels = useMemo(
-    () =>
+  const labels = {
+    reviewerTitle: t("committee.reviewerTitle"),
+    reviewerDescription: t("committee.reviewerDescription"),
+    chairTitle: t("committee.chairTitle"),
+    chairDescription: t("committee.chairDescription"),
+    adminTitle: t("committee.adminTitle"),
+    adminDescription: t("committee.adminDescription"),
+    recommendation: t("committee.recommendation"),
+    rationale: t("committee.rationale"),
+    rationalePlaceholder: t("committee.rationalePlaceholder"),
+    submitReviewer: t("committee.submitReviewer"),
+    submitChair: t("committee.submitChair"),
+    saving: t("committee.saving"),
+    successReviewer: t("committee.successReviewer"),
+    successChair: t("committee.successChair"),
+    error: t("committee.error"),
+    committeeMember: t("committee.member"),
+    committeeRecommendation: t("committee.recommendationLabel"),
+    committeeReason: t("committee.reason"),
+    committeeActivity: t("committee.activity"),
+    viewed: t("committee.viewed"),
+    notViewed: t("committee.notViewed"),
+    recommendationPending: t("committee.recommendationPending"),
+    noComment: t("committee.noComment"),
+    noActivity: t("committee.noActivity"),
+    summaryTitle: locale === "ru" ? "Согласование комиссии" : "Committee alignment",
+    summaryDescription:
       locale === "ru"
-        ? {
-            reviewerTitle: "Рекомендация члена комиссии",
-            reviewerDescription:
-              "Укажите рекомендацию по кандидату и коротко обоснуйте принятое решение. Ваше заключение увидит председатель комиссии.",
-            chairTitle: "Решение председателя комиссии",
-            chairDescription:
-              "Ниже показаны статусы по каждому члену комиссии. Председатель комиссии принимает итоговое решение по кандидату на основании рекомендаций и материалов профиля.",
-            adminTitle: "Сводка по комиссии",
-            adminDescription:
-              "Просмотр статусов членов комиссии и итогового решения без права утверждения.",
-            recommendation: "Рекомендация",
-            rationale: "Обоснование рекомендации",
-            rationalePlaceholder:
-              "Опишите причины рекомендации в официальной форме: сильные стороны, риски и вывод комиссии.",
-            submitReviewer: "Сохранить рекомендацию",
-            submitChair: "Утвердить итоговое решение",
-            saving: "Сохранение...",
-            successReviewer: "Рекомендация члена комиссии сохранена.",
-            successChair: "Итоговое решение председателя комиссии сохранено.",
-            error: "Не удалось сохранить решение комиссии.",
-            committeeTitle: "Статусы членов комиссии",
-            committeeMember: "Член комиссии",
-            committeeStatus: "Статус ознакомления",
-            committeeRecommendation: "Рекомендация",
-            committeeReason: "Обоснование",
-            committeeActivity: "Последняя активность",
-            viewed: "Просмотрел",
-            notViewed: "Не просмотрел",
-            recommendationPending: "Рекомендация не предоставлена",
-            noComment: "Обоснование пока не указано",
-            noActivity: "Активность отсутствует",
-          }
-        : {
-            reviewerTitle: "Committee member recommendation",
-            reviewerDescription:
-              "Record your recommendation for the candidate and provide a concise justification. Your assessment will be visible to the Chair of the Committee.",
-            chairTitle: "Chair decision",
-            chairDescription:
-              "Review the status of each committee member below. The Chair of the Committee records the final decision after reviewing the recommendations and candidate materials.",
-            adminTitle: "Committee overview",
-            adminDescription:
-              "Read-only overview of committee participation and the final candidate outcome.",
-            recommendation: "Recommendation",
-            rationale: "Recommendation rationale",
-            rationalePlaceholder:
-              "Summarize the reasoning in a formal tone: strengths, risks, and the committee conclusion.",
-            submitReviewer: "Save recommendation",
-            submitChair: "Save final decision",
-            saving: "Saving...",
-            successReviewer: "Committee recommendation saved.",
-            successChair: "Final chair decision saved.",
-            error: "Failed to save the committee decision.",
-            committeeTitle: "Committee member statuses",
-            committeeMember: "Committee member",
-            committeeStatus: "Review status",
-            committeeRecommendation: "Recommendation",
-            committeeReason: "Rationale",
-            committeeActivity: "Last activity",
-            viewed: "Viewed",
-            notViewed: "Not viewed",
-            recommendationPending: "Recommendation not submitted",
-            noComment: "No rationale provided yet",
-            noActivity: "No activity",
-          },
-    [locale],
-  );
+        ? "Финальное решение председателя комиссии и итоговое состояние по кандидату."
+        : "The final decision from the Chair of the Committee and the candidate outcome.",
+    finalDecisionVisible:
+      locale === "ru"
+        ? "После утверждения решение председателя видно всем членам комиссии."
+        : "Once approved, the chair decision is visible to all committee members.",
+    chairOverview:
+      locale === "ru" ? "Председатель комиссии" : "Chair of the Committee",
+    chairOutcome:
+      locale === "ru" ? "Итоговое решение" : "Final decision",
+    reviewedMembers:
+      locale === "ru" ? "Ознакомились" : "Viewed by",
+    submittedMembers:
+      locale === "ru" ? "Подали рекомендации" : "Recommendations submitted",
+    membersTitle:
+      locale === "ru" ? "Рекомендации членов комиссии" : "Committee member recommendations",
+    finalDecisionComment:
+      locale === "ru" ? "Обоснование председателя" : "Chair rationale",
+    finalDecisionSaved:
+      locale === "ru"
+        ? "Председатель комиссии уже зафиксировал итоговое решение."
+        : "The Chair of the Committee has already recorded the final decision.",
+  };
 
   useEffect(() => {
     setNewStatus(currentStatus);
@@ -150,27 +139,42 @@ export default function OverridePanel({
   const isChair = user.role === "chair";
   const isReviewer = user.role === "reviewer";
   const isAdmin = user.role === "admin";
+  const hasFinalChairDecision = Boolean(committeeResolution);
 
   return (
     <section className="card p-6 sm:p-7">
       <div className="mb-6 border-b border-[var(--brand-line)] pb-5">
-        <div className="eyebrow mb-3">
-          {isChair ? labels.chairTitle : isReviewer ? labels.reviewerTitle : labels.adminTitle}
-        </div>
+        <div className="eyebrow mb-3">{labels.summaryTitle}</div>
         <p className="max-w-3xl text-[0.95rem] leading-[1.75] text-muted">
           {isChair
             ? labels.chairDescription
             : isReviewer
-              ? labels.reviewerDescription
+              ? hasFinalChairDecision
+                ? labels.finalDecisionVisible
+                : labels.reviewerDescription
               : labels.adminDescription}
         </p>
       </div>
 
+      {committeeResolution ? (
+        <div className="mb-7">
+          <FinalDecisionCard resolution={committeeResolution} locale={locale} labels={labels} />
+        </div>
+      ) : null}
+
       {(isChair || isAdmin) && (
         <div className="mb-7">
+          <ChairOverviewCard
+            fullName={isChair ? user.full_name : labels.chairOverview}
+            decisionStatus={currentStatus}
+            committeeMembers={committeeMembers}
+            locale={locale}
+            labels={labels}
+          />
+
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted">
-              {labels.committeeTitle}
+              {labels.membersTitle}
             </div>
             <div className="rounded-full border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-3 py-1 text-[0.74rem] font-[700] text-muted-strong">
               {committeeMembers.length}
@@ -196,18 +200,14 @@ export default function OverridePanel({
         </div>
       )}
 
-      {(isReviewer || isChair) && (
+      {(isReviewer || isChair) && !hasFinalChairDecision ? (
         <div className="flex flex-col gap-5">
           <aside className="rounded-[1.25rem] border border-[var(--brand-line)] bg-[linear-gradient(180deg,var(--surface-subtle),var(--surface-soft))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.08)]">
             <div className="mb-3 text-[0.72rem] font-[800] uppercase tracking-[0.14em] text-muted">
               {getRoleLabel(user.role, locale)}
             </div>
-            <div className="mb-2 text-[1.08rem] font-[800] leading-[1.35]">
-              {user.full_name}
-            </div>
-            <div className="mb-5 text-[0.84rem] text-muted">
-              {getRoleLabel(user.role, locale)}
-            </div>
+            <div className="mb-2 text-[1.08rem] font-[800] leading-[1.35]">{user.full_name}</div>
+            <div className="mb-5 text-[0.84rem] text-muted">{getRoleLabel(user.role, locale)}</div>
 
             <InfoCard
               label={labels.recommendation}
@@ -223,6 +223,7 @@ export default function OverridePanel({
                   {labels.recommendation}
                 </label>
                 <select
+                  data-testid="committee-status-select"
                   value={newStatus}
                   onChange={(event) => setNewStatus(event.target.value as RecommendationStatus)}
                   className="w-full rounded-[0.95rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] px-4 py-3 pr-10 text-[0.9rem] font-[700] text-[var(--brand-ink)] outline-none transition-all focus:border-[var(--brand-blue)] focus:ring-2 focus:ring-[var(--brand-blue)]/30"
@@ -240,11 +241,12 @@ export default function OverridePanel({
                   {labels.rationale}
                 </label>
                 <textarea
+                  data-testid="committee-comment-input"
                   value={comment}
                   onChange={(event) => setComment(event.target.value)}
                   placeholder={labels.rationalePlaceholder}
                   rows={6}
-                  className="w-full rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] px-4 py-3 text-[0.9rem] font-[500] leading-[1.7] text-[var(--brand-ink)] outline-none transition-all placeholder:text-muted focus:border-[var(--brand-blue)] focus:ring-2 focus:ring-[var(--brand-blue)]/30 resize-y"
+                  className="w-full resize-y rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] px-4 py-3 text-[0.9rem] font-[500] leading-[1.7] text-[var(--brand-ink)] outline-none transition-all placeholder:text-muted focus:border-[var(--brand-blue)] focus:ring-2 focus:ring-[var(--brand-blue)]/30"
                 />
               </div>
 
@@ -262,6 +264,7 @@ export default function OverridePanel({
 
               <div className="flex justify-end">
                 <button
+                  data-testid="submit-committee-decision-button"
                   onClick={handleSubmit}
                   disabled={submitting || !comment.trim()}
                   className="btn btn--dark btn--sm min-w-[220px] disabled:cursor-not-allowed disabled:opacity-40"
@@ -272,11 +275,17 @@ export default function OverridePanel({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {isAdmin && auditLogs.length > 0 && (
+      {isReviewer && hasFinalChairDecision ? (
+        <div className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-4 py-4 text-[0.9rem] leading-[1.7] text-muted">
+          {labels.finalDecisionSaved}
+        </div>
+      ) : null}
+
+      {isAdmin && auditLogs.length > 0 ? (
         <div className="mt-7 border-t border-[var(--brand-line)] pt-6">
-          <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted mb-4">
+          <div className="mb-4 text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted">
             {labels.committeeActivity}
           </div>
           <div className="flex flex-col gap-3">
@@ -286,12 +295,16 @@ export default function OverridePanel({
                 className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-4 py-3"
               >
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-[0.84rem] font-[800]">{log.reviewer_id}</span>
-                  <span className="text-[0.76rem] text-muted">{formatDateTime(log.created_at, locale)}</span>
+                  <span className="text-[0.84rem] font-[800]">{log.reviewer_name}</span>
+                  <span className="text-[0.76rem] text-muted">
+                    {formatDateTime(log.created_at, locale)}
+                  </span>
                 </div>
 
                 <div className="text-[0.82rem] font-[700] text-muted-strong">
-                  {log.new_status ? getStatusLabel(log.new_status, locale) : labels.recommendationPending}
+                  {log.new_status
+                    ? getStatusLabel(log.new_status, locale)
+                    : labels.recommendationPending}
                 </div>
 
                 {log.comment ? (
@@ -303,7 +316,7 @@ export default function OverridePanel({
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -324,7 +337,13 @@ function CommitteeMemberCard({
 
   return (
     <div
-      className="rounded-[1.2rem] border border-[var(--brand-line)] bg-[linear-gradient(180deg,var(--surface-soft),var(--surface-subtle))] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
+      className="rounded-[1.2rem] border p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
+      style={{
+        borderColor: "var(--brand-line)",
+        background: member.has_recommendation
+          ? "linear-gradient(180deg, color-mix(in srgb, var(--badge-blue-bg) 65%, transparent), var(--surface-subtle))"
+          : "linear-gradient(180deg,var(--surface-soft),var(--surface-subtle))",
+      }}
     >
       <div className="mb-4 flex flex-col items-start gap-3">
         <div>
@@ -359,6 +378,111 @@ function CommitteeMemberCard({
         <div className="text-[0.86rem] leading-[1.7] text-muted-strong">
           {member.recommendation_comment || labels.noComment}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FinalDecisionCard({
+  resolution,
+  locale,
+  labels,
+}: {
+  resolution: CommitteeResolutionSummary;
+  locale: "ru" | "en";
+  labels: Record<string, string>;
+}) {
+  return (
+    <div
+      className="rounded-[1.3rem] border p-5 shadow-[0_12px_30px_rgba(0,0,0,0.12)]"
+      style={{
+        borderColor: "color-mix(in srgb, var(--brand-lime) 22%, var(--brand-line))",
+        background:
+          "linear-gradient(180deg, color-mix(in srgb, var(--badge-lime-bg) 75%, transparent), color-mix(in srgb, var(--surface-soft) 94%, transparent))",
+      }}
+    >
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="mb-2 text-[0.74rem] font-[800] uppercase tracking-[0.12em] text-muted">
+            {labels.chairOutcome}
+          </div>
+          <div className="text-[1.02rem] font-[800] leading-[1.3]">{resolution.chair_name}</div>
+          <div className="mt-2 text-[0.82rem] text-muted">
+            {formatDateTime(resolution.decided_at, locale)}
+          </div>
+        </div>
+        <StatusPill tone={getRecommendationTone(resolution.decision_status, true)}>
+          {getStatusLabel(resolution.decision_status, locale)}
+        </StatusPill>
+      </div>
+
+      {resolution.decision_comment ? (
+        <div className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] p-4">
+          <div className="mb-2 text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+            {labels.finalDecisionComment}
+          </div>
+          <div className="text-[0.88rem] leading-[1.7] text-muted-strong">
+            {resolution.decision_comment}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ChairOverviewCard({
+  fullName,
+  decisionStatus,
+  committeeMembers,
+  locale,
+  labels,
+}: {
+  fullName: string;
+  decisionStatus: RecommendationStatus;
+  committeeMembers: CommitteeMemberStatus[];
+  locale: "ru" | "en";
+  labels: Record<string, string>;
+}) {
+  const viewedCount = committeeMembers.filter((member) => member.has_viewed).length;
+  const submittedCount = committeeMembers.filter((member) => member.has_recommendation).length;
+
+  return (
+    <div
+      className="mb-5 rounded-[1.3rem] border p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
+      style={{
+        borderColor: "color-mix(in srgb, var(--brand-blue) 26%, var(--brand-line))",
+        background:
+          "linear-gradient(180deg, color-mix(in srgb, var(--badge-blue-bg) 82%, transparent), color-mix(in srgb, var(--surface-soft) 88%, transparent))",
+      }}
+    >
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="mb-2 text-[0.74rem] font-[800] uppercase tracking-[0.12em] text-muted">
+            {labels.chairOverview}
+          </div>
+          <div className="text-[1.02rem] font-[800] leading-[1.3]">{fullName}</div>
+        </div>
+        <StatusPill tone={getRecommendationTone(decisionStatus, true)}>
+          {getStatusLabel(decisionStatus, locale)}
+        </StatusPill>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <InfoCard
+          label={labels.chairOutcome}
+          value={getStatusLabel(decisionStatus, locale)}
+          tone={getRecommendationTone(decisionStatus, true)}
+        />
+        <InfoCard
+          label={labels.reviewedMembers}
+          value={`${viewedCount}/${committeeMembers.length || 0}`}
+          renderAsBadge={false}
+        />
+        <InfoCard
+          label={labels.submittedMembers}
+          value={`${submittedCount}/${committeeMembers.length || 0}`}
+          renderAsBadge={false}
+        />
       </div>
     </div>
   );
@@ -413,7 +537,7 @@ function StatusPill({
 
   return (
     <span
-      className={`inline-flex max-w-full rounded-full px-3 py-1 text-left text-[0.8rem] font-[800] leading-[1.3] whitespace-normal break-words ${className}`}
+      className={`inline-flex max-w-full whitespace-normal break-words rounded-full px-3 py-1 text-left text-[0.8rem] font-[800] leading-[1.3] ${className}`}
     >
       {children}
     </span>

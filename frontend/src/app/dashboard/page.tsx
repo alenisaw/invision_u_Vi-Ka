@@ -110,12 +110,9 @@ export default function DashboardPage() {
       <Header />
       <main className="min-w-0 p-6 lg:p-10 pb-24">
         <div className="container-app">
-            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
+            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-8 tracking-tighter">
               {t("dashboard.title")}
             </h1>
-            <p className="text-[1rem] mb-10 text-muted">
-              {t("dashboard.description")}
-            </p>
 
             {loading && (
               <div className="card p-12 text-center">

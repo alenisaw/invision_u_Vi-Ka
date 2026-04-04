@@ -7,14 +7,17 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decrypt_json
+from app.core.text_locale import detect_text_locale, translate_text_for_locale
 from app.modules.auth.schemas import UserResponse
 from app.modules.m6_scoring.schemas import CandidateScore as CandidateScorePayload
 from app.modules.m7_explainability.schemas import ExplainabilityReport
 from app.modules.m8_dashboard.schemas import (
+    CommitteeResolutionSummary,
     CommitteeMemberStatus,
     DashboardCandidateDetailResponse,
     DashboardCandidateListItem,
     DashboardCandidatePoolItem,
+    LocalizedTextContent,
     DashboardStatsResponse,
     RawCandidateContent,
     ReviewerActionItem,
@@ -49,14 +52,10 @@ class DashboardService:
         }
         confidence_values: list[float] = []
         pending_review = 0
-        shortlisted = 0
 
         for score in ranked_scores:
             if score.confidence is not None:
                 confidence_values.append(score.confidence)
-
-            if bool(score.shortlist_eligible):
-                shortlisted += 1
 
             if bool(score.manual_review_required) or (
                 score.review_recommendation == "REQUIRES_MANUAL_REVIEW"
@@ -75,7 +74,6 @@ class DashboardService:
         return DashboardStatsResponse(
             total_candidates=len(candidates),
             processed=len(ranked_scores),
-            shortlisted=shortlisted,
             pending_review=pending_review,
             avg_confidence=avg_confidence,
             by_status=by_status,
@@ -93,6 +91,7 @@ class DashboardService:
         self,
         candidate_id: UUID,
         current_user: UserResponse,
+        locale: str = "ru",
     ) -> DashboardCandidateDetailResponse:
         candidate = await self.repository.get_candidate_with_related(candidate_id)
         if candidate is None:
@@ -104,22 +103,7 @@ class DashboardService:
         if candidate.explanation_record is None:
             raise ValueError(f"Candidate {candidate_id} has no explanation record")
 
-        return await self._project_candidate_detail(candidate, current_user)
-
-    async def list_shortlist(self) -> list[DashboardCandidateListItem]:
-        shortlisted = [
-            item
-            for item in await self.list_candidates()
-            if item.shortlist_eligible
-        ]
-        shortlisted.sort(
-            key=lambda item: (
-                item.ranking_position is None,
-                item.ranking_position or 0,
-                -item.review_priority_index,
-            )
-        )
-        return shortlisted
+        return await self._project_candidate_detail(candidate, current_user, locale)
 
     def _build_candidate_display_name(self, candidate: Candidate | None) -> str:
         if candidate is None or candidate.pii_record is None:
@@ -159,7 +143,6 @@ class DashboardService:
             review_priority_index=float(score.review_priority_index or 0.0),
             recommendation_status=self._recommendation_status(score.recommendation_status),
             confidence=float(score.confidence or 0.0),
-            shortlist_eligible=bool(score.shortlist_eligible),
             ranking_position=score.ranking_position,
             top_strengths=self._coerce_string_list(score.top_strengths),
             caution_flags=self._coerce_string_list(score.caution_flags),
@@ -170,6 +153,7 @@ class DashboardService:
         self,
         candidate: Candidate,
         current_user: UserResponse,
+        locale: str,
     ) -> DashboardCandidateDetailResponse:
         if candidate.score_record is None:
             raise ValueError(f"Candidate {candidate.id} has no score record")
@@ -188,12 +172,13 @@ class DashboardService:
                 score.model_dump(mode="python"),
             )
         )
-        raw_content = self._extract_raw_content(candidate)
+        raw_content = self._extract_raw_content(candidate, locale)
         all_audit_logs = [
             ReviewerActionItem(
                 id=a.id,
                 candidate_id=a.candidate_id,
-                reviewer_id=a.reviewer_id,
+                reviewer_user_id=a.reviewer_user_id,
+                reviewer_name=a.reviewer_name or "Unknown reviewer",
                 action_type=a.action_type,
                 previous_status=a.previous_status,
                 new_status=a.new_status,
@@ -204,6 +189,7 @@ class DashboardService:
         ]
         audit_logs = self._filter_audit_logs_for_user(all_audit_logs, current_user)
         committee_members = await self._build_committee_members(candidate, current_user)
+        committee_resolution = self._build_committee_resolution(candidate)
         return DashboardCandidateDetailResponse(
             candidate_id=identity.candidate_id,
             name=identity.name,
@@ -212,15 +198,42 @@ class DashboardService:
             raw_content=raw_content,
             audit_logs=audit_logs,
             committee_members=committee_members,
+            committee_resolution=committee_resolution,
         )
 
-    def _extract_raw_content(self, candidate: Candidate) -> RawCandidateContent | None:
+    def _extract_raw_content(self, candidate: Candidate, locale: str) -> RawCandidateContent | None:
         mi = candidate.model_input_record
         if mi is None:
             return None
+
+        target_locale = "en" if locale == "en" else "ru"
+
         return RawCandidateContent(
-            essay_text=mi.essay_text or None,
-            video_transcript=mi.video_transcript or None,
+            essay=self._build_localized_text_content(mi.essay_text, target_locale),
+            video_transcript=self._build_localized_text_content(mi.video_transcript, target_locale),
+        )
+
+    def _build_localized_text_content(
+        self,
+        text: str | None,
+        target_locale: str,
+    ) -> LocalizedTextContent | None:
+        cleaned = self._clean_text(text)
+        if not cleaned:
+            return None
+
+        original_locale = detect_text_locale(cleaned)
+        interface_text = (
+            translate_text_for_locale(cleaned, target_locale)
+            if target_locale in {"ru", "en"}
+            else None
+        )
+
+        return LocalizedTextContent(
+            original_text=cleaned,
+            original_locale=original_locale,
+            interface_text=interface_text,
+            interface_locale=target_locale if interface_text else None,
         )
 
     def _project_candidate_pool_item(self, candidate: Candidate) -> DashboardCandidatePoolItem:
@@ -238,7 +251,6 @@ class DashboardService:
             review_priority_index=float(score.review_priority_index) if score and score.review_priority_index is not None else None,
             recommendation_status=recommendation_status,
             confidence=float(score.confidence) if score and score.confidence is not None else None,
-            shortlist_eligible=bool(score.shortlist_eligible) if score is not None else False,
             ranking_position=score.ranking_position if score is not None else None,
             top_strengths=self._coerce_string_list(score.top_strengths) if score is not None else [],
             caution_flags=self._coerce_string_list(score.caution_flags) if score is not None else [],
@@ -290,10 +302,6 @@ class DashboardService:
             "uncertainty_flag": self._coerce_bool(
                 payload.get("uncertainty_flag"),
                 score_record.uncertainty_flag,
-            ),
-            "shortlist_eligible": self._coerce_bool(
-                payload.get("shortlist_eligible"),
-                score_record.shortlist_eligible,
             ),
             "review_recommendation": self._clean_text(payload.get("review_recommendation"))
             or self._clean_text(score_record.review_recommendation)
@@ -438,14 +446,14 @@ class DashboardService:
             reviewer_actions = [
                 action
                 for action in actions
-                if self._clean_text(action.reviewer_id) == reviewer.full_name.strip()
+                if action.reviewer_user_id == reviewer.id
             ]
             latest_action = max(reviewer_actions, key=lambda action: action.created_at, default=None)
             latest_recommendation = max(
                 (
                     action
                     for action in reviewer_actions
-                    if action.action_type in {"recommendation", "override"}
+                    if action.action_type in {"recommendation", "chair_decision"}
                 ),
                 key=lambda action: action.created_at,
                 default=None,
@@ -473,14 +481,34 @@ class DashboardService:
 
         return statuses
 
+    def _build_committee_resolution(
+        self,
+        candidate: Candidate,
+    ) -> CommitteeResolutionSummary | None:
+        chair_decisions = [
+            action
+            for action in (candidate.reviewer_actions or [])
+            if action.action_type == "chair_decision" and action.new_status
+        ]
+        if not chair_decisions:
+            return None
+
+        latest = max(chair_decisions, key=lambda action: action.created_at)
+        return CommitteeResolutionSummary(
+            chair_user_id=latest.reviewer_user_id,
+            chair_name=self._clean_text(latest.reviewer_name) or "Chair of the Committee",
+            decision_status=self._recommendation_status(latest.new_status),
+            decision_comment=self._clean_text(latest.comment) or None,
+            decided_at=latest.created_at,
+        )
+
     def _filter_audit_logs_for_user(
         self,
         audit_logs: list[ReviewerActionItem],
         current_user: UserResponse,
     ) -> list[ReviewerActionItem]:
         if current_user.role == "reviewer":
-            reviewer_id = current_user.full_name.strip() or current_user.email.strip()
-            return [log for log in audit_logs if self._clean_text(log.reviewer_id) == reviewer_id]
+            return [log for log in audit_logs if log.reviewer_user_id == current_user.id]
         return audit_logs
 
     def _metadata_completeness(self, candidate: Candidate) -> float | None:

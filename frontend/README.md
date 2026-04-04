@@ -1,15 +1,14 @@
 # Frontend
 
-Фронтенд `inVision U` на `Next.js 14` для reviewer workflow: локализованный рейтинг, live candidate pool, карточка кандидата, сравнение, video-first загрузка, shortlist и аудит.
+`invisionU` frontend on `Next.js 14` for a closed admissions workflow with session auth, RBAC, localized review screens, candidate upload, and committee decisions.
 
-## Что нужно
+## Requirements
 
 - `Node.js` 18+
 - `npm`
-- доступный backend API
-- доступный `PostgreSQL`, если запускаются e2e и локальный backend
+- running backend API
 
-## Быстрый запуск
+## Quick start
 
 ```bash
 cd frontend
@@ -17,48 +16,48 @@ npm install
 npm run dev
 ```
 
-Приложение поднимается на [http://localhost:3000](http://localhost:3000).
-Маршрут `/` перенаправляет на `/dashboard`.
+App URL: [http://localhost:3000](http://localhost:3000)
 
-## Подключение к backend
+The root route `/` redirects to `/login`.
 
-По умолчанию frontend работает с backend на `http://localhost:8000`.
+## Backend connection
 
-Если нужен другой адрес, создай `.env.local` в папке `frontend`:
+By default the frontend talks to `http://localhost:8000`.
+
+If needed, create `frontend/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 BACKEND_URL=http://localhost:8000
-REVIEWER_API_KEY=change-me-reviewer-key
 ```
 
-Что важно:
+Important:
 
-- browser-запросы идут через встроенный proxy `frontend/src/app/api/backend/[...path]/route.ts`
-- proxy проксирует `/api/backend/*` в backend `/api/v1/*`
-- `REVIEWER_API_KEY` серверно прокидывается как `X-API-Key` только для reviewer-маршрутов `dashboard/*` и `audit/*`
-- reviewer key не попадает в браузерный bundle
+- browser requests go through the built-in proxy at `frontend/src/app/api/backend/[...path]/route.ts`
+- the proxy rewrites `/api/backend/*` to backend `/api/v1/*`
+- auth uses session cookies and backend role checks
+- there is no frontend reviewer API key layer anymore
 
-## Основные страницы
+## Main routes
 
-- `/dashboard` — общий рейтинг и фильтрация кандидатов
-- `/dashboard/[id]` — детальная карточка кандидата, explainability и override
-- `/dashboard/compare` — сравнение выбранных кандидатов по `ids`
-- `/candidates` — live candidate pool с разделением на необработанные и обработанные заявки
-- `/candidates/compare` — сравнение демо-кандидатов по `slugs`
-- `/upload` — ручная video-first загрузка формы или JSON и запуск pipeline; demo fixtures запускаются отсюда
-- `/shortlist` — shortlist view
-- `/audit` — журнал reviewer-действий
+- `/login` - login screen with demo accounts
+- `/candidates` - live candidate pool split into unprocessed and processed candidates
+- `/dashboard` - processed candidate ranking
+- `/dashboard/[id]` - candidate detail, committee recommendation, chair decision
+- `/upload` - video-first candidate intake via form or JSON plus demo scenario launcher
+- `/admin/users` - admin-only user management
+- `/audit` - admin-only audit feed
 
-## Актуальная логика intake
+## Intake rules
 
-- обязательны `personal.first_name`, `personal.last_name`, `personal.date_of_birth`
-- обязательны `contacts.email` и `content.video_url`
-- `content.essay_text` опционален
-- если `essay_text` пустой, narrative может быть собран из `transcript_text`
-- `citizenship` в UI выбирается из списка стран
+- required: `personal.first_name`, `personal.last_name`, `personal.date_of_birth`
+- required: `contacts.email`
+- required: `content.video_url`
+- optional: `content.essay_text`
+- optional: `content.transcript_text`
+- if `essay_text` is empty, the downstream narrative can be built from transcript text
 
-## Полезные команды
+## Useful commands
 
 ```bash
 npm run dev
@@ -72,14 +71,13 @@ npm run test:e2e:install
 
 ## Docker
 
-Полный стек можно поднять из корня репозитория:
+From the repository root:
 
 ```bash
-cd ..
 ./scripts/stack.sh up
 ```
 
-После старта доступны:
+Services:
 
 - frontend: `http://localhost:3000`
 - backend: `http://localhost:8000`
@@ -87,27 +85,27 @@ cd ..
 
 ## E2E
 
-Playwright-конфиг находится в `frontend/playwright.config.ts` и сам поднимает:
+Playwright config lives in `frontend/playwright.config.ts`.
 
-- backend через `python3 -m alembic upgrade head && python3 -m uvicorn app.main:app ...`
-- frontend через `npm run dev -- --hostname 127.0.0.1 --port 3000`
+It starts:
 
-Перед запуском smoke e2e:
+- backend with Alembic migrations and `uvicorn`
+- frontend with `npm run dev -- --hostname 127.0.0.1 --port 3000`
 
-1. Подними `PostgreSQL`.
-2. Убедись, что backend-зависимости установлены и миграции могут примениться.
-3. Установи браузер:
+Before running E2E:
+
+1. Start PostgreSQL.
+2. Make sure backend dependencies are installed.
+3. Install browsers:
 
 ```bash
 cd frontend
 npm run test:e2e:install
 ```
 
-4. Запусти тесты:
+4. Run tests:
 
 ```bash
 cd frontend
 npm run test:e2e
 ```
-
-Если `API_KEY` не задан, Playwright использует локальный дефолт `test-reviewer-key`.

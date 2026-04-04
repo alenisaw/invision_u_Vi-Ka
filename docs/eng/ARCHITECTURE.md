@@ -111,9 +111,9 @@ Recommendation categories are advisory. Review-routing fields such as `manual_re
 
 The current branch runs the main pipeline synchronously inside the API process. There is no Redis queue or detached worker layer in the live compose stack.
 
-### Reviewer-Safe Access
+### Session Auth and RBAC
 
-Reviewer routes require `X-API-Key`. The Next.js proxy injects the header server-side for `dashboard/*` and `audit/*` routes so browser code does not carry the reviewer key directly.
+Protected reviewer and committee routes use session auth with HTTP-only cookies. Role access is enforced on the backend for `admin`, `chair`, and `reviewer`, so the frontend does not depend on a shared reviewer API key.
 
 ---
 
@@ -129,8 +129,8 @@ The implemented backend flow in the current branch is:
 5. `M5 NLP` extracts a canonical `SignalEnvelope`.
 6. `M6 Scoring` computes program-aware scores, ranking fields, and reviewer-routing output.
 7. `M7 Explainability` formats summary, positive factors, caution blocks, and reviewer guidance.
-8. `M8 Dashboard` exposes reviewer-facing reads over persisted scores, explanations, raw safe content, and shortlist state.
-9. `M10 Audit` stores overrides, reviewer actions, and audit feed entries.
+8. `M8 Dashboard` exposes committee-facing reads over persisted scores, explanations, raw safe content, and the live candidate pool.
+9. `M10 Audit` stores committee recommendations, chair decisions, view activity, and audit feed entries.
 
 ---
 
@@ -184,7 +184,7 @@ Builds deterministic reviewer-facing explanation output from `SignalEnvelope + C
 
 ### `M8 Dashboard`
 
-Reviewer-facing read API for stats, ranking lists, candidate detail, shortlist views, and the live candidate pool split into `raw` and `processed` stages. Candidate names are derived from decrypted PII inside the backend projection layer rather than exposed as raw snapshots.
+Committee-facing read API for stats, ranking lists, candidate detail, and the live candidate pool split into `raw` and `processed` stages. Candidate names are derived from decrypted PII inside the backend projection layer rather than exposed as raw snapshots.
 
 ### `M9 Storage`
 
@@ -192,7 +192,7 @@ Repository and persistence layer used by active modules.
 
 ### `M10 Audit`
 
-Reviewer write and traceability layer for overrides, comments, shortlist actions, and audit feed access.
+Committee write and traceability layer for recommendation submission, chair decisions, view activity, and audit feed access.
 
 ### `M13 ASR`
 
@@ -245,7 +245,7 @@ Stores workflow metadata such as age eligibility, language-threshold status, sel
 
 ### Layer 3: Safe Model Input
 
-Stores model-facing content such as a redacted transcript, essay text, internal test answers, project descriptions, experience summary, ASR confidence, and ASR quality flags.
+Stores model-facing content such as a redacted transcript, essay text, internal test answers, ASR confidence, and ASR quality flags.
 
 ---
 
@@ -273,9 +273,9 @@ flowchart TD
     subgraph Layer3["Layer 3: Safe Model Input"]
         SAFE1["Redacted transcript"]
         SAFE2["Essay text"]
-        SAFE3["Project descriptions"]
-        SAFE4["Internal test answers"]
-        SAFE5["Experience summary"]
+        SAFE3["Internal test answers"]
+        SAFE4["ASR confidence"]
+        SAFE5["ASR quality flags"]
     end
 
     AI["AI and ML Modules"]
@@ -359,7 +359,6 @@ erDiagram
         float review_priority_index
         string recommendation_status
         float confidence
-        boolean shortlist_eligible
         int ranking_position
         jsonb score_payload
     }
@@ -378,7 +377,8 @@ erDiagram
     reviewer_actions {
         uuid id PK
         uuid candidate_id FK
-        string reviewer_id
+        uuid reviewer_user_id
+        string reviewer_name
         string action_type
         string previous_status
         string new_status

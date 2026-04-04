@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from app.core.security import encrypt_json
+from app.modules.auth.schemas import UserResponse
 from app.modules.m8_dashboard.service import DashboardService
 
 
@@ -33,6 +34,8 @@ def _make_candidate(
                 }
             )
         ),
+        model_input_record=None,
+        reviewer_actions=[],
         score_record=None,
         explanation_record=None,
     )
@@ -115,6 +118,19 @@ def _make_explanation(candidate, **overrides):
     return SimpleNamespace(**defaults)
 
 
+def _make_user(role: str = "admin") -> UserResponse:
+    now = datetime(2026, 4, 4, 9, 0, tzinfo=timezone.utc)
+    return UserResponse(
+        id=uuid4(),
+        email="admin@invisionu.local",
+        full_name="Main Admin",
+        role=role,  # type: ignore[arg-type]
+        is_active=True,
+        last_login_at=now,
+        created_at=now,
+    )
+
+
 @pytest.mark.asyncio
 async def test_get_stats_aggregates_dashboard_values() -> None:
     service = DashboardService(MagicMock())
@@ -123,14 +139,12 @@ async def test_get_stats_aggregates_dashboard_values() -> None:
     service.repository.list_ranked_scores.return_value = [
         SimpleNamespace(
             confidence=0.9,
-            shortlist_eligible=True,
             manual_review_required=False,
             review_recommendation="FAST_TRACK_REVIEW",
             recommendation_status="STRONG_RECOMMEND",
         ),
         SimpleNamespace(
             confidence=0.6,
-            shortlist_eligible=False,
             manual_review_required=True,
             review_recommendation="REQUIRES_MANUAL_REVIEW",
             recommendation_status="WAITLIST",
@@ -141,7 +155,6 @@ async def test_get_stats_aggregates_dashboard_values() -> None:
 
     assert stats.total_candidates == 3
     assert stats.processed == 2
-    assert stats.shortlisted == 1
     assert stats.pending_review == 1
     assert stats.avg_confidence == 0.75
     assert stats.by_status["STRONG_RECOMMEND"] == 1
@@ -173,7 +186,6 @@ async def test_list_candidates_decrypts_safe_display_name() -> None:
         "review_priority_index",
         "recommendation_status",
         "confidence",
-        "shortlist_eligible",
         "ranking_position",
         "top_strengths",
         "caution_flags",
@@ -194,7 +206,6 @@ async def test_get_candidate_detail_falls_back_to_scalar_columns_when_payloads_m
         decision_summary="Solid overall profile.",
         confidence=0.81,
         review_recommendation="STANDARD_REVIEW",
-        shortlist_eligible=False,
     )
     explanation = _make_explanation(
         candidate,
@@ -209,7 +220,7 @@ async def test_get_candidate_detail_falls_back_to_scalar_columns_when_payloads_m
     candidate.explanation_record = explanation
     service.repository.get_candidate_with_related.return_value = candidate
 
-    detail = await service.get_candidate_detail(candidate.id)
+    detail = await service.get_candidate_detail(candidate.id, _make_user())
 
     assert detail.candidate_id == candidate.id
     assert detail.name == "Dana Sarsen"
@@ -219,25 +230,13 @@ async def test_get_candidate_detail_falls_back_to_scalar_columns_when_payloads_m
     assert detail.explanation.summary.startswith("The candidate is promising")
     assert detail.explanation.selected_program == candidate.selected_program
     assert detail.explanation.caution_blocks[0].flag == "essay_mismatch"
-    assert set(detail.model_dump().keys()) == {"candidate_id", "name", "score", "explanation"}
-
-
-@pytest.mark.asyncio
-async def test_list_shortlist_filters_and_sorts_by_ranking_position() -> None:
-    service = DashboardService(MagicMock())
-    service.repository = AsyncMock()
-
-    first = _make_candidate(first_name="Mira", last_name="Zhaksy")
-    second = _make_candidate(first_name="Arman", last_name="Tulep")
-    third = _make_candidate(first_name="Nika", last_name="Sadyk")
-
-    service.repository.list_ranked_scores.return_value = [
-        _make_score(first, ranking_position=5, shortlist_eligible=True),
-        _make_score(second, ranking_position=1, shortlist_eligible=True),
-        _make_score(third, ranking_position=3, shortlist_eligible=False),
-    ]
-
-    shortlisted = await service.list_shortlist()
-
-    assert [item.name for item in shortlisted] == ["Arman Tulep", "Mira Zhaksy"]
-    assert all(item.shortlist_eligible for item in shortlisted)
+    assert set(detail.model_dump().keys()) == {
+        "candidate_id",
+        "name",
+        "score",
+        "explanation",
+        "raw_content",
+        "audit_logs",
+        "committee_members",
+        "committee_resolution",
+    }

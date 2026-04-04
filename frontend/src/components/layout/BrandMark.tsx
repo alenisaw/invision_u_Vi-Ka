@@ -26,7 +26,7 @@ export default function BrandMark({ size = "sm" }: BrandMarkProps) {
     <button
       type="button"
       onClick={handleClick}
-      className={`group inline-flex items-center gap-3 rounded-full text-left transition-transform duration-200 hover:-translate-y-[1px] ${
+      className={`inline-flex items-center gap-3 rounded-full text-left ${
         isLarge ? "px-1 py-1" : "px-1 py-1"
       }`}
       title={t("header.rickroll")}

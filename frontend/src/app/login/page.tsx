@@ -23,38 +23,24 @@ const QUICK_ACCOUNTS: Array<{
 
 export default function LoginPage() {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { user, loading, login } = useAuth();
   const [email, setEmail] = useState("admin@invisionu.local");
   const [password, setPassword] = useState("admin");
   const [error, setError] = useState("");
   const labels = useMemo(
-    () =>
-      locale === "ru"
-        ? {
-            eyebrow: "Закрытая платформа комиссии",
-            title: "Вход в invisionU",
-            description:
-              "Система для работы с кандидатами, ролями комиссии и управляемым intake-потоком.",
-            email: "Email",
-            password: "Пароль",
-            submit: "Войти",
-            quickTitle: "Быстрый доступ",
-            quickDescription:
-              "Ниже предзаполненные demo-аккаунты с разными уровнями доступа.",
-          }
-        : {
-            eyebrow: "Closed committee workspace",
-            title: "Sign in to invisionU",
-            description:
-              "A private workspace for admissions review, committee roles, and controlled candidate intake.",
-            email: "Email",
-            password: "Password",
-            submit: "Sign in",
-            quickTitle: "Quick access",
-            quickDescription: "Pre-seeded demo accounts with different access levels.",
-          },
-    [locale],
+    () => ({
+      eyebrow: t("login.eyebrow"),
+      title: t("login.title"),
+      description: t("login.description"),
+      email: t("login.email"),
+      password: t("login.password"),
+      submit: t("login.submit"),
+      quickTitle: t("login.quickTitle"),
+      quickDescription: t("login.quickDescription"),
+      accessEyebrow: t("login.accessEyebrow"),
+    }),
+    [t],
   );
 
   useEffect(() => {
@@ -70,7 +56,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (nextError) {
-      setError(nextError instanceof ApiError ? nextError.message : "Login failed");
+      setError(nextError instanceof ApiError ? nextError.message : t("login.error"));
     }
   }
 
@@ -136,7 +122,7 @@ export default function LoginPage() {
 
         <section className="rounded-[2.5rem] border p-8 lg:p-10 bg-[var(--surface-soft)]" style={{ borderColor: "var(--brand-line)" }}>
           <div className="mb-8">
-            <div className="eyebrow mb-4">Access</div>
+            <div className="eyebrow mb-4">{labels.accessEyebrow}</div>
             <h2 className="text-[clamp(2rem,1.7rem+1vw,3rem)] font-[900] tracking-[-0.06em] mb-3">
               {labels.submit}
             </h2>

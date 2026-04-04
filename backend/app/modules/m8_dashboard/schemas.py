@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.m6_scoring.schemas import CandidateScore as CandidateScorePayload
 from app.modules.m7_explainability.schemas import (
     ExplainabilityReport,
     RecommendationStatus,
 )
+from app.core.text_locale import UiLocale
 
 
 def _default_status_counts() -> dict[RecommendationStatus, int]:
@@ -26,7 +27,6 @@ class DashboardStatsResponse(BaseModel):
 
     total_candidates: int = 0
     processed: int = 0
-    shortlisted: int = 0
     pending_review: int = 0
     avg_confidence: float = 0.0
     by_status: dict[RecommendationStatus, int] = Field(default_factory=_default_status_counts)
@@ -46,7 +46,6 @@ class DashboardCandidateListItem(ReviewerCandidateIdentity):
     review_priority_index: float = 0.0
     recommendation_status: RecommendationStatus
     confidence: float = 0.0
-    shortlist_eligible: bool = False
     ranking_position: int | None = None
     top_strengths: list[str] = Field(default_factory=list)
     caution_flags: list[str] = Field(default_factory=list)
@@ -64,18 +63,26 @@ class DashboardCandidatePoolItem(ReviewerCandidateIdentity):
     review_priority_index: float | None = None
     recommendation_status: RecommendationStatus | None = None
     confidence: float | None = None
-    shortlist_eligible: bool = False
     ranking_position: int | None = None
     top_strengths: list[str] = Field(default_factory=list)
     caution_flags: list[str] = Field(default_factory=list)
     created_at: datetime
 
 
+class LocalizedTextContent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    original_text: str
+    original_locale: UiLocale | None = None
+    interface_text: str | None = None
+    interface_locale: UiLocale | None = None
+
+
 class RawCandidateContent(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    essay_text: str | None = None
-    video_transcript: str | None = None
+    essay: LocalizedTextContent | None = None
+    video_transcript: LocalizedTextContent | None = None
 
 
 class ReviewerActionItem(BaseModel):
@@ -83,7 +90,8 @@ class ReviewerActionItem(BaseModel):
 
     id: UUID
     candidate_id: UUID
-    reviewer_id: str
+    reviewer_user_id: UUID | None = None
+    reviewer_name: str
     action_type: str
     previous_status: str | None = None
     new_status: str | None = None
@@ -104,6 +112,16 @@ class CommitteeMemberStatus(BaseModel):
     last_activity_at: datetime | None = None
 
 
+class CommitteeResolutionSummary(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    chair_user_id: UUID | None = None
+    chair_name: str
+    decision_status: RecommendationStatus
+    decision_comment: str | None = None
+    decided_at: datetime
+
+
 class DashboardCandidateDetailResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -114,7 +132,4 @@ class DashboardCandidateDetailResponse(BaseModel):
     raw_content: RawCandidateContent | None = None
     audit_logs: list[ReviewerActionItem] = Field(default_factory=list)
     committee_members: list[CommitteeMemberStatus] = Field(default_factory=list)
-
-
-class DashboardShortlistResponse(RootModel[list[DashboardCandidateListItem]]):
-    root: list[DashboardCandidateListItem]
+    committee_resolution: CommitteeResolutionSummary | None = None

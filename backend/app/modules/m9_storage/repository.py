@@ -199,7 +199,8 @@ class StorageRepository(Generic[ModelT]):
         self,
         *,
         candidate_id: UUID,
-        reviewer_id: str,
+        reviewer_user_id: UUID | None = None,
+        reviewer_name: str | None = None,
         action_type: str,
         previous_status: str | None = None,
         new_status: str | None = None,
@@ -207,7 +208,9 @@ class StorageRepository(Generic[ModelT]):
     ) -> ReviewerAction:
         action = ReviewerAction(
             candidate_id=candidate_id,
-            reviewer_id=reviewer_id,
+            reviewer_id=str(reviewer_user_id) if reviewer_user_id else reviewer_name or "unknown-reviewer",
+            reviewer_user_id=reviewer_user_id,
+            reviewer_name=reviewer_name,
             action_type=action_type,
             previous_status=previous_status,
             new_status=new_status,

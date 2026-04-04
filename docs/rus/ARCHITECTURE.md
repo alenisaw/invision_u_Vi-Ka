@@ -113,7 +113,7 @@ Recommendation categories носят advisory-характер. Поля `manual
 
 ### Reviewer-safe доступ
 
-Reviewer-маршруты требуют `X-API-Key`. Next.js proxy добавляет этот заголовок серверно только для `dashboard/*` и `audit/*`, поэтому browser code не носит reviewer key напрямую.
+Защищенные маршруты используют session auth с HTTP-only cookie. Доступ ограничивается через backend RBAC для ролей `admin`, `chair` и `reviewer`, поэтому общий reviewer key больше не нужен.
 
 ---
 
@@ -223,9 +223,9 @@ flowchart TD
     subgraph Layer3["Layer 3: Safe Model Input"]
         SAFE1["Redacted transcript"]
         SAFE2["Essay text"]
-        SAFE3["Project descriptions"]
-        SAFE4["Internal test answers"]
-        SAFE5["Experience summary"]
+        SAFE3["Internal test answers"]
+        SAFE4["ASR confidence"]
+        SAFE5["ASR quality flags"]
     end
 
     AI["AI и ML-модули"]
@@ -309,7 +309,6 @@ erDiagram
         float review_priority_index
         string recommendation_status
         float confidence
-        boolean shortlist_eligible
         int ranking_position
         jsonb score_payload
     }
@@ -328,7 +327,8 @@ erDiagram
     reviewer_actions {
         uuid id PK
         uuid candidate_id FK
-        string reviewer_id
+        uuid reviewer_user_id
+        string reviewer_name
         string action_type
         string previous_status
         string new_status

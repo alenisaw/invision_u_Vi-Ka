@@ -22,10 +22,6 @@ export default defineConfig({
       url: "http://127.0.0.1:8000/health",
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
-      env: {
-        ...process.env,
-        API_KEY: process.env.API_KEY ?? "test-reviewer-key",
-      },
     },
     {
       command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
@@ -34,13 +30,8 @@ export default defineConfig({
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
       env: {
-        ...process.env,
         NEXT_PUBLIC_API_URL:
           process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000",
-        REVIEWER_API_KEY:
-          process.env.REVIEWER_API_KEY ??
-          process.env.API_KEY ??
-          "test-reviewer-key",
       },
     },
   ],

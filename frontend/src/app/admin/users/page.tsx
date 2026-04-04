@@ -25,7 +25,7 @@ const DEFAULT_ACCESS_PACK: Array<{
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,63 +40,31 @@ export default function AdminUsersPage() {
     is_active: true,
   });
   const labels = useMemo(
-    () =>
-      locale === "ru"
-        ? {
-            title: "Пользователи и доступ",
-            description:
-              "Управление закрытым контуром комиссии: роли, доступы и быстрые demo-учетки.",
-            createTitle: "Создать аккаунт",
-            createDescription:
-              "Администратор вручную выдает доступ. Публичной регистрации нет.",
-            listTitle: "Текущие аккаунты",
-            listDescription: "Изменяйте роль, активность и пароль прямо на карточке пользователя.",
-            email: "Email",
-            fullName: "Имя",
-            password: "Пароль",
-            active: "Активен",
-            createdAt: "Создан",
-            lastLogin: "Последний вход",
-            save: "Сохранить",
-            create: "Создать",
-            loading: "Загружаю пользователей...",
-            empty: "Пока нет пользователей",
-            noLogin: "Еще не входил",
-            accessPack: "Стартовый набор доступа",
-            accessPackDescription:
-              "Эти аккаунты поднимаются автоматически и подходят для проверки ролей.",
-            accounts: "аккаунтов",
-            activeCount: "активных",
-            role: "Роль",
-          }
-        : {
-            title: "Users and Access",
-            description:
-              "Manage the closed committee workspace: roles, access, and demo seed accounts.",
-            createTitle: "Create account",
-            createDescription:
-              "Access is provisioned manually by an admin. There is no public sign-up.",
-            listTitle: "Current accounts",
-            listDescription: "Update role, active state, and password directly on each card.",
-            email: "Email",
-            fullName: "Name",
-            password: "Password",
-            active: "Active",
-            createdAt: "Created",
-            lastLogin: "Last login",
-            save: "Save",
-            create: "Create",
-            loading: "Loading users...",
-            empty: "No users yet",
-            noLogin: "Never signed in",
-            accessPack: "Default access pack",
-            accessPackDescription:
-              "These accounts are seeded automatically and cover each access level.",
-            accounts: "accounts",
-            activeCount: "active",
-            role: "Role",
-          },
-    [locale],
+    () => ({
+      title: t("adminUsers.title"),
+      description: t("adminUsers.description"),
+      createTitle: t("adminUsers.createTitle"),
+      createDescription: t("adminUsers.createDescription"),
+      listTitle: t("adminUsers.listTitle"),
+      listDescription: t("adminUsers.listDescription"),
+      email: t("adminUsers.email"),
+      fullName: t("adminUsers.fullName"),
+      password: t("adminUsers.password"),
+      active: t("adminUsers.active"),
+      createdAt: t("adminUsers.createdAt"),
+      lastLogin: t("adminUsers.lastLogin"),
+      save: t("adminUsers.save"),
+      create: t("adminUsers.create"),
+      loading: t("adminUsers.loading"),
+      empty: t("adminUsers.empty"),
+      noLogin: t("adminUsers.noLogin"),
+      accessPack: t("adminUsers.accessPack"),
+      accessPackDescription: t("adminUsers.accessPackDescription"),
+      accounts: t("adminUsers.accounts"),
+      activeCount: t("adminUsers.activeCount"),
+      role: t("adminUsers.role"),
+    }),
+    [t],
   );
 
   useEffect(() => {
@@ -118,7 +86,7 @@ export default function AdminUsersPage() {
       const nextUsers = await adminApi.listUsers();
       setUsers(nextUsers);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to load users");
+      setError(nextError instanceof Error ? nextError.message : t("adminUsers.loadError"));
     } finally {
       setLoading(false);
     }
@@ -138,7 +106,7 @@ export default function AdminUsersPage() {
         is_active: true,
       });
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Failed to create user");
+      setError(nextError instanceof Error ? nextError.message : t("adminUsers.createError"));
     } finally {
       setCreating(false);
     }
@@ -159,7 +127,7 @@ export default function AdminUsersPage() {
       if (nextError instanceof ApiError) {
         setError(nextError.message);
       } else {
-        setError("Failed to update user");
+        setError(t("adminUsers.updateError"));
       }
     } finally {
       setSavingId(null);
@@ -173,10 +141,9 @@ export default function AdminUsersPage() {
       <Header />
       <main className="min-w-0 p-6 lg:p-10 pb-24">
         <div className="container-app">
-            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
+            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-8 tracking-tighter">
               {labels.title}
             </h1>
-            <p className="text-[1rem] mb-8 text-muted">{labels.description}</p>
 
             {error && (
               <div className="card p-4 mb-8 border border-[var(--brand-coral)]/20 bg-[var(--brand-coral)]/8 text-[var(--brand-coral)] font-[700]">
@@ -204,10 +171,7 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="card p-6 mb-8">
-              <div className="flex flex-col gap-2 mb-5">
-                <div className="eyebrow">{labels.accessPack}</div>
-                <p className="text-[0.95rem] text-muted max-w-[56rem]">{labels.accessPackDescription}</p>
-              </div>
+              <div className="mb-5 text-[1rem] font-[800]">{labels.accessPack}</div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {DEFAULT_ACCESS_PACK.map((account) => (
                   <div
@@ -229,8 +193,7 @@ export default function AdminUsersPage() {
 
             <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
               <section className="card p-6">
-                <div className="eyebrow mb-3">{labels.createTitle}</div>
-                <p className="text-[0.94rem] text-muted mb-6">{labels.createDescription}</p>
+                <div className="mb-6 text-[1rem] font-[800]">{labels.createTitle}</div>
                 <div className="space-y-4">
                   <FieldLabel label={labels.email} />
                   <input
@@ -289,8 +252,7 @@ export default function AdminUsersPage() {
               </section>
 
               <section className="card p-6">
-                <div className="eyebrow mb-3">{labels.listTitle}</div>
-                <p className="text-[0.94rem] text-muted mb-6">{labels.listDescription}</p>
+                <div className="mb-6 text-[1rem] font-[800]">{labels.listTitle}</div>
                 {loading ? (
                   <div className="py-12 text-center text-muted font-[700]">{labels.loading}</div>
                 ) : users.length === 0 ? (

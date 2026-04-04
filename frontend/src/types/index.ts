@@ -26,7 +26,6 @@ export interface CandidateScore {
   manual_review_required: boolean;
   human_in_loop_required: boolean;
   uncertainty_flag: boolean;
-  shortlist_eligible: boolean;
   review_recommendation: ReviewRecommendation;
   review_reasons: string[];
   top_strengths: string[];
@@ -84,7 +83,6 @@ export interface CandidateListItem {
   review_priority_index: number;
   recommendation_status: RecommendationStatus;
   confidence: number;
-  shortlist_eligible: boolean;
   ranking_position: number;
   top_strengths: string[];
   caution_flags: string[];
@@ -102,7 +100,6 @@ export interface CandidatePoolListItem {
   review_priority_index: number | null;
   recommendation_status: RecommendationStatus | null;
   confidence: number | null;
-  shortlist_eligible: boolean;
   ranking_position: number | null;
   top_strengths: string[];
   caution_flags: string[];
@@ -110,8 +107,15 @@ export interface CandidatePoolListItem {
 }
 
 export interface RawCandidateContent {
-  essay_text: string | null;
-  video_transcript: string | null;
+  essay: LocalizedTextContent | null;
+  video_transcript: LocalizedTextContent | null;
+}
+
+export interface LocalizedTextContent {
+  original_text: string;
+  original_locale: "ru" | "en" | null;
+  interface_text: string | null;
+  interface_locale: "ru" | "en" | null;
 }
 
 export interface CandidateDetail {
@@ -122,12 +126,14 @@ export interface CandidateDetail {
   raw_content?: RawCandidateContent | null;
   audit_logs?: ReviewerAction[];
   committee_members?: CommitteeMemberStatus[];
+  committee_resolution?: CommitteeResolutionSummary | null;
 }
 
 export interface ReviewerAction {
   id: string;
   candidate_id: string;
-  reviewer_id: string;
+  reviewer_user_id: string | null;
+  reviewer_name: string;
   action_type: string;
   previous_status: string;
   new_status: string;
@@ -146,6 +152,14 @@ export interface CommitteeMemberStatus {
   last_activity_at: string | null;
 }
 
+export interface CommitteeResolutionSummary {
+  chair_user_id: string | null;
+  chair_name: string;
+  decision_status: RecommendationStatus;
+  decision_comment: string | null;
+  decided_at: string;
+}
+
 export interface AuditFeedItem {
   id: string;
   entity_type: string;
@@ -153,7 +167,8 @@ export interface AuditFeedItem {
   candidate_id: string | null;
   action_type: string;
   actor: string;
-  reviewer_id: string | null;
+  reviewer_user_id: string | null;
+  reviewer_name: string | null;
   previous_status: string | null;
   new_status: string | null;
   comment: string | null;
@@ -163,7 +178,6 @@ export interface AuditFeedItem {
 
 export interface DashboardStats {
   total_candidates: number;
-  shortlisted: number;
   pending_review: number;
   processed: number;
   avg_confidence: number;

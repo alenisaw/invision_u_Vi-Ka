@@ -18,6 +18,7 @@ yt-dlp>=2025.3.31
 # Security / config
 cryptography==44.0.0
 python-dotenv==1.0.1
+deep-translator==1.11.4
 
 # NLP / AI
 groq>=0.21.0

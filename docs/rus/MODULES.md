@@ -273,18 +273,18 @@ flowchart LR
 ### Текущее состояние
 
 - реализован в текущей ветке
-- отдает dashboard stats, ranking list, candidate detail, shortlist, live candidate pool и safe reviewer projection
+- отдает dashboard stats, ranking list, candidate detail, live candidate pool и safe reviewer projection
 - строит отображаемое имя кандидата через backend-дешифровку PII внутри projection layer
 - включает raw safe content и историю reviewer actions в detail-response
-- требует reviewer API key для доступа
+- требует session auth и RBAC для доступа
 
 ### Файлы
 
 | Файл | Назначение |
 |---|---|
-| `backend/app/modules/m8_dashboard/router.py` | reviewer read route и override entrypoint |
+| `backend/app/modules/m8_dashboard/router.py` | committee read route и entrypoint для decision/view |
 | `backend/app/modules/m8_dashboard/service.py` | safe projection logic и dashboard aggregation |
-| `backend/app/modules/m8_dashboard/schemas.py` | DTO для stats, list, detail и shortlist |
+| `backend/app/modules/m8_dashboard/schemas.py` | DTO для stats, list, detail и candidate-pool |
 
 ---
 
@@ -319,17 +319,17 @@ flowchart LR
 ### Текущее состояние
 
 - реализован в текущей ветке
-- хранит overrides, comments, shortlist actions и pipeline audit events
-- отдает candidate action endpoint'ы и reviewer-facing audit feed
-- обновляет shortlist state и status overrides через общий persistence layer
+- хранит рекомендации комиссии, решения председателя, view activity и pipeline audit events
+- отдает audit feed для admin и committee write-flow для авторизованных пользователей
+- обновляет итоговый статус кандидата через общий persistence layer
 
 ### Файлы
 
 | Файл | Назначение |
 |---|---|
 | `backend/app/modules/m10_audit/logger.py` | audit logging helper и future extension point |
-| `backend/app/modules/m10_audit/service.py` | override workflow, reviewer action writes, audit feed shaping |
-| `backend/app/modules/m10_audit/router.py` | reviewer action и audit feed route |
+| `backend/app/modules/m10_audit/service.py` | committee decision workflow, reviewer action writes, audit feed shaping |
+| `backend/app/modules/m10_audit/router.py` | committee action и audit feed route |
 | `backend/app/modules/m10_audit/schemas.py` | request/response contracts |
 
 ---
