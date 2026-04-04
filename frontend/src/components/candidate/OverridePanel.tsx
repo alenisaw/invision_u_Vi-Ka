@@ -152,119 +152,163 @@ export default function OverridePanel({
   const isAdmin = user.role === "admin";
 
   return (
-    <div className="card p-6">
-      <div className="eyebrow mb-4">
-        {isChair ? labels.chairTitle : isReviewer ? labels.reviewerTitle : labels.adminTitle}
+    <section className="card p-6 sm:p-7">
+      <div className="mb-6 border-b border-[var(--brand-line)] pb-5">
+        <div className="eyebrow mb-3">
+          {isChair ? labels.chairTitle : isReviewer ? labels.reviewerTitle : labels.adminTitle}
+        </div>
+        <p className="max-w-3xl text-[0.95rem] leading-[1.75] text-muted">
+          {isChair
+            ? labels.chairDescription
+            : isReviewer
+              ? labels.reviewerDescription
+              : labels.adminDescription}
+        </p>
       </div>
-      <p className="text-[0.88rem] mb-5 text-muted leading-relaxed">
-        {isChair ? labels.chairDescription : isReviewer ? labels.reviewerDescription : labels.adminDescription}
-      </p>
 
       {(isChair || isAdmin) && (
-        <div className="rounded-[1.15rem] border p-4 mb-5 bg-[var(--surface-subtle)]" style={{ borderColor: "var(--brand-line)" }}>
-          <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted mb-4">
-            {labels.committeeTitle}
+        <div className="mb-7">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted">
+              {labels.committeeTitle}
+            </div>
+            <div className="rounded-full border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-3 py-1 text-[0.74rem] font-[700] text-muted-strong">
+              {committeeMembers.length}
+            </div>
           </div>
-          <div className="flex flex-col gap-3">
-            {committeeMembers.length > 0 ? (
-              committeeMembers.map((member) => (
-                <CommitteeMemberRow
+
+          {committeeMembers.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4">
+              {committeeMembers.map((member) => (
+                <CommitteeMemberCard
                   key={member.user_id}
                   member={member}
                   locale={locale}
                   labels={labels}
                 />
-              ))
-            ) : (
-              <div className="text-[0.85rem] text-muted">{labels.noActivity}</div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[1.1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-4 py-4 text-[0.9rem] text-muted">
+              {labels.noActivity}
+            </div>
+          )}
         </div>
       )}
 
       {(isReviewer || isChair) && (
-        <div className="flex flex-col gap-4">
-          <div className="rounded-[1.05rem] px-4 py-3 bg-[var(--surface-subtle)] border border-[var(--brand-line)]">
-            <div className="text-[0.76rem] font-[800] uppercase tracking-[0.12em] text-muted mb-1">
+        <div className="flex flex-col gap-5">
+          <aside className="rounded-[1.25rem] border border-[var(--brand-line)] bg-[linear-gradient(180deg,var(--surface-subtle),var(--surface-soft))] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.08)]">
+            <div className="mb-3 text-[0.72rem] font-[800] uppercase tracking-[0.14em] text-muted">
               {getRoleLabel(user.role, locale)}
             </div>
-            <div className="text-[0.98rem] font-[800]">{user.full_name}</div>
-          </div>
-
-          <div>
-            <label className="text-[0.82rem] font-[700] block mb-2">{labels.recommendation}</label>
-            <select
-              value={newStatus}
-              onChange={(event) => setNewStatus(event.target.value as RecommendationStatus)}
-              className="w-full px-4 pr-10 py-3 text-[0.88rem] font-[600] rounded-[0.8rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] cursor-pointer outline-none focus:ring-2 focus:ring-[var(--brand-blue)] transition-all"
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {getStatusLabel(option, locale)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[0.82rem] font-[700] block mb-2">{labels.rationale}</label>
-            <textarea
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder={labels.rationalePlaceholder}
-              rows={4}
-              className="px-4 py-3 text-[0.88rem] font-[500] resize-y"
-            />
-          </div>
-
-          {message ? (
-            <div
-              className={`rounded-[1rem] px-4 py-3 text-[0.84rem] font-[700] ${
-                hasError
-                  ? "bg-[var(--danger-soft-bg)] text-[var(--danger-soft-text)]"
-                  : "bg-[var(--badge-lime-bg)] text-[var(--badge-lime-text)]"
-              }`}
-            >
-              {message}
+            <div className="mb-2 text-[1.08rem] font-[800] leading-[1.35]">
+              {user.full_name}
             </div>
-          ) : null}
+            <div className="mb-5 text-[0.84rem] text-muted">
+              {getRoleLabel(user.role, locale)}
+            </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !comment.trim()}
-            className="btn btn--dark btn--sm self-end disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {submitting ? labels.saving : isChair ? labels.submitChair : labels.submitReviewer}
-          </button>
+            <InfoCard
+              label={labels.recommendation}
+              value={getStatusLabel(newStatus, locale)}
+              tone={getRecommendationTone(newStatus, true)}
+            />
+          </aside>
+
+          <div className="rounded-[1.25rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] p-5 sm:p-6">
+            <div className="grid grid-cols-1 gap-5">
+              <div>
+                <label className="mb-2 block text-[0.82rem] font-[800] text-muted-strong">
+                  {labels.recommendation}
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(event) => setNewStatus(event.target.value as RecommendationStatus)}
+                  className="w-full rounded-[0.95rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] px-4 py-3 pr-10 text-[0.9rem] font-[700] text-[var(--brand-ink)] outline-none transition-all focus:border-[var(--brand-blue)] focus:ring-2 focus:ring-[var(--brand-blue)]/30"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {getStatusLabel(option, locale)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-[0.82rem] font-[800] text-muted-strong">
+                  {labels.rationale}
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                  placeholder={labels.rationalePlaceholder}
+                  rows={6}
+                  className="w-full rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] px-4 py-3 text-[0.9rem] font-[500] leading-[1.7] text-[var(--brand-ink)] outline-none transition-all placeholder:text-muted focus:border-[var(--brand-blue)] focus:ring-2 focus:ring-[var(--brand-blue)]/30 resize-y"
+                />
+              </div>
+
+              {message ? (
+                <div
+                  className={`rounded-[1rem] border px-4 py-3 text-[0.84rem] font-[700] ${
+                    hasError
+                      ? "border-[var(--danger-soft-text)]/20 bg-[var(--danger-soft-bg)] text-[var(--danger-soft-text)]"
+                      : "border-[var(--badge-lime-text)]/20 bg-[var(--badge-lime-bg)] text-[var(--badge-lime-text)]"
+                  }`}
+                >
+                  {message}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting || !comment.trim()}
+                  className="btn btn--dark btn--sm min-w-[220px] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {submitting ? labels.saving : isChair ? labels.submitChair : labels.submitReviewer}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       {isAdmin && auditLogs.length > 0 && (
-        <div className="mt-5 pt-5 border-t border-[var(--brand-line)]">
-          <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted mb-3">
+        <div className="mt-7 border-t border-[var(--brand-line)] pt-6">
+          <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted mb-4">
             {labels.committeeActivity}
           </div>
           <div className="flex flex-col gap-3">
             {auditLogs.slice(0, 6).map((log) => (
-              <div key={log.id} className="rounded-[1rem] border px-4 py-3 bg-[var(--surface-subtle)]" style={{ borderColor: "var(--brand-line)" }}>
-                <div className="flex items-center justify-between gap-3 mb-2">
+              <div
+                key={log.id}
+                className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-4 py-3"
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
                   <span className="text-[0.84rem] font-[800]">{log.reviewer_id}</span>
                   <span className="text-[0.76rem] text-muted">{formatDateTime(log.created_at, locale)}</span>
                 </div>
-                <div className="text-[0.82rem] text-muted-strong">
+
+                <div className="text-[0.82rem] font-[700] text-muted-strong">
                   {log.new_status ? getStatusLabel(log.new_status, locale) : labels.recommendationPending}
                 </div>
-                {log.comment ? <div className="text-[0.82rem] text-muted mt-2">{log.comment}</div> : null}
+
+                {log.comment ? (
+                  <div className="mt-2 text-[0.82rem] leading-[1.65] text-muted">
+                    {log.comment}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
-function CommitteeMemberRow({
+function CommitteeMemberCard({
   member,
   locale,
   labels,
@@ -273,56 +317,124 @@ function CommitteeMemberRow({
   locale: "ru" | "en";
   labels: Record<string, string>;
 }) {
+  const recommendationText =
+    member.has_recommendation && member.recommendation_status
+      ? getStatusLabel(member.recommendation_status, locale)
+      : labels.recommendationPending;
+
   return (
-    <div className="rounded-[1rem] border p-4 bg-[var(--surface-soft)]" style={{ borderColor: "var(--brand-line)" }}>
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.8fr_0.8fr] gap-4">
+    <div
+      className="rounded-[1.2rem] border border-[var(--brand-line)] bg-[linear-gradient(180deg,var(--surface-soft),var(--surface-subtle))] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)]"
+    >
+      <div className="mb-4 flex flex-col items-start gap-3">
         <div>
-          <div className="text-[0.96rem] font-[800]">{member.full_name}</div>
-          <div className="text-[0.76rem] font-[700] text-muted mt-1">
+          <div className="text-[1rem] font-[800] leading-[1.3]">{member.full_name}</div>
+          <div className="mt-1 text-[0.78rem] font-[700] uppercase tracking-[0.1em] text-muted">
             {labels.committeeMember}
           </div>
         </div>
 
-        <div>
-          <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted mb-2">
-            {labels.committeeStatus}
-          </div>
-          <span className={`badge ${member.has_viewed ? "badge--blue" : "badge--neutral"}`}>
-            {member.has_viewed ? labels.viewed : labels.notViewed}
-          </span>
-        </div>
-
-        <div>
-          <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted mb-2">
-            {labels.committeeActivity}
-          </div>
-          <div className="text-[0.82rem] text-muted-strong">
-            {member.last_activity_at ? formatDateTime(member.last_activity_at, locale) : labels.noActivity}
-          </div>
-        </div>
+        <StatusPill tone={member.has_viewed ? "info" : "neutral"}>
+          {member.has_viewed ? labels.viewed : labels.notViewed}
+        </StatusPill>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-4">
-        <div>
-          <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted mb-2">
-            {labels.committeeRecommendation}
-          </div>
-          <div className="text-[0.86rem] font-[700]">
-            {member.has_recommendation && member.recommendation_status
-              ? getStatusLabel(member.recommendation_status, locale)
-              : labels.recommendationPending}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-3">
+        <InfoCard
+          label={labels.committeeRecommendation}
+          value={recommendationText}
+          tone={getRecommendationTone(member.recommendation_status, member.has_recommendation)}
+        />
+        <InfoCard
+          label={labels.committeeActivity}
+          value={member.last_activity_at ? formatDateTime(member.last_activity_at, locale) : labels.noActivity}
+          renderAsBadge={false}
+        />
+      </div>
 
-        <div>
-          <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted mb-2">
-            {labels.committeeReason}
-          </div>
-          <div className="text-[0.84rem] text-muted leading-relaxed">
-            {member.recommendation_comment || labels.noComment}
-          </div>
+      <div className="mt-4 rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] p-4">
+        <div className="mb-2 text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+          {labels.committeeReason}
+        </div>
+        <div className="text-[0.86rem] leading-[1.7] text-muted-strong">
+          {member.recommendation_comment || labels.noComment}
         </div>
       </div>
     </div>
   );
+}
+
+function InfoCard({
+  label,
+  value,
+  tone = "default",
+  renderAsBadge = true,
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "positive" | "warning" | "danger" | "neutral";
+  renderAsBadge?: boolean;
+}) {
+  return (
+    <div className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-elevated)] p-4">
+      <div className="mb-2 text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+        {label}
+      </div>
+      {renderAsBadge ? (
+        <StatusPill tone={tone}>{value}</StatusPill>
+      ) : (
+        <div className="text-[0.92rem] font-[700] leading-[1.5] text-[var(--brand-ink)]">
+          {value}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusPill({
+  children,
+  tone = "default",
+}: {
+  children: string;
+  tone?: "default" | "positive" | "warning" | "danger" | "neutral" | "info";
+}) {
+  const className =
+    tone === "positive"
+      ? "bg-[var(--badge-lime-bg)] text-[var(--badge-lime-text)]"
+      : tone === "warning"
+        ? "bg-[rgba(245,158,11,0.14)] text-[rgb(245,158,11)]"
+        : tone === "danger"
+          ? "bg-[var(--danger-soft-bg)] text-[var(--danger-soft-text)]"
+          : tone === "info"
+            ? "bg-[var(--badge-blue-bg)] text-[var(--badge-blue-text)]"
+            : tone === "neutral"
+              ? "bg-[var(--surface-subtle-2)] text-muted-strong"
+              : "bg-[var(--surface-subtle)] text-[var(--brand-ink)]";
+
+  return (
+    <span
+      className={`inline-flex max-w-full rounded-full px-3 py-1 text-left text-[0.8rem] font-[800] leading-[1.3] whitespace-normal break-words ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function getRecommendationTone(
+  status?: RecommendationStatus | null,
+  hasRecommendation?: boolean,
+): "positive" | "warning" | "danger" | "neutral" {
+  if (!hasRecommendation || !status) {
+    return "neutral";
+  }
+
+  if (status === "STRONG_RECOMMEND" || status === "RECOMMEND") {
+    return "positive";
+  }
+
+  if (status === "WAITLIST") {
+    return "warning";
+  }
+
+  return "danger";
 }

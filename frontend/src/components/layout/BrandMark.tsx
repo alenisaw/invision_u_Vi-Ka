@@ -44,23 +44,19 @@ export default function BrandMark({ size = "sm" }: BrandMarkProps) {
 
       <span className="flex min-w-0 flex-col">
         <span
-          className={`font-[900] leading-none tracking-[-0.08em] ${
-            isLarge ? "text-[clamp(2.2rem,1.8rem+1.6vw,3.6rem)]" : "text-[1.65rem]"
+          className={`font-[800] leading-none ${
+            isLarge ? "text-[clamp(2.1rem,1.8rem+1.45vw,3.2rem)]" : "text-[1.45rem]"
           }`}
           style={{
-            background:
-              "linear-gradient(120deg, var(--brand-lime) 0%, var(--brand-blue) 48%, var(--brand-coral) 100%)",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
-            textShadow: "0 14px 36px color-mix(in srgb, var(--brand-blue) 18%, transparent)",
+            color: "var(--brand-ink)",
+            letterSpacing: "-0.04em",
           }}
         >
           invisionU
         </span>
         <span
           className={`font-[700] leading-none text-muted ${
-            isLarge ? "mt-2 text-[0.9rem]" : "mt-1 text-[0.72rem]"
+            isLarge ? "mt-2 text-[0.92rem]" : "mt-1 text-[0.74rem]"
           }`}
         >
           {t("brand.committee")}

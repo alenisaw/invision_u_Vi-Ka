@@ -211,6 +211,12 @@ export default function DashboardPage() {
                       selected={selected}
                       onToggleSelect={handleToggleSelect}
                     />
+                  ) : filtered.length === 0 ? (
+                    <div className="card p-12 text-center">
+                      <p className="text-[1rem] font-[600] text-muted">
+                        {t("dashboard.emptyFiltered")}
+                      </p>
+                    </div>
                   ) : (
                     <CandidateGrid
                       candidates={filtered}

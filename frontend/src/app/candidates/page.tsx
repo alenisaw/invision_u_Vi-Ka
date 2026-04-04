@@ -227,6 +227,10 @@ function CandidatesPageInner() {
               </div>
             ) : viewMode === "table" ? (
               <CandidatePoolTable items={items} highlightedId={highlightId} />
+            ) : items.length === 0 ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600] text-muted">{t("candidates.noResults")}</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {items.map((item) => {
@@ -291,12 +295,6 @@ function CandidatesPageInner() {
                     </div>
                   );
                 })}
-              </div>
-            )}
-
-            {!loading && items.length === 0 && (
-              <div className="text-center py-20 text-muted font-[700] text-[1.1rem]">
-                {t("candidates.empty")}
               </div>
             )}
         </div>
