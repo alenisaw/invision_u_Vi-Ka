@@ -35,6 +35,12 @@ export interface CandidateScore {
   scoring_version: string;
 }
 
+export type PipelineQualityStatus =
+  | "healthy"
+  | "degraded"
+  | "partial"
+  | "manual_review_required";
+
 
 export interface EvidenceItem {
   source: string;
@@ -208,12 +214,49 @@ export interface SessionInfo {
 
 export interface AdminUser extends AuthUser {}
 
+export interface PipelineMetricsOverview {
+  total_runs: number;
+  healthy_runs: number;
+  degraded_runs: number;
+  partial_runs: number;
+  manual_review_runs: number;
+  degraded_rate: number;
+  manual_review_rate: number;
+  avg_total_latency_ms: number;
+  p50_total_latency_ms: number;
+  p95_total_latency_ms: number;
+  avg_stage_latencies_ms: Record<string, number>;
+  fallback_counts: Record<string, number>;
+  quality_flag_counts: Record<string, number>;
+}
+
+export interface PipelineRunMetric {
+  audit_id: string;
+  candidate_id: string | null;
+  recommendation_status: string | null;
+  pipeline_quality_status: PipelineQualityStatus;
+  quality_flags: string[];
+  total_latency_ms: number;
+  stage_latencies_ms: Record<string, number>;
+  created_at: string;
+  details: Record<string, unknown>;
+}
+
+export interface PipelineMetrics {
+  overview: PipelineMetricsOverview;
+  recent_runs: PipelineRunMetric[];
+}
+
 export interface PipelineResult {
   candidate_id: string;
   pipeline_status: string;
   score: CandidateScore;
   completeness: number;
   data_flags: string[];
+  pipeline_quality_status?: PipelineQualityStatus;
+  quality_flags?: string[];
+  stage_latencies_ms?: Record<string, number>;
+  total_latency_ms?: number;
 }
 
 export interface FixtureMeta {

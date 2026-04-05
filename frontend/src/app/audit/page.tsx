@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { reviewerApi } from "@/lib/api";
+import { adminApi, reviewerApi } from "@/lib/api";
 import { formatDateTime, getStatusLabel } from "@/lib/i18n";
-import type { AuditFeedItem } from "@/types";
+import type { AuditFeedItem, PipelineMetrics } from "@/types";
 
 const ACTION_STYLES: Record<string, { bg: string; color: string }> = {
   viewed: { bg: "rgba(61, 237, 241, 0.18)", color: "#0a6a6d" },
@@ -27,6 +27,7 @@ export default function AuditPage() {
   const { user, loading: authLoading } = useAuth();
   const [actions, setActions] = useState<AuditFeedItem[]>([]);
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
+  const [metrics, setMetrics] = useState<PipelineMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,14 +46,16 @@ export default function AuditPage() {
     setError("");
 
     try {
-      const [nextActions, candidates] = await Promise.all([
+      const [nextActions, candidates, nextMetrics] = await Promise.all([
         reviewerApi.listAuditFeed(),
         reviewerApi.listDashboardCandidates(),
+        adminApi.getPipelineMetrics(20),
       ]);
       setActions(nextActions);
       setCandidateNames(
         Object.fromEntries(candidates.map((candidate) => [candidate.candidate_id, candidate.name])),
       );
+      setMetrics(nextMetrics);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t("audit.loadError"),
@@ -73,6 +76,27 @@ export default function AuditPage() {
             >
               {t("audit.title")}
             </h1>
+
+            {metrics ? (
+              <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <MetricCard
+                  label={locale === "ru" ? "Обработок" : "Runs"}
+                  value={String(metrics.overview.total_runs)}
+                />
+                <MetricCard
+                  label={locale === "ru" ? "Degraded" : "Degraded"}
+                  value={`${Math.round(metrics.overview.degraded_rate * 100)}%`}
+                />
+                <MetricCard
+                  label={locale === "ru" ? "Manual review" : "Manual review"}
+                  value={`${Math.round(metrics.overview.manual_review_rate * 100)}%`}
+                />
+                <MetricCard
+                  label={locale === "ru" ? "P95 задержка" : "P95 latency"}
+                  value={`${Math.round(metrics.overview.p95_total_latency_ms)}ms`}
+                />
+              </div>
+            ) : null}
 
             {loading ? (
               <div className="card p-12 text-center">
@@ -161,5 +185,16 @@ export default function AuditPage() {
         </div>
       </main>
     </>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1.1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-5 py-5">
+      <div className="mb-2 text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+        {label}
+      </div>
+      <div className="text-[1.5rem] font-[900]">{value}</div>
+    </div>
   );
 }

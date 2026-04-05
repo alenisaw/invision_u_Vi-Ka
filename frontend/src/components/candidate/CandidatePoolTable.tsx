@@ -10,6 +10,8 @@ export interface CandidatePoolTableItem {
   name: string;
   selectedProgram: string;
   stageLabel: string;
+  qualityStatus?: "healthy" | "degraded" | "partial" | "pending";
+  sourceQualityLabel?: string;
   completeness?: number | null;
   notes: string[];
   createdAt?: string | null;
@@ -44,6 +46,9 @@ export default function CandidatePoolTable({
             <tr className="text-left" style={{ borderBottom: "1px solid var(--brand-line)" }}>
               <th className="eyebrow px-6 py-5">{t("candidates.table.candidate")}</th>
               <th className="eyebrow px-6 py-5">{t("candidates.table.program")}</th>
+              <th className="eyebrow px-6 py-5">
+                {locale === "ru" ? "Качество источника" : "Source quality"}
+              </th>
               <th className="eyebrow px-6 py-5">{t("candidates.table.completeness")}</th>
               <th className="eyebrow px-6 py-5">{t("candidates.table.notes")}</th>
               <th className="eyebrow px-6 py-5 w-[148px]">{t("candidates.table.date")}</th>
@@ -73,6 +78,13 @@ export default function CandidatePoolTable({
                     <span className="text-[0.84rem] text-muted-strong">
                       {localizeProgramName(item.selectedProgram, locale)}
                     </span>
+                  </td>
+                  <td className="px-6 py-[1.15rem] align-top">
+                    <div className="flex flex-col gap-2">
+                      <span className={`badge ${getQualityBadge(item.qualityStatus)}`}>
+                        {item.sourceQualityLabel ?? (locale === "ru" ? "В обработке" : "Pending")}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-[1.15rem] align-top">
                     <div className="flex flex-col gap-1">
@@ -122,4 +134,11 @@ export default function CandidatePoolTable({
       </div>
     </div>
   );
+}
+
+function getQualityBadge(status?: CandidatePoolTableItem["qualityStatus"]) {
+  if (status === "healthy") return "badge--lime";
+  if (status === "degraded") return "badge--coral";
+  if (status === "partial") return "badge--blue";
+  return "badge--neutral";
 }

@@ -110,6 +110,8 @@ def derive_caution_flags(envelope: SignalEnvelope) -> list[str]:
         caution_flags.append("generic_evidence")
     if envelope.completeness < 0.50:
         caution_flags.append("low_completeness")
+    if any(flag == "speech_authenticity_risk" for flag in envelope.data_flags):
+        caution_flags.append("speech_authenticity_risk")
 
     return list(dict.fromkeys(caution_flags))
 

@@ -1,229 +1,158 @@
-﻿# Scoring and Decision Policy
-
----
-
-## Document Structure
-
-- [Purpose](#purpose)
-- [Inputs](#inputs)
-- [Evaluation Dimensions](#evaluation-dimensions)
-- [Why These Dimensions Exist](#why-these-dimensions-exist)
-- [What Program Fit Means](#what-program-fit-means)
-- [Scoring Formula](#scoring-formula)
-- [Why the Weights Matter](#why-the-weights-matter)
-- [Program-Aware Weight Profiles](#program-aware-weight-profiles)
-- [AI Detect as a Supplementary Signal](#ai-detect-as-a-supplementary-signal)
-- [Decision Categories](#decision-categories)
-- [Human-in-the-Loop Routing](#human-in-the-loop-routing)
-- [Evaluation Workflow](#evaluation-workflow)
+# Scoring and Authenticity Advisory
 
 ---
 
 ## Purpose
 
-The `Scoring` stage converts structured extraction output into auditable decision-support output for the admissions committee. It combines deterministic scoring, ML refinement, confidence estimation, program-aware routing, and explicit manual-review escalation.
+The `Scoring` stage converts structured extraction output into committee-facing decision support. It produces:
 
-In the UI, the main numerical result is presented as **Candidate score**. In the API and backend code, this still maps to the persisted `rpi_score` field.
+- candidate score
+- confidence
+- recommendation status
+- manual review routing
+- caution flags
+
+The score is not a final admission decision. The final outcome belongs to the admissions committee.
 
 ---
 
 ## Inputs
 
-The `Scoring` stage consumes a canonical signal envelope that includes:
+The scoring stage consumes a canonical signal envelope that includes:
 
 - candidate id
 - selected program
-- canonical program id
 - completeness
 - data flags
-- structured signals
-- supplementary caution markers from `AI Detect`, when available
-
-Each structured signal provides:
-
-- normalized value
-- confidence
-- source list
-- evidence snippets
-- compact reasoning
+- extracted signals
+- transcript- and essay-derived evidence
+- authenticity advisory flags when available
 
 ---
 
-## Evaluation Dimensions
+## Core dimensions
 
-The scoring policy uses the following evaluation dimensions:
+The current score is based on eight dimensions:
 
 | Dimension | Meaning |
 |---|---|
-| `leadership_potential` | leadership behaviors, ownership, coordination |
-| `growth_trajectory` | resilience, learning, progress after setbacks |
-| `motivation_clarity` | clarity of goals and reason for applying |
+| `leadership_potential` | ownership, coordination, influence |
+| `growth_trajectory` | progress after setbacks, resilience |
+| `motivation_clarity` | clarity of goals and application intent |
 | `initiative_agency` | self-started action and proactivity |
-| `learning_agility` | ability to adapt and learn quickly |
-| `communication_clarity` | clarity, structure, articulation |
-| `ethical_reasoning` | fairness, decision quality, civic orientation |
-| `program_fit` | alignment between candidate trajectory and selected program |
+| `learning_agility` | speed of adaptation and learning |
+| `communication_clarity` | clarity and structure of expression |
+| `ethical_reasoning` | fairness, responsibility, judgment |
+| `program_fit` | alignment with the selected academic track |
 
 ---
 
-## Why These Dimensions Exist
+## Score structure
 
-The scoring design deliberately avoids a single opaque impression score. Each dimension isolates one reviewer-relevant aspect of candidate potential:
+The scoring stage uses three layers:
 
-- `leadership_potential` checks whether the candidate already takes responsibility or influences outcomes
-- `growth_trajectory` checks whether the candidate learns from setbacks and shows upward movement
-- `motivation_clarity` checks whether the candidate understands why they are applying
-- `initiative_agency` checks whether the candidate acts without waiting for perfect conditions
-- `learning_agility` checks whether the candidate adapts and absorbs feedback
-- `communication_clarity` checks whether the candidate can explain ideas clearly enough for collaborative study and work
-- `ethical_reasoning` checks whether the candidate shows fairness, responsibility, and judgment
-- `program_fit` checks whether the selected academic track matches the candidate's stated direction
+1. Rule-based baseline
+2. ML refinement
+3. Decision policy and confidence routing
 
-These dimensions were chosen to identify early-stage potential rather than polished self-presentation alone.
+The main result shown in the UI is **Candidate score**.
 
----
-
-## What Program Fit Means
-
-`program_fit` does not mean demographic fit, social fit, or personality fit. It means one narrow and auditable thing:
-
-- how strongly the candidate's goals, interests, examples, and vocabulary align with the selected academic program
-
-At the configuration level, `program_fit` is currently computed from upstream alignment signals produced during extraction. Those signals are expected to rely only on safe evidence such as:
-
-- transcript content
-- essay intent
-- candidate examples
-- internal-answer reasoning where relevant
-
-This matters because a promising candidate can still be weakly aligned with the specific track they selected.
-
----
-
-## Scoring Formula
-
-### Rule-Based Baseline
-
-The baseline score is computed from weighted evaluation dimensions:
-
-```text
-baseline_rpi =
-  w1 * leadership_potential +
-  w2 * growth_trajectory +
-  w3 * motivation_clarity +
-  w4 * initiative_agency +
-  w5 * learning_agility +
-  w6 * communication_clarity +
-  w7 * ethical_reasoning +
-  w8 * program_fit
-```
-
-The exact weights are configured in:
-
-- `backend/app/modules/scoring/scoring_config.yaml`
-
-### ML Refinement
-
-The ML refinement layer uses `GradientBoostingRegressor`:
-
-```text
-final_raw_score = blend(baseline_rpi, ml_rpi)
-```
-
-### Decision Policy
-
-The final decision layer applies:
-
-- threshold bands
-- completeness penalties where configured
-- confidence and uncertainty logic
-- manual-review routing
-- program-aware policy profiles
-
----
-
-## Why the Weights Matter
-
-Weights are the policy layer that decides which dimensions should dominate the final candidate score when evidence is mixed.
-
-The default baseline profile is:
-
-| Dimension | Default weight | Why it matters |
-|---|---:|---|
-| `leadership_potential` | `0.20` | The system aims to surface future changemakers, so ownership and influence matter most. |
-| `growth_trajectory` | `0.18` | Growth and resilience are critical for early-stage applicants. |
-| `motivation_clarity` | `0.15` | Strong intent reduces the risk of accidental or weak-fit applications. |
-| `initiative_agency` | `0.15` | Initiative is a core marker of early potential. |
-| `learning_agility` | `0.12` | Learning speed matters strongly, but should not dominate over initiative and growth. |
-| `communication_clarity` | `0.10` | Clear expression matters, but should not over-reward polished speaking alone. |
-| `ethical_reasoning` | `0.05` | Ethical judgment is important, but acts as a balancing dimension. |
-| `program_fit` | `0.05` | Fit matters, but should not over-penalize promising candidates for imperfect wording alone. |
-
----
-
-## Program-Aware Weight Profiles
-
-Different tracks require different emphasis, so `Scoring` overrides the default profile with program-aware weights.
-
-### Why these profiles exist
-
-The purpose is not to judge candidates by personality stereotypes. The purpose is to adjust weighting toward the evidence most relevant to each track.
-
-### Current logic by program
-
-| Program | Main emphasis | Why |
-|---|---|---|
-| `general_admissions` | leadership, growth, motivation | Neutral baseline for mixed or undecided cases. |
-| `creative_engineering` | initiative, learning agility, program fit | Engineering tracks reward experimentation and problem-solving action. |
-| `digital_products_and_services` | initiative, communication, program fit | Product work needs proactive execution and clear communication. |
-| `sociology_of_innovation_and_leadership` | leadership, ethical reasoning, program fit | This track values social systems thinking and people-centered leadership. |
-| `public_governance_and_development` | ethical reasoning, communication, leadership | Governance tracks require public responsibility and institutional reasoning. |
-| `digital_media_and_marketing` | communication, initiative, motivation | Media and marketing rely on clarity, audience awareness, and proactive creation. |
-
-### Diagram 1. Scoring Flow
+### Diagram 1. Score composition
 
 ```mermaid
 flowchart LR
-    Envelope["Signal Envelope"]
-    Rules["Rule-Based Baseline"]
-    Features["Feature Assembly"]
-    GBR["GBR Refinement"]
-    Blend["Score Blend"]
-    Policy["Decision Policy"]
-    Score["Candidate Score"]
+    Envelope["Signal envelope"]
+    Rules["Rule-based baseline"]
+    ML["ML refinement"]
+    Blend["Score blend"]
+    Policy["Decision policy"]
+    Output["Candidate score + confidence"]
 
     Envelope --> Rules
-    Envelope --> Features
-    Features --> GBR
+    Envelope --> ML
     Rules --> Blend
-    GBR --> Blend
+    ML --> Blend
     Blend --> Policy
-    Policy --> Score
+    Policy --> Output
 ```
 
 ---
 
-## AI Detect as a Supplementary Signal
+## Confidence and routing
 
-`AI Detect` is a supplementary stage, not a replacement for committee judgment.
+Confidence is tracked separately from score.
 
-It can contribute:
+This allows the platform to:
 
-- consistency checks between transcript, essay, and safe content
-- caution markers such as authenticity risk
-- additional evidence for explanation blocks and committee review
+- keep a stable candidate score
+- lower confidence when evidence quality is weak
+- route degraded cases to manual review
+- show caution flags without auto-rejecting the candidate
 
-These signals are intended to:
+Review-routing fields include:
 
-- inform `Scoring`
-- enrich `Explanation`
-- support human review
-
-They must not be treated as a fully autonomous plagiarism verdict.
+- `manual_review_required`
+- `human_in_loop_required`
+- `uncertainty_flag`
+- `review_recommendation`
 
 ---
 
-## Decision Categories
+## Authenticity advisory
+
+The platform no longer frames this layer as a hard `AI detect` verdict.
+
+Instead, it uses an **Authenticity advisory** layer that contributes:
+
+- writing authenticity risk
+- cross-source inconsistency signals
+- speech authenticity risk
+- caution flags for committee review
+
+These signals:
+
+- do **not** directly lower the candidate score
+- may lower confidence
+- may trigger or reinforce manual review
+- are surfaced as advisory evidence for reviewers
+
+### Speech authenticity
+
+The audio path can raise a `speech_authenticity_risk` flag when the media appears unnaturally uniform. This is treated as a caution signal, not as an automatic proof of synthetic speech.
+
+### Diagram 2. Authenticity advisory behavior
+
+```mermaid
+flowchart LR
+    Text["Text evidence"]
+    Audio["Audio evidence"]
+    Advisory["Authenticity advisory"]
+    Confidence["Confidence"]
+    Review["Manual review routing"]
+    Score["Candidate score"]
+
+    Text --> Advisory
+    Audio --> Advisory
+    Advisory --> Confidence
+    Advisory --> Review
+    Advisory -. no direct penalty .-> Score
+```
+
+---
+
+## Program-aware weighting
+
+The score uses program-aware weight profiles so different tracks can emphasize different evidence patterns. The intent is not to encode stereotypes, but to align weighting with the academic demands of the selected track.
+
+Examples:
+
+- digital media and marketing: communication, initiative, motivation
+- creative engineering: initiative, learning agility, fit
+- public governance: ethical reasoning, communication, leadership
+
+---
+
+## Decision categories
 
 Primary recommendation categories:
 
@@ -232,37 +161,43 @@ Primary recommendation categories:
 - `WAITLIST`
 - `DECLINED`
 
-These categories are separate from manual-review routing and separate from the final committee decision.
+These categories are separate from:
+
+- confidence
+- manual review routing
+- the final chair decision
 
 ---
 
-## Human-in-the-Loop Routing
+## Evaluation posture
 
-Review-routing fields:
+The current system should be presented as a **decision-support and triage platform**, not as a fully validated autonomous admissions model.
 
-- `manual_review_required`
-- `human_in_loop_required`
-- `uncertainty_flag`
-- `review_recommendation`
+At this stage:
 
-This allows `Scoring` to express:
-
-- a stable recommendation category
-- a separate escalation decision
-- a separate confidence signal
+- synthetic evaluation is used for development and stress testing
+- committee review remains the final authority
+- authenticity advisory is a caution layer, not a plagiarism verdict
+- degraded pipelines must be surfaced explicitly
 
 ---
 
-## Evaluation Workflow
+## Current implementation notes
 
-The evaluation bundle lives under:
+Scoring behavior is configured in:
 
-`backend/tests/scoring/`
+- `backend/app/modules/scoring/scoring_config.yaml`
 
-It supports:
+Evaluation artifacts and tests live under:
 
-- baseline vs GBR comparison
-- balanced vs stress scenarios
-- threshold and decision-policy optimization
-- notebook review
-- CSV and JSON report export
+- `backend/tests/scoring/`
+
+Recommended reporting metrics include:
+
+- average latency
+- p95 latency
+- degraded pipeline rate
+- manual review rate
+- authenticity advisory rate
+- ASR low-confidence rate
+

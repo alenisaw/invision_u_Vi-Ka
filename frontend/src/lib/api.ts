@@ -10,6 +10,7 @@ import type {
   FixtureDetail,
   FixtureSummary,
   PipelineResult,
+  PipelineMetrics,
   RecommendationStatus,
   ReviewerAction,
   SessionInfo,
@@ -110,6 +111,8 @@ export const authApi = {
 
 export const adminApi = {
   listUsers: () => api.get<AdminUser[]>("/api/backend/admin/users"),
+  getPipelineMetrics: (limit = 100) =>
+    api.get<PipelineMetrics>(`/api/backend/admin/metrics/pipeline?limit=${limit}`),
   createUser: (body: {
     email: string;
     full_name: string;

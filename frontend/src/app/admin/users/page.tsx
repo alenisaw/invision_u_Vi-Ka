@@ -8,7 +8,7 @@ import { getRoleLabel, getUserInitials } from "@/lib/auth-ui";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { formatDateTime } from "@/lib/i18n";
-import type { AdminUser, UserRole } from "@/types";
+import type { AdminUser, PipelineMetrics, UserRole } from "@/types";
 
 const ROLE_OPTIONS: UserRole[] = ["admin", "chair", "reviewer"];
 
@@ -28,6 +28,7 @@ export default function AdminUsersPage() {
   const { locale, t } = useLocale();
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [pipelineMetrics, setPipelineMetrics] = useState<PipelineMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -63,8 +64,19 @@ export default function AdminUsersPage() {
       accounts: t("adminUsers.accounts"),
       activeCount: t("adminUsers.activeCount"),
       role: t("adminUsers.role"),
+      metricsTitle: locale === "ru" ? "Наблюдаемость пайплайна" : "Pipeline observability",
+      totalRuns: locale === "ru" ? "обработок" : "runs",
+      degradedRate: locale === "ru" ? "degraded rate" : "degraded rate",
+      reviewRate: locale === "ru" ? "manual review" : "manual review",
+      avgLatency: locale === "ru" ? "средняя задержка" : "avg latency",
+      p95Latency: locale === "ru" ? "p95 задержка" : "p95 latency",
+      recentRuns: locale === "ru" ? "Последние прогоны" : "Recent runs",
+      qualityStatus: locale === "ru" ? "Состояние" : "Status",
+      latency: locale === "ru" ? "Задержка" : "Latency",
+      flags: locale === "ru" ? "Флаги" : "Flags",
+      noMetrics: locale === "ru" ? "Метрики пока не собраны" : "Metrics are not available yet",
     }),
-    [t],
+    [locale, t],
   );
 
   useEffect(() => {
@@ -83,8 +95,12 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError("");
     try {
-      const nextUsers = await adminApi.listUsers();
+      const [nextUsers, nextMetrics] = await Promise.all([
+        adminApi.listUsers(),
+        adminApi.getPipelineMetrics(12),
+      ]);
       setUsers(nextUsers);
+      setPipelineMetrics(nextMetrics);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : t("adminUsers.loadError"));
     } finally {
@@ -169,6 +185,94 @@ export default function AdminUsersPage() {
                 label={getRoleLabel("reviewer", locale)}
                 value={String(users.filter((item) => item.role === "reviewer").length)}
               />
+            </div>
+
+            <div className="card p-6">
+              <div className="mb-5 text-[1rem] font-[800]">{labels.metricsTitle}</div>
+              {pipelineMetrics ? (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+                    <StatChip label={labels.totalRuns} value={String(pipelineMetrics.overview.total_runs)} />
+                    <StatChip
+                      label={labels.degradedRate}
+                      value={`${Math.round(pipelineMetrics.overview.degraded_rate * 100)}%`}
+                    />
+                    <StatChip
+                      label={labels.reviewRate}
+                      value={`${Math.round(pipelineMetrics.overview.manual_review_rate * 100)}%`}
+                    />
+                    <StatChip
+                      label={labels.avgLatency}
+                      value={`${Math.round(pipelineMetrics.overview.avg_total_latency_ms)}ms`}
+                    />
+                    <StatChip
+                      label={labels.p95Latency}
+                      value={`${Math.round(pipelineMetrics.overview.p95_total_latency_ms)}ms`}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-3 text-[0.8rem] font-[800] uppercase tracking-[0.12em] text-muted">
+                      {labels.recentRuns}
+                    </div>
+                    {pipelineMetrics.recent_runs.length > 0 ? (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                        {pipelineMetrics.recent_runs.slice(0, 6).map((run) => (
+                          <div
+                            key={run.audit_id}
+                            className="rounded-[1.1rem] border p-4"
+                            style={{
+                              borderColor: "var(--brand-line)",
+                              background: "var(--surface-subtle)",
+                            }}
+                          >
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-[0.82rem] font-[800] text-[var(--brand-ink)]">
+                                  {run.candidate_id ? `#${run.candidate_id.slice(0, 8)}` : "System"}
+                                </div>
+                                <div className="mt-1 text-[0.76rem] text-muted">
+                                  {formatDateTime(run.created_at, locale)}
+                                </div>
+                              </div>
+                              <PipelineStatusBadge status={run.pipeline_quality_status} locale={locale} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-[0.8rem]">
+                              <MetricLine label={labels.latency} value={`${Math.round(run.total_latency_ms)}ms`} />
+                              <MetricLine
+                                label={labels.qualityStatus}
+                                value={getPipelineStatusLabel(run.pipeline_quality_status, locale)}
+                              />
+                            </div>
+
+                            {run.quality_flags.length > 0 ? (
+                              <div className="mt-3">
+                                <div className="mb-2 text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+                                  {labels.flags}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {run.quality_flags.slice(0, 4).map((flag) => (
+                                    <span key={flag} className="badge badge--coral">
+                                      {localizeFlag(flag, locale)}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-4 py-4 text-[0.9rem] text-muted">
+                        {labels.noMetrics}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 text-center text-muted font-[700]">{labels.loading}</div>
+              )}
             </div>
 
             <div className="card p-6">
@@ -397,4 +501,88 @@ function StatChip({ label, value }: { label: string; value: string }) {
 
 function FieldLabel({ label }: { label: string }) {
   return <div className="text-[0.8rem] font-[800] uppercase tracking-[0.12em] text-muted">{label}</div>;
+}
+
+function MetricLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[0.7rem] font-[800] uppercase tracking-[0.12em] text-muted mb-1">
+        {label}
+      </div>
+      <div className="text-[0.88rem] font-[800] text-[var(--brand-ink)]">{value}</div>
+    </div>
+  );
+}
+
+function PipelineStatusBadge({
+  status,
+  locale,
+}: {
+  status: PipelineMetrics["recent_runs"][number]["pipeline_quality_status"];
+  locale: "ru" | "en";
+}) {
+  const tone =
+    status === "healthy"
+      ? "badge badge--lime"
+      : status === "degraded"
+        ? "badge badge--coral"
+        : status === "partial"
+          ? "badge badge--neutral"
+          : "badge badge--blue";
+  return <span className={tone}>{getPipelineStatusLabel(status, locale)}</span>;
+}
+
+function getPipelineStatusLabel(
+  status: PipelineMetrics["recent_runs"][number]["pipeline_quality_status"],
+  locale: "ru" | "en",
+) {
+  if (locale === "ru") {
+    if (status === "healthy") return "Норма";
+    if (status === "degraded") return "Degraded";
+    if (status === "partial") return "Частично";
+    return "Нужна проверка";
+  }
+  if (status === "healthy") return "Healthy";
+  if (status === "degraded") return "Degraded";
+  if (status === "partial") return "Partial";
+  return "Manual review";
+}
+
+function localizeFlag(flag: string, locale: "ru" | "en") {
+  const map: Record<string, { ru: string; en: string }> = {
+    llm_extraction_fallback_used: {
+      ru: "fallback извлечения",
+      en: "extraction fallback",
+    },
+    semantic_similarity_fallback_used: {
+      ru: "fallback similarity",
+      en: "similarity fallback",
+    },
+    asr_short_audio: {
+      ru: "короткое аудио",
+      en: "short audio",
+    },
+    asr_low_confidence: {
+      ru: "низкий ASR confidence",
+      en: "low ASR confidence",
+    },
+    asr_noisy_audio: {
+      ru: "шумное аудио",
+      en: "noisy audio",
+    },
+    speech_authenticity_risk: {
+      ru: "риск синтетической речи",
+      en: "speech authenticity risk",
+    },
+    explanation_partial: {
+      ru: "частичный explanation",
+      en: "partial explanation",
+    },
+    empty_signal_envelope: {
+      ru: "пустой сигнал",
+      en: "empty signals",
+    },
+  };
+
+  return map[flag]?.[locale] ?? flag.replaceAll("_", " ");
 }

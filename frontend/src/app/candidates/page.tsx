@@ -32,14 +32,22 @@ type CandidatePoolItem = CandidatePoolTableItem & {
   searchText: string;
 };
 
-function buildPoolItem(candidate: CandidatePoolListItem, viewLabel: string, pendingLabel: string): CandidatePoolItem {
+function buildPoolItem(
+  candidate: CandidatePoolListItem,
+  viewLabel: string,
+  pendingLabel: string,
+  locale: "ru" | "en",
+): CandidatePoolItem {
   const processed = candidate.stage === "processed";
+  const qualityStatus = deriveQualityStatus(candidate);
   return {
     id: candidate.candidate_id,
     kind: processed ? "processed" : "raw",
     name: candidate.name,
     selectedProgram: candidate.selected_program,
     stageLabel: processed ? "common.processed" : "common.raw",
+    qualityStatus,
+    sourceQualityLabel: getSourceQualityLabel(candidate, qualityStatus, locale),
     completeness: candidate.data_completeness,
     notes: candidate.data_flags.length > 0 ? candidate.data_flags : processed ? candidate.top_strengths : [candidate.pipeline_status],
     reviewPriorityIndex: candidate.review_priority_index,
@@ -92,7 +100,7 @@ function CandidatesPageInner() {
 
   const items = useMemo(() => {
     const prepared = pool.map((candidate) =>
-      buildPoolItem(candidate, t("candidates.action.view"), t("candidates.status.raw")),
+      buildPoolItem(candidate, t("candidates.action.view"), t("candidates.status.raw"), locale),
     ).map((item) => ({ ...item, stageLabel: t(item.stageLabel) }));
 
     const query = search.trim().toLowerCase();
@@ -264,6 +272,12 @@ function CandidatesPageInner() {
                         {localizeProgramName(item.selectedProgram, locale)}
                       </p>
 
+                      <div className="mb-4">
+                        <span className={`badge ${getQualityBadge(item.qualityStatus)}`}>
+                          {item.sourceQualityLabel}
+                        </span>
+                      </div>
+
                       <div className="grid grid-cols-1 gap-3 mb-6">
                         <MetricCard
                           label={t("candidates.table.completeness")}
@@ -377,4 +391,50 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <div className="text-[1.2rem] font-[800] font-numbers">{value}</div>
     </div>
   );
+}
+
+function deriveQualityStatus(candidate: CandidatePoolListItem) {
+  const flags = new Set([...(candidate.data_flags ?? []), ...(candidate.caution_flags ?? [])]);
+  if (candidate.stage === "raw") return "pending" as const;
+  if (
+    flags.has("asr_processing_failed") ||
+    flags.has("empty_signal_envelope") ||
+    flags.has("no_structured_signals")
+  ) {
+    return "degraded" as const;
+  }
+  if (
+    flags.has("low_asr_confidence") ||
+    flags.has("speech_authenticity_risk") ||
+    flags.has("possible_ai_use") ||
+    flags.has("authenticity_or_ai_risk") ||
+    flags.has("low_cross_source_consistency")
+  ) {
+    return "partial" as const;
+  }
+  return "healthy" as const;
+}
+
+function getSourceQualityLabel(
+  candidate: CandidatePoolListItem,
+  status: ReturnType<typeof deriveQualityStatus>,
+  locale: "ru" | "en",
+) {
+  if (candidate.stage === "raw") {
+    return locale === "ru" ? "Ожидает обработки" : "Pending processing";
+  }
+  if (status === "healthy") {
+    return locale === "ru" ? "Источник подтвержден" : "Source healthy";
+  }
+  if (status === "degraded") {
+    return locale === "ru" ? "Сниженное качество" : "Degraded source";
+  }
+  return locale === "ru" ? "Нужна проверка" : "Needs review";
+}
+
+function getQualityBadge(status?: CandidatePoolItem["qualityStatus"]) {
+  if (status === "healthy") return "badge--lime";
+  if (status === "degraded") return "badge--coral";
+  if (status === "partial") return "badge--blue";
+  return "badge--neutral";
 }

@@ -347,7 +347,7 @@ function CandidateGrid({
 }
 
 function AiRiskCard({ flags }: { flags: string[] }) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const risk = getAiRiskLevel(flags);
   const toneClass =
     risk === "high"
@@ -360,7 +360,7 @@ function AiRiskCard({ flags }: { flags: string[] }) {
     <div className="mb-5 rounded-[1rem] border border-[var(--brand-line)] bg-[linear-gradient(180deg,var(--surface-soft),var(--surface-subtle))] px-4 py-4">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
-          {t("dashboard.aiRisk")}
+          {locale === "ru" ? "Проверка аутентичности" : "Authenticity advisory"}
         </div>
         <span className={toneClass}>{t(`dashboard.aiRisk.${risk}`)}</span>
       </div>

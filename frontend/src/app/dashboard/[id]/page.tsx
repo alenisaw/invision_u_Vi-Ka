@@ -9,7 +9,12 @@ import ScoreRadar from "@/components/candidate/ScoreRadar";
 import Header from "@/components/layout/Header";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { ApiError, reviewerApi } from "@/lib/api";
-import { formatDateTime, getStatusLabel, localizeProgramName } from "@/lib/i18n";
+import {
+  formatDateTime,
+  getStatusLabel,
+  localizeLabel,
+  localizeProgramName,
+} from "@/lib/i18n";
 import type {
   CandidateDetail,
   LocalizedTextContent,
@@ -140,6 +145,7 @@ export default function CandidateDetailPage({
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.25fr_0.75fr]">
             <div className="flex flex-col gap-6">
               <CandidateCard score={detail.score} />
+              <PipelineQualitySection detail={detail} locale={locale} />
               <ExplanationBlock
                 explanation={detail.explanation}
                 insertAfterConclusion={
@@ -166,6 +172,73 @@ export default function CandidateDetailPage({
         </div>
       </main>
     </>
+  );
+}
+
+function PipelineQualitySection({
+  detail,
+  locale,
+}: {
+  detail: CandidateDetail;
+  locale: "ru" | "en";
+}) {
+  const qualityStatus = deriveQualityStatus(detail);
+  const flags = deriveQualityFlags(detail);
+
+  if (qualityStatus === "healthy" && flags.length === 0) {
+    return null;
+  }
+
+  const copy =
+    locale === "ru"
+      ? {
+          title: "Качество обработки",
+          healthy: "Норма",
+          degraded: "Degraded",
+          partial: "Частично",
+          review: "Нужна проверка",
+          helper:
+            qualityStatus === "manual_review_required"
+              ? "Результат требует ручной проверки комиссии: один или несколько этапов дали неполные либо рискованные сигналы."
+              : "В этом кейсе есть сигналы частичной или деградировавшей обработки. Решение стоит читать вместе с исходными материалами и caution flags.",
+        }
+      : {
+          title: "Processing quality",
+          healthy: "Healthy",
+          degraded: "Degraded",
+          partial: "Partial",
+          review: "Manual review",
+          helper:
+            qualityStatus === "manual_review_required"
+              ? "This result requires manual committee review because one or more stages produced incomplete or risky signals."
+              : "This case contains partial or degraded processing signals. Read the decision together with the source materials and caution flags.",
+        };
+
+  return (
+    <div className="card p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="eyebrow">{copy.title}</div>
+        <span className={`badge ${getQualityBadgeTone(qualityStatus)}`}>
+          {qualityStatus === "healthy"
+            ? copy.healthy
+            : qualityStatus === "degraded"
+              ? copy.degraded
+              : qualityStatus === "partial"
+                ? copy.partial
+                : copy.review}
+        </span>
+      </div>
+
+      <p className="mb-4 text-[0.9rem] leading-[1.75] text-muted-strong">{copy.helper}</p>
+
+      <div className="flex flex-wrap gap-2">
+        {flags.map((flag) => (
+          <span key={flag} className="badge badge--coral">
+            {localizePipelineFlag(flag, locale)}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -375,3 +448,107 @@ const STATUS_COLORS: Record<string, string> = {
   WAITLIST: "text-[var(--brand-coral)]",
   DECLINED: "text-[var(--danger-soft-text)]",
 };
+
+function deriveQualityStatus(detail: CandidateDetail) {
+  if (detail.score.manual_review_required) {
+    return "manual_review_required" as const;
+  }
+
+  const flags = new Set(deriveQualityFlags(detail));
+  if (flags.has("empty_signal_envelope") || flags.has("asr_processing_failed")) {
+    return "degraded" as const;
+  }
+  if (
+    flags.has("low_asr_confidence") ||
+    flags.has("speech_authenticity_risk") ||
+    flags.has("low_cross_source_consistency") ||
+    flags.has("possible_ai_use") ||
+    flags.has("authenticity_or_ai_risk")
+  ) {
+    return "partial" as const;
+  }
+  return "healthy" as const;
+}
+
+function deriveQualityFlags(detail: CandidateDetail) {
+  return Array.from(
+    new Set(
+      detail.score.caution_flags.filter((flag) =>
+        [
+          "asr_processing_failed",
+          "low_asr_confidence",
+          "speech_authenticity_risk",
+          "possible_ai_use",
+          "authenticity_or_ai_risk",
+          "low_cross_source_consistency",
+          "weak_claim_support",
+          "voice_inconsistency",
+          "generic_evidence",
+          "no_structured_signals",
+          "empty_signal_envelope",
+        ].includes(flag),
+      ),
+    ),
+  );
+}
+
+function getQualityBadgeTone(status: ReturnType<typeof deriveQualityStatus>) {
+  if (status === "healthy") {
+    return "badge--lime";
+  }
+  if (status === "manual_review_required") {
+    return "badge--blue";
+  }
+  return "badge--coral";
+}
+
+function localizePipelineFlag(flag: string, locale: "ru" | "en") {
+  const map: Record<string, { ru: string; en: string }> = {
+    asr_processing_failed: {
+      ru: "сбой обработки ASR",
+      en: "ASR processing failed",
+    },
+    low_asr_confidence: {
+      ru: "низкий ASR confidence",
+      en: "low ASR confidence",
+    },
+    speech_authenticity_risk: {
+      ru: "риск синтетической речи",
+      en: "speech authenticity risk",
+    },
+    possible_ai_use: {
+      ru: "риск AI-assisted writing",
+      en: "AI-assisted writing risk",
+    },
+    authenticity_or_ai_risk: {
+      ru: "риск недостоверности",
+      en: "authenticity risk",
+    },
+    low_cross_source_consistency: {
+      ru: "расхождение источников",
+      en: "source inconsistency",
+    },
+    weak_claim_support: {
+      ru: "слабое подтверждение заявлений",
+      en: "weak claim support",
+    },
+    voice_inconsistency: {
+      ru: "несогласованность голоса",
+      en: "voice inconsistency",
+    },
+    generic_evidence: {
+      ru: "обобщенные доказательства",
+      en: "generic evidence",
+    },
+    no_structured_signals: {
+      ru: "нет структурированных сигналов",
+      en: "no structured signals",
+    },
+    empty_signal_envelope: {
+      ru: "пустой набор сигналов",
+      en: "empty signal envelope",
+    },
+  };
+
+  return map[flag]?.[locale] ?? localizeLabel(flag, locale);
+}

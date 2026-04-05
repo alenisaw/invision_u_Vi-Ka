@@ -5,6 +5,8 @@ Purpose: Explicit ASR quality checks and human-review routing for the ASR stage.
 
 from __future__ import annotations
 
+from statistics import mean
+
 from .schemas import ASRQualitySummary, ASRSegment
 
 
@@ -14,6 +16,11 @@ LOW_MEAN_CONFIDENCE_MAX = 0.75
 HIGH_UNCLEAR_RATIO_MIN = 0.20
 LOW_AUDIO_QUALITY_CONFIDENCE_MAX = 0.55
 LOW_AUDIO_QUALITY_UNCLEAR_RATIO_MIN = 0.35
+LOW_SEGMENT_CONFIDENCE_VARIANCE_MAX = 0.003
+LOW_SEGMENT_DURATION_VARIANCE_MAX = 4.0
+LOW_HESITATION_DENSITY_MAX = 0.005
+SPEECH_AUTHENTICITY_DURATION_MIN = 20.0
+HESITATION_MARKERS = (" um ", " uh ", " erm ", " мм ", " эм ", " ээ ")
 
 
 def _clamp_unit(value: float) -> float:
@@ -67,6 +74,12 @@ def build_quality_summary(
         and unclear_ratio > LOW_AUDIO_QUALITY_UNCLEAR_RATIO_MIN
     ):
         flags.append("low_audio_quality")
+    if _speech_authenticity_risk(
+        transcript=cleaned_transcript,
+        segments=segments,
+        duration_seconds=inferred_duration,
+    ):
+        flags.append("speech_authenticity_risk")
 
     review_reasons: list[str] = []
     critical_review_flags = {
@@ -96,3 +109,34 @@ def build_quality_summary(
 
 # File summary: quality_checker.py
 # Derives explicit ASR quality metrics and review flags from normalized segments.
+
+
+def _speech_authenticity_risk(
+    *,
+    transcript: str,
+    segments: list[ASRSegment],
+    duration_seconds: float,
+) -> bool:
+    """Return an advisory speech-authenticity flag for unnaturally uniform audio."""
+
+    if len(segments) < 3 or duration_seconds < SPEECH_AUTHENTICITY_DURATION_MIN:
+        return False
+
+    confidences = [segment.confidence for segment in segments]
+    durations = [max(0.0, segment.end - segment.start) for segment in segments]
+    confidence_mean = mean(confidences)
+    confidence_variance = mean((value - confidence_mean) ** 2 for value in confidences)
+    duration_mean = mean(durations)
+    duration_variance = mean((value - duration_mean) ** 2 for value in durations)
+
+    normalized = f" {transcript.lower()} "
+    words = normalized.split()
+    hesitation_hits = sum(normalized.count(marker) for marker in HESITATION_MARKERS)
+    hesitation_density = hesitation_hits / max(len(words), 1)
+
+    return (
+        confidence_mean >= 0.88
+        and confidence_variance <= LOW_SEGMENT_CONFIDENCE_VARIANCE_MAX
+        and duration_variance <= LOW_SEGMENT_DURATION_VARIANCE_MAX
+        and hesitation_density <= LOW_HESITATION_DENSITY_MAX
+    )

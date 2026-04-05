@@ -109,6 +109,18 @@ class ScoringServiceTests(unittest.TestCase):
 
         self.assertIn("authenticity_or_ai_risk", score.caution_flags)
 
+    def test_speech_authenticity_risk_lowers_confidence_without_forcing_score_penalty(self) -> None:
+        base_score = self.service.score_candidate(self.fixtures["balanced"])
+        risky_envelope = self.fixtures["balanced"].model_copy(
+            update={"data_flags": [*self.fixtures["balanced"].data_flags, "speech_authenticity_risk"]}
+        )
+
+        risky_score = self.service.score_candidate(risky_envelope)
+
+        self.assertIn("speech_authenticity_risk", risky_score.caution_flags)
+        self.assertEqual(risky_score.review_priority_index, base_score.review_priority_index)
+        self.assertLess(risky_score.confidence, base_score.confidence)
+
     def test_model_can_be_saved_and_loaded(self) -> None:
         """The optional ML artifact path should remain usable."""
 
@@ -141,5 +153,4 @@ class ScoringServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
 

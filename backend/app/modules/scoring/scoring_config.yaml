@@ -282,6 +282,7 @@ critical_data_flags:
 
 soft_caution_flags:
   - authenticity_or_ai_risk
+  - speech_authenticity_risk
   - low_cross_source_consistency
   - weak_claim_support
   - voice_inconsistency

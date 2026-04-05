@@ -86,6 +86,22 @@ class TestM13Quality(unittest.TestCase):
         self.assertIn("unclear_segments_high", summary.flags)
         self.assertTrue(summary.requires_human_review)
 
+    def test_quality_checker_sets_speech_authenticity_risk_for_uniform_audio(self) -> None:
+        segments = mark_unclear_segments(
+            [
+                ASRSegment(start=0.0, end=10.0, text="I built a project", confidence=0.93, language="en"),
+                ASRSegment(start=10.0, end=20.0, text="I led a team", confidence=0.94, language="en"),
+                ASRSegment(start=20.0, end=30.0, text="I want to study product design", confidence=0.93, language="en"),
+            ]
+        )
+        summary = build_quality_summary(
+            "I built a project I led a team I want to study product design",
+            segments,
+            duration_seconds=30.0,
+        )
+
+        self.assertIn("speech_authenticity_risk", summary.flags)
+
 
 class TestM13Service(unittest.TestCase):
     def test_service_returns_structured_transcript_result(self) -> None:
