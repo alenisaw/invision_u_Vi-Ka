@@ -47,9 +47,9 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
         "academic": {"selected_program": "Foundation"},
         "content": {
             "transcript_text": (
-                "РЇ С…РѕС‡Сѓ РїРѕСЃС‚СѓРїРёС‚СЊ РЅР° Foundation, РїРѕС‚РѕРјСѓ С‡С‚Рѕ РјРЅРµ РЅСѓР¶РµРЅ СЃРёР»СЊРЅС‹Р№ СЃС‚Р°СЂС‚ РїРµСЂРµРґ РїСЂРѕС„РёР»СЊРЅРѕР№ РїСЂРѕРіСЂР°РјРјРѕР№. "
-                "Р›СѓС‡С€Рµ РІСЃРµРіРѕ РјРЅРµ РґР°СЋС‚СЃСЏ РјР°С‚РµРјР°С‚РёРєР° Рё С„РёР·РёРєР°, РЅРѕ РїРѕРєР° СЏ РіРѕРІРѕСЂСЋ Рѕ СЃРІРѕРёС… С†РµР»СЏС… РєРѕСЂРѕС‚РєРѕ Рё Р±РµР· СѓРІРµСЂРµРЅРЅРѕСЃС‚Рё. "
-                "РњРЅРµ РІР°Р¶РЅРѕ РїРѕРґС‚СЏРЅСѓС‚СЊ Р°РєР°РґРµРјРёС‡РµСЃРєРѕРµ РїРёСЃСЊРјРѕ, Р°РЅРіР»РёР№СЃРєРёР№ Рё РЅР°СѓС‡РёС‚СЊСЃСЏ Р»СѓС‡С€Рµ РѕР±СЉСЏСЃРЅСЏС‚СЊ СЃРІРѕРё РёРґРµРё."
+                "Я хочу поступить на Foundation, потому что мне нужен сильный старт перед профильной программой. "
+                "Лучше всего мне даются математика и физика, но пока я говорю о своих целях коротко и без уверенности. "
+                "Мне важно подтянуть академическое письмо, английский и научиться лучше объяснять свои идеи."
             )
         },
     },
@@ -59,10 +59,10 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
     },
     "aisha-strong-leader": {
         "_meta": {
-            "program": "Р¦РёС„СЂРѕРІС‹Рµ РјРµРґРёР° Рё РјР°СЂРєРµС‚РёРЅРі",
+            "program": "Цифровые медиа и маркетинг",
             "language": "en",
         },
-        "academic": {"selected_program": "Р¦РёС„СЂРѕРІС‹Рµ РјРµРґРёР° Рё РјР°СЂРєРµС‚РёРЅРі"},
+        "academic": {"selected_program": "Цифровые медиа и маркетинг"},
         "content": {
             "transcript_text": (
                 "Stories have shaped the way I see leadership for as long as I can remember. At twelve I started a neighborhood blog, "
@@ -80,10 +80,10 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
     },
     "aisultan-governance": {
         "_meta": {
-            "program": "РЎС‚СЂР°С‚РµРіРёРё РіРѕСЃСѓРґР°СЂСЃС‚РІРµРЅРЅРѕРіРѕ СѓРїСЂР°РІР»РµРЅРёСЏ Рё СЂР°Р·РІРёС‚РёСЏ",
+            "program": "Стратегии государственного управления и развития",
             "language": "en",
         },
-        "academic": {"selected_program": "РЎС‚СЂР°С‚РµРіРёРё РіРѕСЃСѓРґР°СЂСЃС‚РІРµРЅРЅРѕРіРѕ СѓРїСЂР°РІР»РµРЅРёСЏ Рё СЂР°Р·РІРёС‚РёСЏ"},
+        "academic": {"selected_program": "Стратегии государственного управления и развития"},
         "content": {
             "transcript_text": (
                 "My interest in governance began with a problem that looked very small: the bus schedule in my district was unreliable and nobody knew where to report it. "
@@ -99,10 +99,10 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
     },
     "asel-social-benefit": {
         "_meta": {
-            "program": "РЎРѕС†РёРѕР»РѕРіРёСЏ РёРЅРЅРѕРІР°С†РёР№ Рё Р»РёРґРµСЂСЃС‚РІР°",
+            "program": "Социология инноваций и лидерства",
             "language": "en",
         },
-        "academic": {"selected_program": "РЎРѕС†РёРѕР»РѕРіРёСЏ РёРЅРЅРѕРІР°С†РёР№ Рё Р»РёРґРµСЂСЃС‚РІР°"},
+        "academic": {"selected_program": "Социология инноваций и лидерства"},
         "content": {
             "transcript_text": (
                 "I grew up watching how quickly technology changes everyday behavior, but I became interested in something more specific: why some communities adapt together while others are left behind. "
@@ -116,10 +116,10 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
     },
     "daniyar-tech-innovator": {
         "_meta": {
-            "program": "РРЅРЅРѕРІР°С†РёРѕРЅРЅС‹Рµ С†РёС„СЂРѕРІС‹Рµ РїСЂРѕРґСѓРєС‚С‹ Рё СЃРµСЂРІРёСЃС‹",
+            "program": "Инновационные цифровые продукты и сервисы",
             "language": "en",
         },
-        "academic": {"selected_program": "РРЅРЅРѕРІР°С†РёРѕРЅРЅС‹Рµ С†РёС„СЂРѕРІС‹Рµ РїСЂРѕРґСѓРєС‚С‹ Рё СЃРµСЂРІРёСЃС‹"},
+        "academic": {"selected_program": "Инновационные цифровые продукты и сервисы"},
         "content": {
             "transcript_text": (
                 "Technology became real to me the day I repaired a broken family computer instead of throwing it away. I spent three days learning from tutorials, replacing the drive, and understanding each hardware decision one step at a time. "
@@ -135,10 +135,10 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
     },
     "madina-balanced-creative": {
         "_meta": {
-            "program": "РљСЂРµР°С‚РёРІРЅР°СЏ РёРЅР¶РµРЅРµСЂРёСЏ",
+            "program": "Креативная инженерия",
             "language": "en",
         },
-        "academic": {"selected_program": "РљСЂРµР°С‚РёРІРЅР°СЏ РёРЅР¶РµРЅРµСЂРёСЏ"},
+        "academic": {"selected_program": "Креативная инженерия"},
         "content": {
             "transcript_text": (
                 "I am most motivated when engineering leaves the lab and enters a public space. My first serious project was a school installation that translated sound into light using simple sensors and programmable LEDs. "
@@ -150,10 +150,10 @@ FIXTURE_OVERRIDES: dict[str, dict] = {
     },
     "saule-media-producer": {
         "_meta": {
-            "program": "Р¦РёС„СЂРѕРІС‹Рµ РјРµРґРёР° Рё РјР°СЂРєРµС‚РёРЅРі",
+            "program": "Цифровые медиа и маркетинг",
             "language": "en",
         },
-        "academic": {"selected_program": "Р¦РёС„СЂРѕРІС‹Рµ РјРµРґРёР° Рё РјР°СЂРєРµС‚РёРЅРі"},
+        "academic": {"selected_program": "Цифровые медиа и маркетинг"},
         "content": {
             "transcript_text": (
                 "At thirteen I filmed my first short documentary on a phone: a portrait of women working at the Green Bazaar in Almaty. I was fascinated by the fact that thousands of people passed them every day without knowing their stories. "
