@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from unittest.mock import patch
 
@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.url_safety import validate_public_video_url
-from app.modules.m2_intake.schemas import ContentInfo
+from app.modules.intake.schemas import ContentInfo
 
 
 PUBLIC_HOST_INFO = [(None, None, None, None, ("93.184.216.34", 0))]

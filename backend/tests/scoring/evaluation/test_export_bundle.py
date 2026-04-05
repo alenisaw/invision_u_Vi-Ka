@@ -1,0 +1,69 @@
+"""
+File: test_export_bundle.py
+Purpose: Local smoke tests for the scoring evaluation bundle.
+"""
+
+from __future__ import annotations
+
+import unittest
+from pathlib import Path
+
+from app.modules.scoring.evaluation import (
+    build_fixture_report,
+    compare_models,
+    export_evaluation_bundle,
+)
+
+
+class ScoringEvaluationBundleTests(unittest.TestCase):
+    """Exercise local evaluation helpers that support the export bundle."""
+
+    def test_compare_models_returns_supported_rows(self) -> None:
+        """The comparison helper should return baseline plus available ML models."""
+
+        frame = compare_models(train_sample_count=30, test_sample_count=15, seed=4)
+
+        self.assertIn("baseline_only", set(frame["mode"]))
+        self.assertIn("gbr", set(frame["mode"]))
+        self.assertIn("mode", frame.columns)
+        self.assertIn("mae", frame.columns)
+        self.assertIn("high_confidence_rate", frame.columns)
+        self.assertGreaterEqual(len(frame), 2)
+
+    def test_build_fixture_report_returns_known_fixtures(self) -> None:
+        """The fixed fixture report should remain available for export inspection."""
+
+        frame = build_fixture_report()
+
+        self.assertGreaterEqual(len(frame), 5)
+        self.assertIn("fixture", frame.columns)
+        self.assertIn("status", frame.columns)
+
+    def test_export_bundle_writes_expected_files(self) -> None:
+        """Export should materialize csv/json artifacts inside the workspace."""
+
+        output_dir = Path("backend/tests/scoring/results/test_export_bundle")
+        try:
+            exported = export_evaluation_bundle(output_dir, train_sample_count=20, test_sample_count=10, seed=6)
+            for path in exported.values():
+                self.assertTrue(Path(path).exists())
+            self.assertIn("balanced_model_comparison", exported)
+            self.assertIn("stress_model_comparison", exported)
+            self.assertIn("balanced_status_distribution", exported)
+            self.assertIn("stress_status_distribution", exported)
+            self.assertIn("gbr_predictions", exported)
+        finally:
+            if output_dir.exists():
+                for child in output_dir.iterdir():
+                    child.unlink()
+                output_dir.rmdir()
+
+    def test_export_bundle_rejects_untrusted_output_dir(self) -> None:
+        """Export should fail for paths outside the trusted report roots."""
+
+        with self.assertRaises(ValueError):
+            export_evaluation_bundle(Path("backend/tests/outside_bundle"), train_sample_count=20, test_sample_count=10, seed=6)
+
+
+if __name__ == "__main__":
+    unittest.main()

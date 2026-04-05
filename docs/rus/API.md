@@ -18,6 +18,18 @@ Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`.
 - защищенные маршруты используют session auth на backend
 - доступ ограничивается через RBAC
 
+В публичной документации используются названия этапов:
+
+- `Input Intake`
+- `ASR`
+- `Privacy`
+- `Profile`
+- `Extraction`
+- `AI Detect`
+- `Scoring`
+- `Explanation`
+- `Review`
+
 ## Response envelope
 
 Успешный ответ:
@@ -76,9 +88,9 @@ Health-check.
 
 ### `POST /api/v1/candidates/intake`
 
-Валидация и сохранение анкеты кандидата.
+Валидация и сохранение входного payload кандидата.
 
-Актуальные правила intake:
+Актуальные правила входного этапа:
 
 - `contacts.email` обязателен
 - `content.video_url` обязателен
@@ -87,9 +99,9 @@ Health-check.
 
 ### `POST /api/v1/pipeline/submit`
 
-Запускает синхронный pipeline:
+Запускает синхронный аналитический pipeline:
 
-`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
+`Input Intake -> optional ASR -> Privacy -> Profile -> Extraction -> Scoring -> Explanation`
 
 ### `POST /api/v1/pipeline/batch`
 
@@ -132,13 +144,13 @@ Health-check.
 
 ### `PATCH /api/v1/admin/users/{user_id}`
 
-Обновление имени, роли, пароля или флага активности.
+Обновление роли, имени, пароля или флага активности.
 
 ### `GET /api/v1/audit/feed?limit=100`
 
 Глобальный журнал действий.
 
-## Endpoint'ы рабочей комиссии
+## Endpoint'ы рабочей зоны комиссии
 
 Все endpoint'ы ниже требуют session cookie и одну из ролей:
 
@@ -148,7 +160,7 @@ Health-check.
 
 ### `GET /api/v1/dashboard/stats`
 
-Сводные метрики dashboard.
+Сводные метрики рабочей зоны комиссии.
 
 Роли:
 
@@ -183,12 +195,12 @@ Health-check.
 
 Детальная карточка кандидата:
 
-- идентичность кандидата
-- score
-- explanation
-- безопасный raw content
-- история комиссии
-- статусы членов комиссии
+- безопасная identity projection
+- оценка кандидата
+- explanation output
+- безопасный source content
+- история действий комиссии
+- состояние видимости по ролям
 
 Роли:
 
@@ -222,3 +234,15 @@ Health-check.
 
 - для `reviewer` создается приватная рекомендация, привязанная к `user.id`
 - для `chair` сохраняется итоговое решение председателя и обновляется итоговый статус кандидата
+
+### `GET /api/v1/audit/feed`
+
+Административный журнал review- и system-событий.
+
+Роли:
+
+- `admin`
+
+## Примечание по названиям этапов
+
+В коде по-прежнему сохраняются внутренние `m*` package names. В API-документации используются публичные stage names, чтобы аналитический flow и workflow комиссии были описаны понятнее.

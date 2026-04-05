@@ -1,6 +1,12 @@
 import type { CandidateScore } from "@/types";
 import { useLocale } from "@/components/providers/LocaleProvider";
-import { formatPercent, localizeLabel, localizeLabels } from "@/lib/i18n";
+import {
+  formatPercent,
+  getAiRiskLevel,
+  localizeLabel,
+  localizeLabels,
+  localizeProgramName,
+} from "@/lib/i18n";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 
 interface CandidateCardProps {
@@ -9,6 +15,10 @@ interface CandidateCardProps {
 
 export default function CandidateCard({ score }: CandidateCardProps) {
   const { locale, t } = useLocale();
+  const aiRisk = getAiRiskLevel(score.caution_flags);
+  const aiRiskTone =
+    aiRisk === "high" ? "badge--coral" : aiRisk === "review" ? "badge--neutral" : "badge--blue";
+  const aiRiskLabel = t(`dashboard.aiRisk.${aiRisk}`);
 
   return (
     <div className="card p-6">
@@ -16,17 +26,38 @@ export default function CandidateCard({ score }: CandidateCardProps) {
         <div>
           <div className="eyebrow mb-2">{t("dashboard.overview")}</div>
           <h2 className="text-[1.22rem] font-[800] leading-[1.1]">
-            {score.selected_program}
+            {localizeProgramName(score.selected_program, locale)}
           </h2>
         </div>
         <StatusBadge status={score.recommendation_status} />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <MetricCard label={t("dashboard.rpiScore")} value={formatPercent(score.review_priority_index)} accent />
         <MetricCard label={t("common.confidence")} value={formatPercent(score.confidence)} />
-        <MetricCard label={t("dashboard.confidenceBand")} value={score.confidence_band} />
         <MetricCard label={t("dashboard.rank")} value={score.ranking_position ? `#${score.ranking_position}` : t("common.none")} />
+      </div>
+
+      <div className="mb-6 rounded-[1.1rem] border border-[var(--brand-line)] bg-[linear-gradient(180deg,var(--surface-soft),var(--surface-subtle))] px-4 py-4">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+            {t("dashboard.aiRisk")}
+          </div>
+          <span className={`badge ${aiRiskTone}`}>{aiRiskLabel}</span>
+        </div>
+        <div className="text-[0.85rem] leading-[1.7] text-muted-strong">
+          {aiRisk === "high"
+            ? locale === "ru"
+              ? "Обнаружены сигналы, требующие отдельной проверки на недостоверность или AI-assisted writing."
+              : "Signals suggest a heightened need to verify authenticity or AI-assisted writing."
+            : aiRisk === "review"
+              ? locale === "ru"
+                ? "Есть косвенные расхождения по стилю или источникам. Желательна дополнительная проверка."
+                : "There are indirect style or source inconsistencies. A manual review is recommended."
+              : locale === "ru"
+                ? "Сильных сигналов AI-помощи или недостоверности не выявлено."
+                : "No strong signs of AI-assisted writing or authenticity issues were detected."}
+        </div>
       </div>
 
       <div className="eyebrow mb-3">{t("dashboard.subscores")}</div>

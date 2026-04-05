@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { LayoutGrid, List } from "lucide-react";
 import Header from "@/components/layout/Header";
 import CandidatePoolTable, {
   type CandidatePoolTableItem,
@@ -137,21 +138,22 @@ function CandidatesPageInner() {
   return (
     <>
       <Header />
-      <main className="min-w-0 p-6 lg:p-10 pb-24 relative">
-        <div className="container-app">
-            <div className="mb-8">
+      <main className="min-w-0 px-5 py-6 lg:px-8 lg:py-8 pb-24 relative">
+        <div className="container-app page-shell">
+            <div className="page-stack">
+            <div>
               <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] tracking-[-0.05em]">
                 {t("candidates.title")}
               </h1>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <StatCard label={t("candidates.total")} value={String(stats.total)} tone="lime" />
               <StatCard label={t("candidates.processed")} value={String(stats.processed)} tone="blue" />
               <StatCard label={t("candidates.raw")} value={String(stats.raw)} tone="neutral" />
             </div>
 
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex flex-wrap gap-2">
                 <FilterChip active={stageFilter === "all"} onClick={() => setStageFilter("all")} label={t("common.all")} />
                 <FilterChip active={stageFilter === "raw"} onClick={() => setStageFilter("raw")} label={t("common.raw")} />
@@ -161,7 +163,7 @@ function CandidatesPageInner() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortValue)}
-                className="chip py-3 px-6 pr-16 font-[700] w-full xl:w-[240px] appearance-none outline-none cursor-pointer transition-all"
+                className="chip py-3 px-6 pr-16 font-[700] w-full xl:w-[320px] appearance-none outline-none cursor-pointer transition-all"
                 style={{
                   backgroundImage:
                     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E\")",
@@ -178,7 +180,7 @@ function CandidatesPageInner() {
               </select>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row gap-4">
               <input
                 type="text"
                 value={search}
@@ -195,7 +197,10 @@ function CandidatesPageInner() {
                       : "text-muted hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  {t("common.table")}
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <List className="h-4 w-4" />
+                    {t("common.list")}
+                  </span>
                 </button>
                 <button
                   onClick={() => setViewMode("grid")}
@@ -205,13 +210,16 @@ function CandidatesPageInner() {
                       : "text-muted hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  {t("common.grid")}
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    {t("common.grid")}
+                  </span>
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="card p-5 mb-8 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
+              <div className="card p-5 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
                 <div className="text-[0.95rem] font-[700] text-[var(--brand-coral)]">
                   {error}
                 </div>
@@ -237,13 +245,13 @@ function CandidatesPageInner() {
                   return (
                     <div
                       key={item.id}
-                      className="card p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1"
+                      className="card p-7 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 min-h-[22rem]"
                       style={{
                         outline: isHighlighted ? "3px solid var(--brand-blue)" : "none",
                         outlineOffset: "-3px",
                       }}
                     >
-                      <div className="mb-4 min-h-[5.5rem]">
+                      <div className="mb-5 min-h-[5.75rem]">
                         <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight mb-3 min-h-[2.75rem]">
                           {item.name}
                         </h3>
@@ -252,18 +260,18 @@ function CandidatesPageInner() {
                         </span>
                       </div>
 
-                      <p className="text-[0.9rem] text-muted line-clamp-2 mb-5 min-h-[2.8rem] leading-relaxed">
+                      <p className="text-[0.95rem] text-muted line-clamp-2 mb-6 min-h-[3rem] leading-relaxed">
                         {localizeProgramName(item.selectedProgram, locale)}
                       </p>
 
-                      <div className="grid grid-cols-1 gap-3 mb-5">
+                      <div className="grid grid-cols-1 gap-3 mb-6">
                         <MetricCard
                           label={t("candidates.table.completeness")}
                           value={item.completeness != null ? `${Math.round(item.completeness * 100)}%` : t("candidates.completeness.pending")}
                         />
                       </div>
 
-                      <div className="flex flex-wrap content-start gap-2 mb-6 min-h-[3.25rem]">
+                      <div className="flex flex-wrap content-start gap-2 mb-7 min-h-[4rem]">
                         {localizedNotes.length > 0 ? (
                           localizedNotes.map((note) => (
                             <span key={`${item.id}-${note}`} className="badge badge--neutral">
@@ -294,6 +302,7 @@ function CandidatesPageInner() {
                 })}
               </div>
             )}
+            </div>
         </div>
       </main>
     </>

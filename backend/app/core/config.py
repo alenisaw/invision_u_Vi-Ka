@@ -14,8 +14,8 @@ class Settings(BaseSettings):
 
     app_name: str = "inVision U Candidate Selection System"
     app_description: str = (
-        "Backend API for candidate intake, scoring pipeline, "
-        "and reviewer dashboard."
+        "Backend API for candidate intake, analytical scoring, "
+        "and committee review workflows."
     )
     app_version: str = "1.0.0"
     app_env: str = "development"

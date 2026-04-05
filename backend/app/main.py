@@ -1,10 +1,11 @@
-"""
+﻿"""
 File: main.py
 Purpose: FastAPI application entry point.
 """
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from importlib import import_module
 import logging
 
@@ -26,12 +27,20 @@ logger = logging.getLogger(__name__)
 ROUTER_MODULES = (
     "app.modules.auth.router",
     "app.modules.admin.router",
-    "app.modules.m0_demo.router",
-    "app.modules.m1_gateway.router",
-    "app.modules.m2_intake.router",
-    "app.modules.m8_dashboard.router",
-    "app.modules.m10_audit.router",
+    "app.modules.demo.router",
+    "app.modules.gateway.router",
+    "app.modules.intake.router",
+    "app.modules.workspace.router",
+    "app.modules.review.router",
 )
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    async with AsyncSessionLocal() as session:
+        service = AuthService(session)
+        await service.bootstrap_admin_user()
+    yield
 
 
 def create_application() -> FastAPI:
@@ -40,6 +49,7 @@ def create_application() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         description=settings.app_description,
+        lifespan=_lifespan,
     )
     app.state.settings = settings
 
@@ -53,7 +63,6 @@ def create_application() -> FastAPI:
 
     _register_exception_handlers(app)
     _register_core_routes(app)
-    _register_startup_hooks(app)
     _include_available_routers(app)
     return app
 
@@ -156,16 +165,7 @@ def _http_exception_payload(
     else:
         message = str(exc.detail)
         details = {}
-
-        return code, message, details
-
-
-def _register_startup_hooks(app: FastAPI) -> None:
-    @app.on_event("startup")
-    async def bootstrap_admin_user() -> None:
-        async with AsyncSessionLocal() as session:
-            service = AuthService(session)
-            await service.bootstrap_admin_user()
+    return code, message, details
 
 
 def _include_available_routers(app: FastAPI) -> None:

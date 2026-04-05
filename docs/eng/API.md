@@ -18,6 +18,18 @@ Authentication model:
 - protected routes use backend session auth
 - role access is enforced with RBAC
 
+The public documentation uses stage names:
+
+- `Input Intake`
+- `ASR`
+- `Privacy`
+- `Profile`
+- `Extraction`
+- `AI Detect`
+- `Scoring`
+- `Explanation`
+- `Review`
+
 ## Response envelope
 
 Successful response:
@@ -76,9 +88,9 @@ Run a demo fixture through the live pipeline.
 
 ### `POST /api/v1/candidates/intake`
 
-Validate and persist a candidate intake payload.
+Validate and persist a candidate input payload.
 
-Current intake rules:
+Current input rules:
 
 - `contacts.email` is required
 - `content.video_url` is required
@@ -87,9 +99,9 @@ Current intake rules:
 
 ### `POST /api/v1/pipeline/submit`
 
-Run the synchronous pipeline:
+Run the synchronous analytical pipeline:
 
-`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
+`Input Intake -> optional ASR -> Privacy -> Profile -> Extraction -> Scoring -> Explanation`
 
 ### `POST /api/v1/pipeline/batch`
 
@@ -138,7 +150,7 @@ Update a user role, password, name, or active flag.
 
 Global audit feed.
 
-## Committee workspace endpoints
+## Review workspace endpoints
 
 All endpoints below require a session cookie and one of these roles:
 
@@ -148,7 +160,7 @@ All endpoints below require a session cookie and one of these roles:
 
 ### `GET /api/v1/dashboard/stats`
 
-Dashboard summary metrics.
+Review workspace summary metrics.
 
 Roles:
 
@@ -158,7 +170,7 @@ Roles:
 
 ### `GET /api/v1/dashboard/candidates`
 
-Processed ranking list.
+Processed candidate ranking list.
 
 Roles:
 
@@ -183,12 +195,12 @@ Roles:
 
 Candidate detail response with:
 
-- candidate identity
-- score
-- explanation
-- raw safe content
-- committee logs
-- committee member statuses
+- candidate identity projection
+- candidate score
+- explanation output
+- safe source content
+- committee action log
+- committee visibility state
 
 Roles:
 
@@ -222,3 +234,15 @@ Behavior:
 
 - for `reviewer`, this stores a private committee recommendation tied to `user.id`
 - for `chair`, this stores the final chair decision and updates the persisted candidate status
+
+### `GET /api/v1/audit/feed`
+
+Administrative review and audit feed.
+
+Roles:
+
+- `admin`
+
+## Notes on stage naming
+
+Current code packages still use internal `m*` names. Public API documentation uses runtime stage names to describe the analytical flow and committee workflow more clearly.

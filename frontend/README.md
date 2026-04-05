@@ -1,6 +1,6 @@
 # Frontend
 
-`invisionU` frontend on `Next.js 14` for a closed admissions workflow with session auth, RBAC, localized review screens, candidate upload, and committee decisions.
+`invisionU` frontend on `Next.js 14` for the admissions committee workflow with session auth, RBAC, localized review screens, candidate upload, and committee decisions.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ Important:
 - browser requests go through the built-in proxy at `frontend/src/app/api/backend/[...path]/route.ts`
 - the proxy rewrites `/api/backend/*` to backend `/api/v1/*`
 - auth uses session cookies and backend role checks
-- there is no frontend reviewer API key layer anymore
+- committee visibility is determined on the backend by RBAC
 
 ## Main routes
 
@@ -44,11 +44,18 @@ Important:
 - `/candidates` - live candidate pool split into unprocessed and processed candidates
 - `/dashboard` - processed candidate ranking
 - `/dashboard/[id]` - candidate detail, committee recommendation, chair decision
-- `/upload` - video-first candidate intake via form or JSON plus demo scenario launcher
+- `/upload` - video-first candidate input via form or JSON plus demo scenario launcher
 - `/admin/users` - admin-only user management
 - `/audit` - admin-only audit feed
 
-## Intake rules
+## Frontend surfaces by stage
+
+- `Input Intake` - represented by `/upload`
+- `Review Workspace` - represented by `/candidates`, `/dashboard`, and `/dashboard/[id]`
+- `Administration` - represented by `/admin/users`
+- `Audit Review` - represented by `/audit`
+
+## Input rules
 
 - required: `personal.first_name`, `personal.last_name`, `personal.date_of_birth`
 - required: `contacts.email`

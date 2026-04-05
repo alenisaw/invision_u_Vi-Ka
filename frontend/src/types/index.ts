@@ -1,4 +1,4 @@
-export type RecommendationStatus =
+﻿export type RecommendationStatus =
   | "STRONG_RECOMMEND"
   | "RECOMMEND"
   | "WAITLIST"
@@ -58,7 +58,7 @@ export interface CautionBlock {
   suggested_action: string;
 }
 
-export interface ExplainabilityReport {
+export interface ExplanationReport {
   candidate_id: string;
   scoring_version: string;
   selected_program: string;
@@ -122,7 +122,7 @@ export interface CandidateDetail {
   candidate_id: string;
   name: string;
   score: CandidateScore;
-  explanation: ExplainabilityReport;
+  explanation: ExplanationReport;
   raw_content?: RawCandidateContent | null;
   audit_logs?: ReviewerAction[];
   committee_members?: CommitteeMemberStatus[];

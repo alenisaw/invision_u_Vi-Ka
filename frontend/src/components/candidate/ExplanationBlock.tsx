@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import type { ExplainabilityReport } from "@/types";
+﻿import { useEffect, useMemo, useState } from "react";
+import type { ExplanationReport } from "@/types";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { localizeLabel, localizeSeverity } from "@/lib/i18n";
 import {
@@ -11,7 +11,7 @@ import {
 import EvidenceList from "./EvidenceList";
 
 interface ExplanationBlockProps {
-  explanation: ExplainabilityReport;
+  explanation: ExplanationReport;
   insertAfterConclusion?: React.ReactNode;
 }
 

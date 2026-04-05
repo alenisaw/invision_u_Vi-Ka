@@ -38,8 +38,8 @@ const RU = {
   chairOverview: "\u041f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b\u044c \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u0438",
   chairOutcome: "\u0418\u0442\u043e\u0433\u043e\u0432\u043e\u0435 \u0440\u0435\u0448\u0435\u043d\u0438\u0435",
   reviewedMembers: "\u041e\u0437\u043d\u0430\u043a\u043e\u043c\u0438\u043b\u0438\u0441\u044c",
-  submittedMembers: "\u041f\u043e\u0434\u0430\u043b\u0438 \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u0438",
-  membersTitle: "\u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u0438 \u0447\u043b\u0435\u043d\u043e\u0432 \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u0438",
+  submittedMembers: "\u0420\u0435\u0448\u0435\u043d\u0438\u044f \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u0438",
+  membersTitle: "\u0420\u0435\u0448\u0435\u043d\u0438\u044f \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u0438",
   finalDecisionComment: "\u041e\u0431\u043e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0435 \u043f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b\u044f",
   finalDecisionSaved:
     "\u041f\u0440\u0435\u0434\u0441\u0435\u0434\u0430\u0442\u0435\u043b\u044c \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u0438 \u0443\u0436\u0435 \u0437\u0430\u0444\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043b \u0438\u0442\u043e\u0433\u043e\u0432\u043e\u0435 \u0440\u0435\u0448\u0435\u043d\u0438\u0435.",
@@ -89,8 +89,8 @@ export default function OverridePanel({
     chairOverview: locale === "ru" ? RU.chairOverview : "Chair of the Committee",
     chairOutcome: locale === "ru" ? RU.chairOutcome : "Final decision",
     reviewedMembers: locale === "ru" ? RU.reviewedMembers : "Viewed by",
-    submittedMembers: locale === "ru" ? RU.submittedMembers : "Recommendations submitted",
-    membersTitle: locale === "ru" ? RU.membersTitle : "Committee member recommendations",
+    submittedMembers: locale === "ru" ? RU.submittedMembers : "Committee decisions",
+    membersTitle: locale === "ru" ? RU.membersTitle : "Committee decisions",
     finalDecisionComment: locale === "ru" ? RU.finalDecisionComment : "Chair rationale",
     finalDecisionSaved: locale === "ru" ? RU.finalDecisionSaved : "The Chair of the Committee has already recorded the final decision.",
   };
@@ -138,6 +138,8 @@ export default function OverridePanel({
   const isReviewer = user.role === "reviewer";
   const isAdmin = user.role === "admin";
   const hasFinalChairDecision = Boolean(committeeResolution);
+  const submittedCount = committeeMembers.filter((member) => member.has_recommendation).length;
+  const committeeTotal = committeeMembers.length;
 
   return (
     <section className="card p-6 sm:p-7">
@@ -170,13 +172,8 @@ export default function OverridePanel({
             labels={labels}
           />
 
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="text-[0.78rem] font-[800] uppercase tracking-[0.12em] text-muted">
-              {labels.membersTitle}
-            </div>
-            <div className="rounded-full border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-3 py-1 text-[0.74rem] font-[700] text-muted-strong">
-              {committeeMembers.length}
-            </div>
+          <div className="mb-4 text-[0.88rem] font-[800] text-muted-strong">
+            {`${labels.membersTitle}: ${submittedCount}/${committeeTotal}`}
           </div>
 
           {committeeMembers.length > 0 ? (
@@ -466,7 +463,7 @@ function ChairOverviewCard({
         </StatusPill>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_0.9fr_0.9fr]">
         <InfoCard
           label={labels.chairOutcome}
           value={getStatusLabel(decisionStatus, locale)}

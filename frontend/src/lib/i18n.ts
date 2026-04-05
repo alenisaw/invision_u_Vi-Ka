@@ -190,18 +190,18 @@ const translations: Record<Locale, TranslationDictionary> = {
     "audit.actionViewed": "Просмотрено",
     "audit.actionRecommendation": "Рекомендация члена комиссии",
     "audit.actionChairDecision": "Решение председателя комиссии",
-    "login.eyebrow": "Закрытая платформа комиссии",
+    "login.eyebrow": "Информационная система приемной комиссии",
     "login.title": "Вход в invisionU",
     "login.description":
-      "Система для работы с кандидатами, ролями комиссии и управляемым intake-потоком.",
+      "Платформа предназначена для приема анкет, обработки видеоматериалов, формирования аналитической оценки кандидатов и сопровождения решений приемной комиссии.",
     "login.email": "Email",
     "login.password": "Пароль",
     "login.submit": "Войти",
     "login.error": "Не удалось выполнить вход.",
-    "login.quickTitle": "Быстрый доступ",
+    "login.quickTitle": "Демонстрационные учетные записи",
     "login.quickDescription":
-      "Ниже предзаполненные demo-аккаунты с разными уровнями доступа.",
-    "login.accessEyebrow": "Доступ",
+      "Ниже доступны предзаполненные демонстрационные учетные записи с различными уровнями доступа.",
+    "login.accessEyebrow": "Авторизация",
     "userMenu.login": "Войти",
     "userMenu.logout": "Выйти из аккаунта",
     "adminUsers.title": "Пользователи и доступ",
@@ -474,17 +474,17 @@ const translations: Record<Locale, TranslationDictionary> = {
     "audit.actionViewed": "Viewed",
     "audit.actionRecommendation": "Committee recommendation",
     "audit.actionChairDecision": "Chair decision",
-    "login.eyebrow": "Closed committee workspace",
+    "login.eyebrow": "Admissions committee information system",
     "login.title": "Sign in to invisionU",
     "login.description":
-      "A private workspace for admissions review, committee roles, and controlled candidate intake.",
+      "The platform supports candidate intake, media processing, analytical scoring, and the admissions committee review workflow.",
     "login.email": "Email",
     "login.password": "Password",
     "login.submit": "Sign in",
     "login.error": "Failed to sign in.",
-    "login.quickTitle": "Quick access",
-    "login.quickDescription": "Pre-seeded demo accounts with different access levels.",
-    "login.accessEyebrow": "Access",
+    "login.quickTitle": "Demo accounts",
+    "login.quickDescription": "Pre-seeded demonstration accounts with different access roles are available below.",
+    "login.accessEyebrow": "Authorization",
     "userMenu.login": "Sign in",
     "userMenu.logout": "Sign out",
     "adminUsers.title": "Users and Access",
@@ -571,6 +571,35 @@ const translations: Record<Locale, TranslationDictionary> = {
     "demoCompare.detail": "Detailed comparison",
     "demoCompare.profileLink": "Profile: {name}",
     "header.rickroll": "Never gonna give U up",
+  },
+};
+
+const translationOverrides: Record<Locale, TranslationDictionary> = {
+  ru: {
+    "common.processed": "Обработанные",
+    "candidates.processed": "Обработанные",
+    "dashboard.rpiScore": "Оценка кандидата",
+    "dashboard.table.rpi": "Оценка кандидата",
+    "common.list": "Список",
+    "common.grid": "Сетка",
+    "dashboard.cards": "Сетка",
+    "dashboard.aiRisk": "Проверка ИИ",
+    "dashboard.aiRisk.clear": "Не выявлено",
+    "dashboard.aiRisk.review": "Требует проверки",
+    "dashboard.aiRisk.high": "Повышенный риск",
+  },
+  en: {
+    "common.processed": "Processed",
+    "candidates.processed": "Processed",
+    "dashboard.rpiScore": "Candidate score",
+    "dashboard.table.rpi": "Candidate score",
+    "common.list": "List",
+    "common.grid": "Grid",
+    "dashboard.cards": "Grid",
+    "dashboard.aiRisk": "AI integrity",
+    "dashboard.aiRisk.clear": "No risk",
+    "dashboard.aiRisk.review": "Review needed",
+    "dashboard.aiRisk.high": "Elevated risk",
   },
 };
 
@@ -664,10 +693,33 @@ const severityLabels: Record<string, { ru: string; en: string }> = {
   advisory: { ru: "Обратите внимание", en: "Advisory" },
 };
 
+const shortSignalLabels: Record<string, { ru: string; en: string }> = {
+  leadership_potential: { ru: "Лидерство", en: "Leadership" },
+  growth_trajectory: { ru: "Рост", en: "Growth" },
+  motivation_clarity: { ru: "Мотивация", en: "Motivation" },
+  initiative_agency: { ru: "Инициатива", en: "Initiative" },
+  learning_agility: { ru: "Обучаемость", en: "Learning" },
+  communication_clarity: { ru: "Коммуникация", en: "Communication" },
+  ethical_reasoning: { ru: "Этика", en: "Ethics" },
+  program_fit: { ru: "Соответствие", en: "Fit" },
+  essay_replaced_by_video_transcript: { ru: "Эссе заменено транскрипцией", en: "Essay replaced by transcript" },
+  missing_essay: { ru: "Нет эссе", en: "No essay" },
+  missing_video: { ru: "Нет видео", en: "No video" },
+  missing_video_transcript: { ru: "Нет транскрипции", en: "No transcript" },
+  possible_ai_use: { ru: "Риск ИИ", en: "AI risk" },
+  authenticity_or_ai_risk: { ru: "Риск ИИ", en: "AI risk" },
+  essay_mismatch: { ru: "Несовпадение", en: "Mismatch" },
+  voice_inconsistency: { ru: "Непоследовательность", en: "Inconsistency" },
+};
+
 export function translate(locale: Locale, key: string, values?: Record<string, string | number>): string {
   const dictionary = translations[locale] ?? translations[DEFAULT_LOCALE];
-  const fallback = translations[DEFAULT_LOCALE][key] ?? key;
-  const template = dictionary[key] ?? fallback;
+  const override = translationOverrides[locale]?.[key];
+  const fallback =
+    translationOverrides[DEFAULT_LOCALE]?.[key] ??
+    translations[DEFAULT_LOCALE][key] ??
+    key;
+  const template = override ?? dictionary[key] ?? fallback;
 
   if (!values) {
     return template;
@@ -697,7 +749,7 @@ function prettifyKey(value: string): string {
 }
 
 export function localizeLabel(value: string, locale: Locale): string {
-  return signalLabels[value]?.[locale] ?? prettifyKey(value);
+  return shortSignalLabels[value]?.[locale] ?? signalLabels[value]?.[locale] ?? prettifyKey(value);
 }
 
 export function localizeLabels(values: string[], locale: Locale): string[] {
@@ -728,6 +780,28 @@ export function formatDateTime(iso: string, locale: Locale): string {
 
 export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(0)}%`;
+}
+
+export type AiRiskLevel = "clear" | "review" | "high";
+
+export function getAiRiskLevel(flags: string[]): AiRiskLevel {
+  const normalized = new Set(flags);
+
+  if (
+    normalized.has("possible_ai_use") ||
+    normalized.has("authenticity_or_ai_risk")
+  ) {
+    return "high";
+  }
+
+  if (
+    normalized.has("essay_mismatch") ||
+    normalized.has("voice_inconsistency")
+  ) {
+    return "review";
+  }
+
+  return "clear";
 }
 
 export function getProgramOptions(locale: Locale): Array<{ value: string; label: string }> {

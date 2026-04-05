@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from uuid import UUID
 
@@ -12,7 +12,7 @@ from app.modules.admin.schemas import (
 )
 from app.modules.auth.schemas import UserResponse
 from app.modules.auth.service import hash_password, normalize_email
-from app.modules.m9_storage import StorageRepository, User
+from app.modules.storage import StorageRepository, User
 
 
 class AdminService:

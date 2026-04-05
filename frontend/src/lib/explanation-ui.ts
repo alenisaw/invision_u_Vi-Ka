@@ -1,4 +1,4 @@
-import type { CautionBlock, ExplainabilityReport, FactorBlock } from "@/types";
+import type { CautionBlock, ExplanationReport, FactorBlock } from "@/types";
 import { localizeLabel, localizeSeverity } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n";
 
@@ -30,34 +30,38 @@ function formatSources(factor: FactorBlock, locale: Locale): string {
   );
 
   if (!sources.length) {
-    return locale === "ru" ? "материалами кандидата" : "the candidate materials";
+    return locale === "ru" ? "материалы кандидата" : "the candidate materials";
   }
 
   return sources.map((source) => localizeLabel(source, locale)).join(", ");
 }
 
 export function buildLocalizedExplanationSummary(
-  explanation: ExplainabilityReport,
+  explanation: ExplanationReport,
   locale: Locale,
 ): string {
   const strengths = explanation.positive_factors
     .slice(0, 2)
-    .map((factor) => `«${localizeLabel(factor.factor, locale)}»`)
-    .join(locale === "ru" ? ", " : ", ");
+    .map((factor) =>
+      locale === "ru"
+        ? `«${localizeLabel(factor.factor, locale)}»`
+        : `"${localizeLabel(factor.factor, locale)}"`,
+    )
+    .join(", ");
 
   const caution = explanation.caution_blocks[0];
 
   if (locale === "ru") {
     if (explanation.manual_review_required) {
       return strengths
-        ? `Кандидат показывает сильные сигналы по направлениям ${strengths}, однако перед итоговым решением комиссии кейс нужно проверить вручную. Сейчас системе не хватает устойчивой доказательной базы для автоматического финального вывода.`
-        : "Кандидат требует дополнительной ручной проверки: текущих подтверждений недостаточно для автоматического итогового вывода.";
+        ? `Кандидат показывает убедительные сигналы по направлениям ${strengths}, однако кейс требует ручной проверки. Текущей доказательной базы недостаточно для автоматического финального вывода.`
+        : "Кандидат требует ручной проверки: текущей доказательной базы недостаточно для автоматического финального вывода.";
     }
 
     if (caution) {
       return strengths
-        ? `Кандидат уверенно выглядит по направлениям ${strengths}, но перед финальным решением комиссии стоит отдельно проверить сигнал «${localizeLabel(caution.flag, locale)}».`
-        : `Перед финальным решением комиссии стоит отдельно проверить сигнал «${localizeLabel(caution.flag, locale)}».`;
+        ? `Кандидат выглядит уверенно по направлениям ${strengths}, однако перед финальным решением комиссии необходимо отдельно проверить сигнал «${localizeLabel(caution.flag, locale)}».`
+        : `Перед финальным решением комиссии необходимо отдельно проверить сигнал «${localizeLabel(caution.flag, locale)}».`;
     }
 
     return strengths
@@ -67,7 +71,7 @@ export function buildLocalizedExplanationSummary(
 
   if (explanation.manual_review_required) {
     return strengths
-      ? `The candidate shows convincing signals in ${strengths}, but the committee should keep this case in manual review. The current evidence base is not stable enough for a final automated conclusion.`
+      ? `The candidate shows strong signals in ${strengths}, but the case should remain in manual review. The current evidence base is not stable enough for a final automated conclusion.`
       : "The candidate should remain in manual review because the current evidence base is not stable enough for a final automated conclusion.";
   }
 
@@ -106,8 +110,8 @@ export function buildLocalizedCautionSummary(
   const title = localizeLabel(caution.flag, locale);
 
   if (locale === "ru") {
-    return `Сигнал «${title}» отмечен как ${severity}. Для комиссии это «ЗОНА ПРОВЕРКИ»: стоит отдельно сверить материалы кандидата и формулировки перед финальным решением.`;
+    return `Сигнал «${title}» отмечен как ${severity}. Для комиссии это зона дополнительной проверки: стоит отдельно сверить материалы кандидата и формулировки перед финальным решением.`;
   }
 
-  return `The signal "${title}" is marked as ${severity}. For the committee, this is a "REVIEW ZONE": validate the supporting materials and the candidate wording before the final decision.`;
+  return `The signal "${title}" is marked as ${severity}. For the committee, this is a review zone: validate the supporting materials and the candidate wording before the final decision.`;
 }

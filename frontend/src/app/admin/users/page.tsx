@@ -139,19 +139,20 @@ export default function AdminUsersPage() {
   return (
     <>
       <Header />
-      <main className="min-w-0 p-6 lg:p-10 pb-24">
-        <div className="container-app">
-            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-8 tracking-tighter">
+      <main className="min-w-0 px-5 py-6 lg:px-8 lg:py-8 pb-24">
+        <div className="container-app page-shell">
+          <div className="page-stack">
+            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] tracking-tighter">
               {labels.title}
             </h1>
 
             {error && (
-              <div className="card p-4 mb-8 border border-[var(--brand-coral)]/20 bg-[var(--brand-coral)]/8 text-[var(--brand-coral)] font-[700]">
+              <div className="card p-4 border border-[var(--brand-coral)]/20 bg-[var(--brand-coral)]/8 text-[var(--brand-coral)] font-[700]">
                 {error}
               </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <StatChip
                 label={labels.accounts}
                 value={String(users.length)}
@@ -170,7 +171,7 @@ export default function AdminUsersPage() {
               />
             </div>
 
-            <div className="card p-6 mb-8">
+            <div className="card p-6">
               <div className="mb-5 text-[1rem] font-[800]">{labels.accessPack}</div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {DEFAULT_ACCESS_PACK.map((account) => (
@@ -273,6 +274,7 @@ export default function AdminUsersPage() {
                 )}
               </section>
             </div>
+          </div>
         </div>
       </main>
     </>

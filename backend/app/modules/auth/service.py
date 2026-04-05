@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.modules.auth.schemas import LoginRequest, SessionResponse, UserResponse
-from app.modules.m9_storage import StorageRepository, User
+from app.modules.storage import StorageRepository, User
 
 
 PBKDF2_ITERATIONS = 120_000

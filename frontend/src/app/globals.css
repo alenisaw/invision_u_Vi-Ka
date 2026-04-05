@@ -4,29 +4,29 @@
 
 :root {
   --brand-ink: #181a1b;
-  --brand-paper: #ffffff;
+  --brand-paper: #f4f6f1;
 
   --brand-lime: #b7df2d;
   --brand-blue: #4fd6df;
   --brand-coral: #ef8b73;
   --brand-purple: #a9a4e8;
 
-  --brand-muted: rgba(24, 26, 27, 0.64);
-  --brand-muted-strong: rgba(24, 26, 27, 0.82);
+  --brand-muted: rgba(24, 26, 27, 0.68);
+  --brand-muted-strong: rgba(24, 26, 27, 0.84);
 
-  --brand-line: rgba(24, 26, 27, 0.1);
+  --brand-line: rgba(24, 26, 27, 0.12);
 
-  --surface-soft: rgba(255, 255, 255, 0.86);
-  --surface-strong: rgba(255, 255, 255, 0.96);
-  --surface-hover: rgba(245, 248, 240, 0.96);
+  --surface-soft: rgba(244, 246, 241, 0.9);
+  --surface-strong: rgba(240, 243, 237, 0.97);
+  --surface-hover: rgba(232, 237, 228, 0.98);
 
-  --surface-elevated: #ffffff;
-  --surface-subtle: rgba(24, 26, 27, 0.03);
-  --surface-subtle-2: rgba(24, 26, 27, 0.05);
+  --surface-elevated: #eef2ea;
+  --surface-subtle: rgba(24, 26, 27, 0.045);
+  --surface-subtle-2: rgba(24, 26, 27, 0.068);
 
-  --field-bg: rgba(255, 255, 255, 0.9);
-  --field-bg-focus: #ffffff;
-  --field-border: rgba(24, 26, 27, 0.12);
+  --field-bg: rgba(238, 242, 234, 0.94);
+  --field-bg-focus: rgba(244, 247, 241, 0.98);
+  --field-border: rgba(24, 26, 27, 0.14);
   --field-placeholder: rgba(24, 26, 27, 0.42);
 
   --tab-active-bg: var(--brand-ink);
@@ -34,10 +34,10 @@
   --tab-idle-bg: rgba(24, 26, 27, 0.05);
   --tab-idle-text: var(--brand-muted-strong);
 
-  --danger-soft-bg: rgba(239, 139, 115, 0.14);
+  --danger-soft-bg: rgba(239, 139, 115, 0.16);
   --danger-soft-text: #ac472e;
 
-  --surface-shadow: 0 18px 50px rgba(18, 20, 20, 0.08);
+  --surface-shadow: 0 18px 48px rgba(18, 20, 20, 0.09);
 
   --badge-lime-bg: rgba(183, 223, 45, 0.2);
   --badge-lime-text: #4e6208;
@@ -134,9 +134,9 @@ body {
   overflow-x: hidden;
   position: relative;
   background:
-    radial-gradient(circle at top left, rgba(183, 223, 45, 0.14), transparent 24%),
-    radial-gradient(circle at 100% 0, rgba(79, 214, 223, 0.08), transparent 18%),
-    linear-gradient(180deg, #f8fbf3 0%, #ffffff 18%, #f1f5ec 100%);
+    radial-gradient(circle at top left, rgba(183, 223, 45, 0.12), transparent 24%),
+    radial-gradient(circle at 100% 0, rgba(79, 214, 223, 0.07), transparent 18%),
+    linear-gradient(180deg, #ecefe8 0%, #e8ece4 18%, #e1e7de 100%);
   transition:
     background 480ms cubic-bezier(0.22, 1, 0.36, 1),
     color 240ms ease;
@@ -193,6 +193,10 @@ h1, h2, h3 {
     box-shadow 320ms ease,
     color 220ms ease,
     transform 220ms ease;
+}
+
+.card--soft {
+  background: color-mix(in srgb, var(--surface-soft) 84%, var(--surface-elevated));
 }
 
 .card--dark {
@@ -398,7 +402,17 @@ option {
   .container-app {
     max-width: 92rem;
     margin-inline: auto;
-    padding-inline: 2rem;
+    padding-inline: 0;
+  }
+
+  .page-shell {
+    padding-inline: 1rem;
+  }
+
+  .page-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
   }
 }
 
@@ -438,7 +452,7 @@ option {
 }
 
 @media (max-width: 760px) {
-  .container-app {
-    padding-inline: 1rem;
+  .page-shell {
+    padding-inline: 0;
   }
 }
