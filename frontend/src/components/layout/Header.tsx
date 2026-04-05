@@ -11,7 +11,7 @@ import UserMenu from "./UserMenu";
 
 export default function Header() {
   const pathname = usePathname();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const { user } = useAuth();
 
   const navLinks = [
@@ -19,6 +19,9 @@ export default function Header() {
     { href: "/dashboard", label: t("nav.dashboard") },
     { href: "/upload", label: t("nav.upload") },
     ...(user?.role === "admin" ? [{ href: "/admin/users", label: t("nav.users") }] : []),
+    ...(user?.role === "admin"
+      ? [{ href: "/admin/metrics", label: locale === "ru" ? "Метрики" : "Metrics" }]
+      : []),
     ...(user?.role === "admin" ? [{ href: "/audit", label: t("nav.audit") }] : []),
   ];
 

@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import type { CandidateListItem } from "@/types";
 import { formatDate, formatPercent, localizeLabels, translate } from "@/lib/i18n";
+import {
+  derivePipelineDisplayStatus,
+  getAuthenticityAdvisoryBadge,
+  getAuthenticityAdvisoryLabel,
+  getPipelineStatusBadge,
+  getPipelineStatusLabel,
+  hasAuthenticityAdvisory,
+} from "@/lib/pipeline-ui";
 import StatusBadge from "./StatusBadge";
 
 interface RankingTableProps {
@@ -33,7 +41,9 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
               <th className="eyebrow px-5 py-4">{t("dashboard.table.number")}</th>
               <th className="eyebrow px-5 py-4">{t("dashboard.table.candidate")}</th>
               <th className="eyebrow px-5 py-4">{t("dashboard.table.program")}</th>
-              <th className="eyebrow px-5 py-4">{t("dashboard.table.rpi")}</th>
+              <th className="eyebrow px-5 py-4">
+                {locale === "ru" ? "Оценка кандидата" : "Candidate score"}
+              </th>
               <th className="eyebrow px-5 py-4 text-center">{t("common.confidence")}</th>
               <th className="eyebrow px-5 py-4">{t("dashboard.table.status")}</th>
               <th className="eyebrow px-5 py-4">{t("dashboard.table.strengths")}</th>
@@ -43,6 +53,8 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
           <tbody>
             {candidates.map((candidate) => {
               const strengths = localizeLabels(candidate.top_strengths.slice(0, 2), locale);
+              const qualityStatus = derivePipelineDisplayStatus(candidate.caution_flags);
+              const showAuthenticity = hasAuthenticityAdvisory(candidate.caution_flags);
 
               return (
                 <tr
@@ -108,7 +120,12 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
                     </span>
                   </td>
                   <td className="px-5 py-[0.95rem]">
-                    <StatusBadge status={candidate.recommendation_status} />
+                    <div className="flex flex-wrap gap-2">
+                      <StatusBadge status={candidate.recommendation_status} />
+                      <span className={`badge ${getPipelineStatusBadge(qualityStatus)}`}>
+                        {getPipelineStatusLabel(qualityStatus, locale)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-5 py-[0.95rem]">
                     <div className="flex flex-wrap gap-1">
@@ -127,6 +144,11 @@ export default function RankingTable({ candidates, selected, onToggleSelect }: R
                           })}
                         </span>
                       )}
+                      {showAuthenticity ? (
+                        <span className={`text-[0.72rem] font-[700] px-2 py-0.5 rounded-full ${getAuthenticityAdvisoryBadge(candidate.caution_flags)}`}>
+                          {getAuthenticityAdvisoryLabel(candidate.caution_flags, locale)}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-5 py-[0.95rem] whitespace-nowrap">

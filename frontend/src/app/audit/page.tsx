@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
+import PipelineMetricsPanel from "@/components/admin/PipelineMetricsPanel";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLocale } from "@/components/providers/LocaleProvider";
 import { adminApi, reviewerApi } from "@/lib/api";
@@ -57,9 +58,7 @@ export default function AuditPage() {
       );
       setMetrics(nextMetrics);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("audit.loadError"),
-      );
+      setError(err instanceof Error ? err.message : t("audit.loadError"));
     } finally {
       setLoading(false);
     }
@@ -68,41 +67,22 @@ export default function AuditPage() {
   return (
     <>
       <Header />
-      <main className="p-6 lg:p-8">
-        <div className="container-app">
-            <h1
-              className="text-[clamp(2rem,1.65rem+1.8vw,3.2rem)] font-[800] mb-8"
-              style={{ letterSpacing: "-0.04em" }}
-            >
+      <main className="min-w-0 px-5 py-6 lg:px-8 lg:py-8 pb-24">
+        <div className="container-app page-shell">
+          <div className="page-stack">
+            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] tracking-tighter">
               {t("audit.title")}
             </h1>
 
             {metrics ? (
-              <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <MetricCard
-                  label={locale === "ru" ? "Обработок" : "Runs"}
-                  value={String(metrics.overview.total_runs)}
-                />
-                <MetricCard
-                  label={locale === "ru" ? "Degraded" : "Degraded"}
-                  value={`${Math.round(metrics.overview.degraded_rate * 100)}%`}
-                />
-                <MetricCard
-                  label={locale === "ru" ? "Manual review" : "Manual review"}
-                  value={`${Math.round(metrics.overview.manual_review_rate * 100)}%`}
-                />
-                <MetricCard
-                  label={locale === "ru" ? "P95 задержка" : "P95 latency"}
-                  value={`${Math.round(metrics.overview.p95_total_latency_ms)}ms`}
-                />
+              <div className="card p-6">
+                <PipelineMetricsPanel metrics={metrics} locale={locale} mode="full" showReportLink />
               </div>
             ) : null}
 
             {loading ? (
               <div className="card p-12 text-center">
-                <p className="text-[1rem] font-[600]" style={{ color: "var(--brand-muted)" }}>
-                  {t("audit.loading")}
-                </p>
+                <p className="text-[1rem] font-[600] text-muted">{t("audit.loading")}</p>
               </div>
             ) : error ? (
               <div className="card p-12 text-center">
@@ -112,89 +92,87 @@ export default function AuditPage() {
                 </button>
               </div>
             ) : (
-            <div className="card overflow-hidden" style={{ borderRadius: "1rem" }}>
-              <table className="w-full">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(20, 20, 20, 0.07)" }}>
-                    <th className="eyebrow px-5 py-4 text-left">{t("audit.time")}</th>
-                    <th className="eyebrow px-5 py-4 text-left">{t("audit.reviewer")}</th>
-                    <th className="eyebrow px-5 py-4 text-left">{t("audit.candidate")}</th>
-                    <th className="eyebrow px-5 py-4 text-left">{t("audit.action")}</th>
-                    <th className="eyebrow px-5 py-4 text-left">{t("audit.statusChange")}</th>
-                    <th className="eyebrow px-5 py-4 text-left">{t("audit.comment")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {actions.map((action) => {
-                    const candidateName = action.candidate_id
-                      ? candidateNames[action.candidate_id]
-                      : undefined;
-                    const style = ACTION_STYLES[action.action_type] ?? ACTION_STYLES.viewed;
-
-                    return (
-                      <tr
-                        key={action.id}
-                        style={{ borderBottom: "1px solid rgba(20, 20, 20, 0.05)" }}
-                      >
-                        <td className="px-5 py-4">
-                          <span className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>
-                            {formatDateTime(action.created_at, locale)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[0.88rem] font-[700]">
-                            {action.reviewer_name ?? action.actor}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[0.88rem] font-[800]">
-                            {candidateName ?? action.candidate_id?.slice(0, 8) ?? t("common.none")}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className="badge text-[0.72rem]"
-                            style={{ background: style.bg, color: style.color }}
-                          >
-                            {t(ACTION_LABEL_KEYS[action.action_type] ?? "audit.action")}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          {action.previous_status && action.new_status && action.previous_status !== action.new_status ? (
-                            <span className="text-[0.82rem]">
-                              <span style={{ color: "var(--brand-muted)" }}>{getStatusLabel(action.previous_status, locale)}</span>
-                              {" → "}
-                              <span className="font-[700]">{getStatusLabel(action.new_status, locale)}</span>
-                            </span>
-                          ) : (
-                            <span className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>{t("common.none")}</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="text-[0.82rem]" style={{ color: "var(--brand-muted-strong)" }}>
-                            {action.comment ?? t("common.none")}
-                          </span>
-                        </td>
+              <div className="card overflow-hidden rounded-[1rem]">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[960px]">
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid var(--brand-line)" }}>
+                        <th className="eyebrow px-5 py-4 text-left">{t("audit.time")}</th>
+                        <th className="eyebrow px-5 py-4 text-left">{t("audit.reviewer")}</th>
+                        <th className="eyebrow px-5 py-4 text-left">{t("audit.candidate")}</th>
+                        <th className="eyebrow px-5 py-4 text-left">{t("audit.action")}</th>
+                        <th className="eyebrow px-5 py-4 text-left">{t("audit.statusChange")}</th>
+                        <th className="eyebrow px-5 py-4 text-left">{t("audit.comment")}</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {actions.map((action) => {
+                        const candidateName = action.candidate_id
+                          ? candidateNames[action.candidate_id]
+                          : undefined;
+                        const style = ACTION_STYLES[action.action_type] ?? ACTION_STYLES.viewed;
+
+                        return (
+                          <tr
+                            key={action.id}
+                            style={{ borderBottom: "1px solid var(--brand-line)" }}
+                          >
+                            <td className="px-5 py-4">
+                              <span className="text-[0.82rem] text-muted">
+                                {formatDateTime(action.created_at, locale)}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className="text-[0.88rem] font-[700]">
+                                {action.reviewer_name ?? action.actor}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className="text-[0.88rem] font-[800]">
+                                {candidateName ?? action.candidate_id?.slice(0, 8) ?? t("common.none")}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <span
+                                className="badge text-[0.72rem]"
+                                style={{ background: style.bg, color: style.color }}
+                              >
+                                {t(ACTION_LABEL_KEYS[action.action_type] ?? "audit.action")}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              {action.previous_status &&
+                              action.new_status &&
+                              action.previous_status !== action.new_status ? (
+                                <span className="text-[0.82rem]">
+                                  <span className="text-muted">
+                                    {getStatusLabel(action.previous_status, locale)}
+                                  </span>
+                                  {" -> "}
+                                  <span className="font-[700]">
+                                    {getStatusLabel(action.new_status, locale)}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-[0.82rem] text-muted">{t("common.none")}</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className="text-[0.82rem] text-muted-strong">
+                                {action.comment ?? t("common.none")}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
+          </div>
         </div>
       </main>
     </>
-  );
-}
-
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1.1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-5 py-5">
-      <div className="mb-2 text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
-        {label}
-      </div>
-      <div className="text-[1.5rem] font-[900]">{value}</div>
-    </div>
   );
 }
