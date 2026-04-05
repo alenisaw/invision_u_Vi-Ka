@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -50,3 +51,36 @@ class AdminUserResponse(BaseModel):
     is_active: bool
     last_login_at: datetime | None = None
     created_at: datetime
+
+
+class PipelineMetricsOverviewResponse(BaseModel):
+    total_runs: int
+    healthy_runs: int
+    degraded_runs: int
+    partial_runs: int
+    manual_review_runs: int
+    degraded_rate: float
+    manual_review_rate: float
+    avg_total_latency_ms: float
+    p50_total_latency_ms: float
+    p95_total_latency_ms: float
+    avg_stage_latencies_ms: dict[str, float] = Field(default_factory=dict)
+    fallback_counts: dict[str, int] = Field(default_factory=dict)
+    quality_flag_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class PipelineRunMetricResponse(BaseModel):
+    audit_id: UUID
+    candidate_id: UUID | None = None
+    recommendation_status: str | None = None
+    pipeline_quality_status: str
+    quality_flags: list[str] = Field(default_factory=list)
+    total_latency_ms: float
+    stage_latencies_ms: dict[str, float] = Field(default_factory=dict)
+    created_at: datetime
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class PipelineMetricsResponse(BaseModel):
+    overview: PipelineMetricsOverviewResponse
+    recent_runs: list[PipelineRunMetricResponse] = Field(default_factory=list)

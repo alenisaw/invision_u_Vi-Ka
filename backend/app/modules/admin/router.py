@@ -46,3 +46,14 @@ async def update_user(
     service = AdminService(db)
     user = await service.update_user(user_id, payload, actor=current_user)
     return success_response(user.model_dump(mode="json"))
+
+
+@router.get("/metrics/pipeline")
+async def get_pipeline_metrics(
+    limit: int = 100,
+    current_user: UserResponse = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    service = AdminService(db)
+    metrics = await service.get_pipeline_metrics(limit=min(max(limit, 10), 500))
+    return success_response(metrics.model_dump(mode="json"))

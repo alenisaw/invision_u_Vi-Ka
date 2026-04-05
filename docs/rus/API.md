@@ -1,40 +1,36 @@
 # API
 
----
-
-## Структура документа
-
-- [Обзор](#обзор)
-- [Response Envelope](#response-envelope)
-- [Системные endpoint'ы](#системные-endpointы)
-- [Demo endpoint'ы](#demo-endpointы)
-- [Candidate intake endpoint'ы](#candidate-intake-endpointы)
-- [Pipeline endpoint'ы](#pipeline-endpointы)
-- [Диаграмма 1. Flow полного pipeline](#диаграмма-1-flow-полного-pipeline)
-- [Direct scoring endpoint'ы](#direct-scoring-endpointы)
-- [Reviewer endpoint'ы](#reviewer-endpointы)
-- [Диаграмма 2. Reviewer workflow surface](#диаграмма-2-reviewer-workflow-surface)
-- [Канонические контракты](#канонические-контракты)
-
----
-
 ## Обзор
 
-Этот документ перечисляет endpoint'ы, которые реально реализованы в текущей ветке.
-
-Базовый backend URL:
+Базовый URL backend:
 
 `http://localhost:8000`
 
-Базовый frontend proxy URL:
+Базовый URL frontend proxy:
 
 `http://localhost:3000/api/backend/*`
 
-Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. Для `dashboard/*` и `audit/*` он автоматически добавляет `X-API-Key`, если на сервере frontend задан `REVIEWER_API_KEY`.
+Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`.
 
----
+Модель аутентификации:
 
-## Response Envelope
+- вход создает HTTP-only session cookie
+- защищенные маршруты используют session auth на backend
+- доступ ограничивается через RBAC
+
+В публичной документации используются названия этапов:
+
+- `Input Intake`
+- `ASR`
+- `Privacy`
+- `Profile`
+- `Extraction`
+- `AI Detect`
+- `Scoring`
+- `Explanation`
+- `Review`
+
+## Response envelope
 
 Успешный ответ:
 
@@ -50,7 +46,7 @@ Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. 
 }
 ```
 
-Ошибка:
+Ответ с ошибкой:
 
 ```json
 {
@@ -68,326 +64,185 @@ Next.js proxy переписывает `/api/backend/*` в backend `/api/v1/*`. 
 }
 ```
 
-Одна и та же envelope-форма используется и для non-2xx ответов.
-
----
-
-## Системные endpoint'ы
+## Публичные endpoint'ы
 
 ### `GET /`
 
-Возвращает метаданные приложения.
+Метаданные приложения.
 
 ### `GET /health`
 
-Возвращает облегченный health response.
-
----
-
-## Demo endpoint'ы
+Health-check.
 
 ### `GET /api/v1/demo/candidates`
 
-Возвращает список доступных demo-fixture кандидатов.
+Список demo-fixtures.
 
 ### `GET /api/v1/demo/candidates/{slug}`
 
-Возвращает одну fixture вместе с полным payload.
+Чтение одного demo-сценария.
 
 ### `POST /api/v1/demo/candidates/{slug}/run`
 
-Берет fixture и прогоняет ее через живой синхронный pipeline.
-
-Структура ответа совпадает с `POST /api/v1/pipeline/submit`.
-
----
-
-## Candidate intake endpoint'ы
+Прогон demo-сценария через живой pipeline.
 
 ### `POST /api/v1/candidates/intake`
 
-Валидирует анкету кандидата, создает запись, сохраняет encrypted PII и metadata и возвращает `candidate_id`.
+Валидация и сохранение входного payload кандидата.
 
-Ключевые поля ответа:
-
-- `candidate_id`
-- `pipeline_status`
-- `message`
-
-Пример запроса:
-
-```json
-{
-  "personal": {
-    "first_name": "Aida",
-    "last_name": "Example",
-    "date_of_birth": "2007-06-15",
-    "citizenship": "KZ"
-  },
-  "contacts": {
-    "email": "aida@example.com",
-    "telegram": "@aida"
-  },
-  "academic": {
-    "selected_program": "Digital Media and Marketing"
-  },
-  "content": {
-    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "essay_text": "I want to build media products that help communities."
-  },
-  "internal_test": {
-    "answers": [
-      {
-        "question_id": "q1",
-        "answer": "I would choose the fair option because responsibility matters."
-      }
-    ]
-  }
-}
-```
-
-Актуальные правила intake:
+Актуальные правила входного этапа:
 
 - `contacts.email` обязателен
-- `content.video_url` обязателен и проходит проверку public video URL
+- `content.video_url` обязателен
 - `content.essay_text` опционален
-- `content.transcript_text` опционален и может заменить эссе в downstream narrative extraction
-- лишние неизвестные поля игнорируются
-
----
-
-## Pipeline endpoint'ы
+- `content.transcript_text` опционален и может заменить эссе в downstream-логике
 
 ### `POST /api/v1/pipeline/submit`
 
-Запускает реализованный backend flow:
+Запускает синхронный аналитический pipeline:
 
-`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
-
-Ответ включает:
-
-- `candidate_id`
-- `pipeline_status`
-- `score`
-- `completeness`
-- `data_flags`
+`Input Intake -> optional ASR -> Privacy -> Profile -> Extraction -> Scoring -> Explanation`
 
 ### `POST /api/v1/pipeline/batch`
 
-Запускает тот же flow для списка payload'ов. Сейчас batch-обработка идет последовательно внутри API-процесса.
+Запускает тот же flow для нескольких payload'ов.
 
----
+## Auth endpoint'ы
 
-## Диаграмма 1. Flow полного pipeline
+### `POST /api/v1/auth/login`
 
-```mermaid
-sequenceDiagram
-    actor Client
-    participant Gateway as M1 Gateway
-    participant Intake as M2
-    participant ASR as M13
-    participant Privacy as M3
-    participant Profile as M4
-    participant NLP as M5
-    participant Score as M6
-    participant Explain as M7
+Создает session cookie.
 
-    Client->>Gateway: POST /api/v1/pipeline/submit
-    Gateway->>Intake: validate and create candidate
-    Gateway->>ASR: optional transcription
-    Gateway->>Privacy: split into layers
-    Gateway->>Profile: build profile
-    Gateway->>NLP: extract signals
-    Gateway->>Score: compute score
-    Gateway->>Explain: build explanation
-    Gateway-->>Client: pipeline result
+Пример:
+
+```json
+{
+  "email": "reviewer@invisionu.local",
+  "password": "333333"
+}
 ```
 
----
+### `POST /api/v1/auth/logout`
 
-## Direct scoring endpoint'ы
+Завершает текущую сессию.
 
-### `POST /api/v1/pipeline/score-signals`
+### `GET /api/v1/auth/me`
 
-Считает score одного кандидата из канонического `SignalEnvelope`.
+Возвращает текущего авторизованного пользователя.
 
-### `POST /api/v1/pipeline/score-signals/batch`
+## Admin endpoint'ы
 
-Считает score и ranking для пачки `SignalEnvelope`.
+Все endpoint'ы ниже требуют роль `admin`.
 
-### `POST /api/v1/pipeline/score-signals/train-synthetic`
+### `GET /api/v1/admin/users`
 
-Тренирует scoring refinement layer на synthetic data.
+Список пользователей.
 
-Query parameters:
+### `POST /api/v1/admin/users`
 
-- `sample_count`
-- `seed`
+Создание пользователя.
 
-### `POST /api/v1/pipeline/score-signals/evaluate-synthetic`
+### `PATCH /api/v1/admin/users/{user_id}`
 
-Гоняет synthetic holdout evaluation для `M6`.
+Обновление роли, имени, пароля или флага активности.
 
-Query parameters:
+### `GET /api/v1/audit/feed?limit=100`
 
-- `train_sample_count`
-- `test_sample_count`
-- `seed`
+Глобальный журнал действий.
 
----
+## Endpoint'ы рабочей зоны комиссии
 
-## Reviewer endpoint'ы
+Все endpoint'ы ниже требуют session cookie и одну из ролей:
 
-Все endpoint'ы в этом разделе требуют `X-API-Key`.
+- `reviewer`
+- `chair`
+- `admin` для read-only маршрутов
 
 ### `GET /api/v1/dashboard/stats`
 
-Возвращает dashboard summary metrics:
+Сводные метрики рабочей зоны комиссии.
 
-- `total_candidates`
-- `processed`
-- `shortlisted`
-- `pending_review`
-- `avg_confidence`
-- `by_status`
+Роли:
+
+- `reviewer`
+- `chair`
+- `admin`
 
 ### `GET /api/v1/dashboard/candidates`
 
-Возвращает ranking list reviewer-facing кандидатов с безопасно спроецированными именами.
+Список обработанных кандидатов для рейтинга.
 
-Frontend использует этот endpoint для обработанного reviewer-ranking.
+Роли:
+
+- `reviewer`
+- `chair`
+- `admin`
 
 ### `GET /api/v1/dashboard/candidate-pool`
 
-Возвращает live candidate pool для экрана `/candidates` с разделением по стадиям:
+Живой пул кандидатов, разделенный на:
 
 - `raw`
 - `processed`
 
-Demo fixtures намеренно не смешиваются с этим endpoint'ом.
+Роли:
+
+- `reviewer`
+- `chair`
+- `admin`
 
 ### `GET /api/v1/dashboard/candidates/{candidate_id}`
 
-Возвращает полную reviewer detail view:
+Детальная карточка кандидата:
 
-- candidate identity
-- `score`
-- `explanation`
-- `raw_content`
-- `audit_logs`
+- безопасная identity projection
+- оценка кандидата
+- explanation output
+- безопасный source content
+- история действий комиссии
+- состояние видимости по ролям
 
-### `POST /api/v1/dashboard/candidates/{candidate_id}/override`
+Роли:
 
-Переопределяет recommendation status и записывает audit entry.
+- `reviewer`
+- `chair`
+- `admin`
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/viewed`
+
+Фиксирует, что текущий член комиссии или председатель открыл карточку кандидата.
+
+Роли:
+
+- `reviewer`
+- `chair`
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/decision`
+
+Сохраняет рекомендацию члена комиссии или итоговое решение председателя для текущего авторизованного пользователя.
 
 Тело запроса:
 
 ```json
 {
-  "reviewer_id": "committee-reviewer",
   "new_status": "RECOMMEND",
-  "comment": "Manual adjustment after committee review"
+  "comment": "Кандидат демонстрирует устойчивую инициативу и ясное соответствие программе."
 }
 ```
 
-### `GET /api/v1/dashboard/shortlist`
+Поведение:
 
-Возвращает текущий shortlist на основе сохраненного score state.
+- для `reviewer` создается приватная рекомендация, привязанная к `user.id`
+- для `chair` сохраняется итоговое решение председателя и обновляется итоговый статус кандидата
 
-### `POST /api/v1/dashboard/candidates/{candidate_id}/actions`
+### `GET /api/v1/audit/feed`
 
-Создает reviewer action без override, например:
+Административный журнал review- и system-событий.
 
-- `comment`
-- `shortlist_add`
-- `shortlist_remove`
+Роли:
 
-### `GET /api/v1/dashboard/candidates/{candidate_id}/actions`
+- `admin`
 
-Возвращает историю reviewer actions для одного кандидата.
+## Примечание по названиям этапов
 
-### `GET /api/v1/audit/feed?limit=100`
-
-Возвращает глобальный audit feed в порядке от новых к старым.
-
----
-
-## Диаграмма 2. Reviewer workflow surface
-
-```mermaid
-flowchart TD
-    Browser["Browser UI"]
-    Proxy["Next.js Proxy"]
-    Stats["Dashboard Stats"]
-    List["Candidate Ranking"]
-    Detail["Candidate Detail"]
-    Override["Override Action"]
-    Actions["Reviewer Actions"]
-    Audit["Audit Feed"]
-
-    Browser --> Proxy
-    Proxy --> Stats
-    Proxy --> List
-    Proxy --> Detail
-    Detail --> Override
-    Detail --> Actions
-    Override --> Audit
-    Actions --> Audit
-```
-
----
-
-## Канонические контракты
-
-### Выход M5
-
-`M5` отдает `SignalEnvelope` с полями:
-
-- `candidate_id`
-- `signal_schema_version`
-- `m5_model_version`
-- `selected_program`
-- `program_id`
-- `completeness`
-- `data_flags`
-- `signals`
-
-Каждый signal содержит:
-
-- `value`
-- `confidence`
-- `source`
-- `evidence`
-- `reasoning`
-
-### Выход M6
-
-`M6` отдает `CandidateScore` с четырьмя основными recommendation category:
-
-- `STRONG_RECOMMEND`
-- `RECOMMEND`
-- `WAITLIST`
-- `DECLINED`
-
-Отдельные review-routing поля:
-
-- `manual_review_required`
-- `human_in_loop_required`
-- `uncertainty_flag`
-- `review_recommendation`
-- `ranking_position`
-- `shortlist_eligible`
-
-### Выход M7
-
-`M7` отдает reviewer-facing explainability-контент:
-
-- `summary`
-- `positive_factors`
-- `caution_blocks`
-- `reviewer_guidance`
-- `data_quality_notes`
-
----
-
-Projet Documentation
+В коде по-прежнему сохраняются внутренние `m*` package names. В API-документации используются публичные stage names, чтобы аналитический flow и workflow комиссии были описаны понятнее.

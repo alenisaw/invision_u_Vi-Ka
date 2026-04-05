@@ -12,13 +12,20 @@ import { ApiError, reviewerApi } from "@/lib/api";
 import {
   formatDateTime,
   getStatusLabel,
+  localizeLabel,
   localizeProgramName,
 } from "@/lib/i18n";
 import type {
   CandidateDetail,
+  LocalizedTextContent,
   RawCandidateContent,
   ReviewerAction,
 } from "@/types";
+
+const RU_INTERFACE = "\u041d\u0430 \u044f\u0437\u044b\u043a\u0435 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441\u0430";
+const RU_ORIGINAL = "\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b";
+const RU_NOT_AVAILABLE =
+  "\u041c\u0430\u0442\u0435\u0440\u0438\u0430\u043b \u043f\u043e\u043a\u0430 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d";
 
 export default function CandidateDetailPage({
   params,
@@ -34,7 +41,7 @@ export default function CandidateDetailPage({
   useEffect(() => {
     void loadDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [params.id, locale]);
 
   async function loadDetail() {
     setLoading(true);
@@ -42,18 +49,14 @@ export default function CandidateDetailPage({
     setNotFound(false);
 
     try {
-      const data = await reviewerApi.getCandidateDetail(params.id);
+      const data = await reviewerApi.getCandidateDetail(params.id, locale);
       setDetail(data);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setNotFound(true);
         setDetail(null);
       } else {
-        setError(
-          err instanceof Error
-            ? err.message
-            : t("candidateDetail.loadErrorCard"),
-        );
+        setError(err instanceof Error ? err.message : t("candidateDetail.loadErrorCard"));
       }
     } finally {
       setLoading(false);
@@ -69,23 +72,19 @@ export default function CandidateDetailPage({
       loadErrorDescription: t("candidateDetail.loadErrorDescription"),
       backToRanking: t("candidateDetail.backToRanking"),
       rawTitle: t("candidateDetail.rawTitle"),
-      expand: t("candidateDetail.expand"),
-      collapse: t("candidateDetail.collapse"),
       essay: t("candidateDetail.essay"),
       transcript: t("candidateDetail.transcript"),
       history: t("candidateDetail.history"),
       unknownComment: t("candidateDetail.unknownComment"),
+      interfaceLanguage: locale === "ru" ? RU_INTERFACE : "Interface language",
+      original: locale === "ru" ? RU_ORIGINAL : "Original",
+      notAvailable: locale === "ru" ? RU_NOT_AVAILABLE : "Material is not available yet",
     }),
-    [t],
+    [locale, t],
   );
 
   if (loading && !detail) {
-    return (
-      <StateLayout
-        title={copy.loadingTitle}
-        description={copy.loadingDescription}
-      />
-    );
+    return <StateLayout title={copy.loadingTitle} description={copy.loadingDescription} />;
   }
 
   if (notFound) {
@@ -126,58 +125,120 @@ export default function CandidateDetailPage({
       <Header />
       <main className="p-6 lg:p-8">
         <div className="container-app">
-            <div className="flex items-center gap-4 mb-6">
-              <Link
-                href="/dashboard"
-                className="btn btn--ghost btn--sm"
-                style={{ minWidth: 0 }}
+          <div className="mb-6 flex items-center gap-4">
+            <Link href="/dashboard" className="btn btn--ghost btn--sm" style={{ minWidth: 0 }}>
+              &larr; {t("common.back")}
+            </Link>
+            <div>
+              <h1
+                className="text-[clamp(1.4rem,1.2rem+1vw,2rem)] font-[800]"
+                style={{ letterSpacing: "-0.03em" }}
               >
-                &larr; {t("common.back")}
-              </Link>
-              <div>
-                <h1
-                  className="text-[clamp(1.4rem,1.2rem+1vw,2rem)] font-[800]"
-                  style={{ letterSpacing: "-0.03em" }}
-                >
-                  {detail.name}
-                </h1>
-                <p
-                  className="text-[0.82rem]"
-                  style={{ color: "var(--brand-muted)" }}
-                >
-                  {localizeProgramName(detail.score.selected_program, locale)}
-                </p>
-              </div>
+                {detail.name}
+              </h1>
+              <p className="text-[0.82rem]" style={{ color: "var(--brand-muted)" }}>
+                {localizeProgramName(detail.score.selected_program, locale)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+            <div className="flex flex-col gap-6">
+              <CandidateCard score={detail.score} />
+              <PipelineQualitySection detail={detail} locale={locale} />
+              <ExplanationBlock
+                explanation={detail.explanation}
+                insertAfterConclusion={
+                  detail.raw_content ? (
+                    <RawContentSection content={detail.raw_content} copy={copy} />
+                  ) : undefined
+                }
+              />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr] gap-6">
-              <div className="flex flex-col gap-6">
-                <CandidateCard score={detail.score} />
-                <ExplanationBlock
-                  explanation={detail.explanation}
-                  insertAfterConclusion={
-                    detail.raw_content ? (
-                      <RawContentSection content={detail.raw_content} copy={copy} />
-                    ) : undefined
-                  }
-                />
-              </div>
-
-              <div className="flex flex-col gap-6">
-                <ScoreRadar subScores={detail.score.sub_scores} />
-                <OverridePanel
-                  candidateId={detail.score.candidate_id}
-                  currentStatus={detail.score.recommendation_status}
-                  committeeMembers={detail.committee_members ?? []}
-                  auditLogs={detail.audit_logs ?? []}
-                  onSuccess={loadDetail}
-                />
-                <DecisionHistory logs={detail.audit_logs ?? []} locale={locale} copy={copy} />
-              </div>
+            <div className="flex flex-col gap-6">
+              <ScoreRadar subScores={detail.score.sub_scores} />
+              <OverridePanel
+                candidateId={detail.score.candidate_id}
+                currentStatus={detail.score.recommendation_status}
+                committeeMembers={detail.committee_members ?? []}
+                committeeResolution={detail.committee_resolution ?? null}
+                auditLogs={detail.audit_logs ?? []}
+                onSuccess={loadDetail}
+              />
+              <DecisionHistory logs={detail.audit_logs ?? []} locale={locale} copy={copy} />
             </div>
+          </div>
         </div>
       </main>
     </>
+  );
+}
+
+function PipelineQualitySection({
+  detail,
+  locale,
+}: {
+  detail: CandidateDetail;
+  locale: "ru" | "en";
+}) {
+  const qualityStatus = deriveQualityStatus(detail);
+  const flags = deriveQualityFlags(detail);
+
+  if (qualityStatus === "healthy" && flags.length === 0) {
+    return null;
+  }
+
+  const copy =
+    locale === "ru"
+      ? {
+          title: "Качество обработки",
+          healthy: "Норма",
+          degraded: "Degraded",
+          partial: "Частично",
+          review: "Нужна проверка",
+          helper:
+            qualityStatus === "manual_review_required"
+              ? "Результат требует ручной проверки комиссии: один или несколько этапов дали неполные либо рискованные сигналы."
+              : "В этом кейсе есть сигналы частичной или деградировавшей обработки. Решение стоит читать вместе с исходными материалами и caution flags.",
+        }
+      : {
+          title: "Processing quality",
+          healthy: "Healthy",
+          degraded: "Degraded",
+          partial: "Partial",
+          review: "Manual review",
+          helper:
+            qualityStatus === "manual_review_required"
+              ? "This result requires manual committee review because one or more stages produced incomplete or risky signals."
+              : "This case contains partial or degraded processing signals. Read the decision together with the source materials and caution flags.",
+        };
+
+  return (
+    <div className="card p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="eyebrow">{copy.title}</div>
+        <span className={`badge ${getQualityBadgeTone(qualityStatus)}`}>
+          {qualityStatus === "healthy"
+            ? copy.healthy
+            : qualityStatus === "degraded"
+              ? copy.degraded
+              : qualityStatus === "partial"
+                ? copy.partial
+                : copy.review}
+        </span>
+      </div>
+
+      <p className="mb-4 text-[0.9rem] leading-[1.75] text-muted-strong">{copy.helper}</p>
+
+      <div className="flex flex-wrap gap-2">
+        {flags.map((flag) => (
+          <span key={flag} className="badge badge--coral">
+            {localizePipelineFlag(flag, locale)}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -196,11 +257,8 @@ function StateLayout({
       <main className="p-8">
         <div className="container-app">
           <div className="card p-12 text-center">
-            <h2 className="text-[1.22rem] font-[800] mb-3">{title}</h2>
-            <p
-              className="text-[0.88rem] mb-6"
-              style={{ color: "var(--brand-muted)" }}
-            >
+            <h2 className="mb-3 text-[1.22rem] font-[800]">{title}</h2>
+            <p className="mb-6 text-[0.88rem]" style={{ color: "var(--brand-muted)" }}>
               {description}
             </p>
             {action}
@@ -218,8 +276,7 @@ function RawContentSection({
   content: RawCandidateContent;
   copy: Record<string, string>;
 }) {
-  const [open, setOpen] = useState(false);
-  const hasAny = Boolean(content.essay_text || content.video_transcript);
+  const hasAny = Boolean(content.essay || content.video_transcript);
 
   if (!hasAny) {
     return null;
@@ -227,57 +284,98 @@ function RawContentSection({
 
   return (
     <div className="card p-6">
-      <button
-        onClick={() => setOpen((current) => !current)}
-        className="flex items-center justify-between w-full"
-      >
-        <div className="eyebrow">{copy.rawTitle}</div>
-        <span className="text-[0.82rem] font-[700] text-muted">
-          {open ? copy.collapse : copy.expand}
-        </span>
-      </button>
-
-      {open ? (
-        <div className="flex flex-col gap-6 mt-5">
-          {content.essay_text ? (
-            <ContentBlock title={copy.essay}>{content.essay_text}</ContentBlock>
-          ) : null}
-
-          {content.video_transcript ? (
-            <ContentBlock title={copy.transcript} preserveWhitespace>
-              {content.video_transcript}
-            </ContentBlock>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="mb-5 text-[1rem] font-[800] text-[var(--brand-ink)]">{copy.rawTitle}</div>
+      <div className="flex flex-col gap-6">
+        {content.essay ? <ContentBlock title={copy.essay} content={content.essay} copy={copy} /> : null}
+        {content.video_transcript ? (
+          <ContentBlock
+            title={copy.transcript}
+            content={content.video_transcript}
+            copy={copy}
+            preserveWhitespace
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
 
 function ContentBlock({
   title,
-  children,
+  content,
+  copy,
   preserveWhitespace = false,
 }: {
   title: string;
-  children: string;
+  content: LocalizedTextContent;
+  copy: Record<string, string>;
   preserveWhitespace?: boolean;
 }) {
+  const { locale } = useLocale();
+  const hasLocalizedView = Boolean(
+    content.interface_text &&
+      content.interface_locale &&
+      content.original_locale &&
+      content.interface_locale !== content.original_locale,
+  );
+  const [viewMode, setViewMode] = useState<"interface" | "original">(
+    hasLocalizedView ? "interface" : "original",
+  );
+
+  useEffect(() => {
+    setViewMode(hasLocalizedView ? "interface" : "original");
+  }, [hasLocalizedView, locale]);
+
+  const text =
+    viewMode === "interface" && hasLocalizedView
+      ? content.interface_text ?? content.original_text
+      : content.original_text;
+  const displayText = (text || content.original_text || content.interface_text || "").trim();
+
+  if (!displayText) {
+    return null;
+  }
+
   return (
-    <div>
-      <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] mb-3 text-muted">
-        {title}
+    <div className="rounded-[1rem] border border-[var(--brand-line)] bg-[var(--surface-subtle)] px-5 py-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-[0.72rem] font-[800] uppercase tracking-[0.12em] text-muted">
+          {title}
+        </div>
+        {hasLocalizedView ? (
+          <div className="flex rounded-full border border-[var(--brand-line)] bg-[var(--surface-soft)] p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("interface")}
+              className={`rounded-full px-3 py-1.5 text-[0.72rem] font-[800] transition-colors ${
+                viewMode === "interface"
+                  ? "bg-[var(--brand-ink)] text-[var(--brand-paper)]"
+                  : "text-muted-strong"
+              }`}
+            >
+              {copy.interfaceLanguage}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("original")}
+              className={`rounded-full px-3 py-1.5 text-[0.72rem] font-[800] transition-colors ${
+                viewMode === "original"
+                  ? "bg-[var(--brand-ink)] text-[var(--brand-paper)]"
+                  : "text-muted-strong"
+              }`}
+            >
+              {copy.original}
+            </button>
+          </div>
+        ) : null}
       </div>
+
       <div
-        className={`text-[0.88rem] leading-[1.75] font-[500] p-4 rounded-[1rem] ${
+        className={`text-[0.9rem] font-[500] leading-[1.8] text-[var(--brand-ink)] ${
           preserveWhitespace ? "whitespace-pre-wrap" : ""
         }`}
-        style={{
-          background: "var(--surface-subtle)",
-          border: "1px solid var(--brand-line)",
-        }}
       >
-        {children}
+        {displayText || copy.notAvailable}
       </div>
     </div>
   );
@@ -303,18 +401,18 @@ function DecisionHistory({
         {logs.map((log) => (
           <div
             key={log.id}
-            className="pb-4 border-b border-[var(--brand-line)] last:border-0 last:pb-0"
+            className="border-b border-[var(--brand-line)] pb-4 last:border-0 last:pb-0"
           >
-            <div className="flex justify-between items-start mb-2">
+            <div className="mb-2 flex items-start justify-between">
               <span className="text-[0.75rem] font-[800] uppercase tracking-wider text-muted-strong">
-                {log.reviewer_id}
+                {log.reviewer_name}
               </span>
-              <span className="text-[0.7rem] font-[600] text-muted font-numbers">
+              <span className="font-numbers text-[0.7rem] font-[600] text-muted">
                 {formatDateTime(log.created_at, locale)}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 mb-2 text-[0.8rem] font-[700]">
+            <div className="mb-2 flex items-center gap-2 text-[0.8rem] font-[700]">
               <span className="text-muted line-through">
                 {getStatusLabel(log.previous_status, locale)}
               </span>
@@ -334,7 +432,7 @@ function DecisionHistory({
               </span>
             </div>
 
-            <div className="text-[0.85rem] text-muted bg-[var(--surface-subtle)] p-3 rounded-[0.5rem] italic">
+            <div className="rounded-[0.5rem] bg-[var(--surface-subtle)] p-3 text-[0.85rem] italic text-muted">
               "{log.comment || copy.unknownComment}"
             </div>
           </div>
@@ -350,3 +448,107 @@ const STATUS_COLORS: Record<string, string> = {
   WAITLIST: "text-[var(--brand-coral)]",
   DECLINED: "text-[var(--danger-soft-text)]",
 };
+
+function deriveQualityStatus(detail: CandidateDetail) {
+  if (detail.score.manual_review_required) {
+    return "manual_review_required" as const;
+  }
+
+  const flags = new Set(deriveQualityFlags(detail));
+  if (flags.has("empty_signal_envelope") || flags.has("asr_processing_failed")) {
+    return "degraded" as const;
+  }
+  if (
+    flags.has("low_asr_confidence") ||
+    flags.has("speech_authenticity_risk") ||
+    flags.has("low_cross_source_consistency") ||
+    flags.has("possible_ai_use") ||
+    flags.has("authenticity_or_ai_risk")
+  ) {
+    return "partial" as const;
+  }
+  return "healthy" as const;
+}
+
+function deriveQualityFlags(detail: CandidateDetail) {
+  return Array.from(
+    new Set(
+      detail.score.caution_flags.filter((flag) =>
+        [
+          "asr_processing_failed",
+          "low_asr_confidence",
+          "speech_authenticity_risk",
+          "possible_ai_use",
+          "authenticity_or_ai_risk",
+          "low_cross_source_consistency",
+          "weak_claim_support",
+          "voice_inconsistency",
+          "generic_evidence",
+          "no_structured_signals",
+          "empty_signal_envelope",
+        ].includes(flag),
+      ),
+    ),
+  );
+}
+
+function getQualityBadgeTone(status: ReturnType<typeof deriveQualityStatus>) {
+  if (status === "healthy") {
+    return "badge--lime";
+  }
+  if (status === "manual_review_required") {
+    return "badge--blue";
+  }
+  return "badge--coral";
+}
+
+function localizePipelineFlag(flag: string, locale: "ru" | "en") {
+  const map: Record<string, { ru: string; en: string }> = {
+    asr_processing_failed: {
+      ru: "сбой обработки ASR",
+      en: "ASR processing failed",
+    },
+    low_asr_confidence: {
+      ru: "низкий ASR confidence",
+      en: "low ASR confidence",
+    },
+    speech_authenticity_risk: {
+      ru: "риск синтетической речи",
+      en: "speech authenticity risk",
+    },
+    possible_ai_use: {
+      ru: "риск AI-assisted writing",
+      en: "AI-assisted writing risk",
+    },
+    authenticity_or_ai_risk: {
+      ru: "риск недостоверности",
+      en: "authenticity risk",
+    },
+    low_cross_source_consistency: {
+      ru: "расхождение источников",
+      en: "source inconsistency",
+    },
+    weak_claim_support: {
+      ru: "слабое подтверждение заявлений",
+      en: "weak claim support",
+    },
+    voice_inconsistency: {
+      ru: "несогласованность голоса",
+      en: "voice inconsistency",
+    },
+    generic_evidence: {
+      ru: "обобщенные доказательства",
+      en: "generic evidence",
+    },
+    no_structured_signals: {
+      ru: "нет структурированных сигналов",
+      en: "no structured signals",
+    },
+    empty_signal_envelope: {
+      ru: "пустой набор сигналов",
+      en: "empty signal envelope",
+    },
+  };
+
+  return map[flag]?.[locale] ?? localizeLabel(flag, locale);
+}

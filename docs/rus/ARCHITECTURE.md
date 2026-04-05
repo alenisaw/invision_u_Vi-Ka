@@ -5,90 +5,97 @@
 ## Структура документа
 
 - [Обзор системы](#обзор-системы)
-- [Диаграмма 1. Общая схема](#диаграмма-1-общая-схема)
+- [Диаграмма 1. Сквозной поток этапов](#диаграмма-1-сквозной-поток-этапов)
 - [Архитектурные принципы](#архитектурные-принципы)
-- [Реализованный backend flow](#реализованный-backend-flow)
-- [Ответственность модулей](#ответственность-модулей)
-- [Подробный каталог модулей](#подробный-каталог-модулей)
-- [Стек моделей](#стек-моделей)
+- [Этапы рантайма](#этапы-рантайма)
+- [Публичная карта этапов](#публичная-карта-этапов)
 - [Модель управления данными](#модель-управления-данными)
-- [Диаграмма 2. Privacy-by-Design](#диаграмма-2-privacy-by-design)
-- [Диаграмма 3. Базовая модель данных](#диаграмма-3-базовая-модель-данных)
+- [Диаграмма 2. Слои разделения данных](#диаграмма-2-слои-разделения-данных)
+- [Диаграмма 3. Workflow комиссии](#диаграмма-3-workflow-комиссии)
+- [Диаграмма 4. Frontend и API](#диаграмма-4-frontend-и-api)
 - [Структура репозитория](#структура-репозитория)
 
 ---
 
 ## Обзор системы
 
-Система отбора кандидатов inVision U — это модульный монолит для admissions decision support. В текущем репозитории лежат и FastAPI backend, и Next.js reviewer frontend.
+Платформа приемной комиссии inVision U представляет собой модульный монолит для поддержки решений комиссии. В репозитории находятся и FastAPI backend, и Next.js workspace для членов комиссии.
 
-Живая ветка сейчас работает как синхронный request-response pipeline:
+Текущий рантайм работает как синхронный request-response pipeline:
 
-- анкета кандидата попадает в `M2` или в полный pipeline через `M1`
-- при наличии `video_url` вызывается `M13` для транскрибации интервью
-- до model-facing обработки данные проходят privacy-разделение в `M3`
-- `M4`, `M5`, `M6` и `M7` собирают профиль, сигналы, score и explainability
-- reviewer-чтение и reviewer-действия идут через `M8` и `M10`
-- все состояния сохраняются в PostgreSQL
+- данные кандидата поступают через входной этап `Input Intake` или через полный pipeline `Gateway`
+- `ASR` запускается, если доступен публичный аудио- или видеоматериал
+- `Privacy` отделяет PII до любой model-facing обработки
+- `Profile`, `Extraction`, `AI Detect`, `Scoring` и `Explanation` формируют аналитическое представление кандидата
+- `Review` обслуживает действия комиссии, итоговое решение председателя и видимость журнала
+- все состояние сохраняется в PostgreSQL
 
-Платформа остается human-in-the-loop:
+Платформа изначально строится как human-in-the-loop система:
 
-- не принимает финальное автономное решение о зачислении
-- явно показывает confidence, uncertainty и review-routing поля
-- изолирует чувствительные данные до model-facing обработки
-- логирует overrides и reviewer actions
+- она не принимает автономное решение о зачислении
+- она показывает confidence, evidence и caution signals
+- она держит чувствительные данные вне model-facing этапов
+- она фиксирует действия комиссии и финальные решения
 
 ---
 
-## Диаграмма 1. Общая схема
+## Диаграмма 1. Сквозной поток этапов
 
 ```mermaid
 flowchart LR
-    Candidate["Подача кандидата"]
-    Demo["M0 Demo Fixtures"]
-    Frontend["Next.js Frontend"]
-    Proxy["Next.js Proxy /api/backend/*"]
-    Gateway["M1 Gateway"]
-    Intake["M2 Intake"]
-    Privacy["M3 Privacy"]
-    L1["Layer 1: PII Vault"]
-    L2["Layer 2: Operational Metadata"]
-    L3["Layer 3: Model Input"]
-    Profile["M4 Profile"]
-    NLP["M5 NLP"]
-    ASR["M13 ASR"]
-    Score["M6 Scoring"]
-    Explain["M7 Explainability"]
-    Dashboard["M8 Dashboard"]
-    Audit["M10 Audit"]
-    DB["PostgreSQL"]
-    Reviewer["Reviewer"]
+    subgraph InputLayer["Входной слой"]
+        Candidate["Заявка кандидата"]
+        Demo["Демо-сценарий"]
+        Gateway["Gateway"]
+        Intake["Input Intake"]
+    end
 
-    Candidate --> Frontend
+    subgraph ProcessingLayer["Слой обработки"]
+        ASR["ASR"]
+        Privacy["Privacy"]
+        Profile["Profile"]
+        Extraction["Extraction"]
+        AIDetect["AI Detect"]
+        Scoring["Scoring"]
+        Explanation["Explanation"]
+    end
+
+    subgraph DecisionLayer["Слой принятия решений"]
+        Workspace["Workspace комиссии"]
+        Review["Review"]
+    end
+
+    subgraph StorageLayer["Слой хранения"]
+        DB["PostgreSQL"]
+    end
+
+    Candidate --> Gateway
     Demo --> Gateway
-    Frontend --> Proxy
-    Proxy --> Gateway
     Gateway --> Intake
+    Intake --> ASR
     Intake --> Privacy
-    Privacy --> L1
-    Privacy --> L2
-    Privacy --> L3
-    L3 --> Profile
-    Gateway --> ASR
     ASR --> Privacy
-    Profile --> NLP
-    NLP --> Score
-    Score --> Explain
-    Dashboard --> Frontend
-    Reviewer --> Frontend
-    Gateway --> DB
-    Privacy --> DB
-    Profile --> DB
-    NLP --> DB
-    Score --> DB
-    Explain --> DB
-    Dashboard --> DB
-    Audit --> DB
+    Privacy --> Profile
+    Profile --> Extraction
+    Extraction --> AIDetect
+    Extraction --> Scoring
+    AIDetect -. дополнительные сигналы .-> Scoring
+    Scoring --> Explanation
+    Explanation --> Workspace
+    Workspace --> Review
+
+    Intake -. сохранение .-> DB
+    Privacy -. сохранение .-> DB
+    Profile -. сохранение .-> DB
+    Extraction -. сохранение .-> DB
+    Scoring -. сохранение .-> DB
+    Explanation -. сохранение .-> DB
+    Review -. сохранение .-> DB
+
+    style InputLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style ProcessingLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style DecisionLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style StorageLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
 ```
 
 ---
@@ -97,252 +104,227 @@ flowchart LR
 
 ### Privacy by Design
 
-PII изолируется до любой model-facing обработки. AI/ML-модули работают только с безопасным Layer 3.
+PII изолируется до любой model-facing обработки. AI и ML этапы работают только с безопасным контентом и операционно разрешенными метаданными.
 
 ### Explainability First
 
-Score должен оставаться разбираемым. Для reviewer выводятся evidence, positive factors, caution blocks и routing logic.
+Оценки должны оставаться проверяемыми. Пользователь комиссии видит factor blocks, caution markers, evidence snippets и итоговые explanation summaries, а не один непрозрачный output.
 
 ### Human in the Loop
 
-Recommendation categories носят advisory-характер. Поля `manual_review_required`, `human_in_loop_required` и `review_recommendation` сохраняют контроль за reviewer.
+Рекомендации носят advisory-характер. Финальная обработка заявки остается внутри workflow комиссии, где рекомендации членов комиссии и решения председателя фиксируются явно.
 
-### Синхронная оркестрация
+### Session Auth и RBAC
 
-Текущая ветка исполняет основной pipeline синхронно внутри API-процесса. В основном compose-стеке нет Redis-очереди и отдельного worker-слоя.
+Защищенные маршруты используют HTTP-only session cookies и backend role checks для `admin`, `chair` и `reviewer`. Role visibility определяет, кто может управлять пользователями, видеть глобальный audit и просматривать решения комиссии.
 
-### Reviewer-safe доступ
+### Синхронный базовый pipeline
 
-Reviewer-маршруты требуют `X-API-Key`. Next.js proxy добавляет этот заголовок серверно только для `dashboard/*` и `audit/*`, поэтому browser code не носит reviewer key напрямую.
-
----
-
-## Реализованный backend flow
-
-Реализованный backend flow в текущей ветке:
-
-0. `M0 Demo` дает готовые demo fixtures.
-1. `M2 Intake` валидирует payload и создает базовую запись кандидата.
-2. `M13 ASR` опционально транскрибирует интервью, если указан `video_url`.
-3. `M3 Privacy` разделяет входные данные на PII, operational metadata и safe model input.
-4. `M4 Profile` собирает единый `CandidateProfile`.
-5. `M5 NLP` извлекает канонический `SignalEnvelope`.
-6. `M6 Scoring` считает program-aware score, ranking fields и reviewer-routing output.
-7. `M7 Explainability` формирует summary, positive factors, caution blocks и reviewer guidance.
-8. `M8 Dashboard` отдает reviewer-facing read API поверх сохраненных score/explanation/raw content.
-9. `M10 Audit` хранит overrides, reviewer actions и audit feed.
+Локальный стек по умолчанию использует синхронную orchestration внутри API-процесса. Активный Docker-стек не требует отдельного worker-tier для базового review workflow.
 
 ---
 
-## Ответственность модулей
+## Этапы рантайма
 
-Подробная документация по каждому модулю вынесена в:
+### Gateway
 
-- [`docs/rus/MODULES.md`](MODULES.md)
+Публичная API-точка входа и orchestration layer для синхронного выполнения pipeline, batch submission и backend-маршрутов рабочего пространства комиссии.
 
----
+### Input Intake
 
-## Подробный каталог модулей
-
-Для полного описания модулей, их входов, выходов и файлов смотри:
-
-- [`docs/rus/MODULES.md`](MODULES.md)
-
----
-
-## Стек моделей
-
-### NLP
-
-| Модуль | Модель | Роль |
-|---|---|---|
-| `M5` | `meta-llama/llama-4-scout-17b-16e-instruct` | основной grouped structured signal extraction через Groq |
-| `M5` | heuristic extractor | детерминированный fallback |
-| `M7` | deterministic formatter | сборка explainability-report из сохраненного M6 output |
+Входной этап валидирует candidate payload, вычисляет первичную completeness и создает базовую запись кандидата. В документации он описывается как входной этап, а не как самостоятельный аналитический модуль.
 
 ### ASR
 
-| Модуль | Модель | Роль |
-|---|---|---|
-| `M13` | env-выбранная Groq Whisper model (`whisper-large-v3-turbo` по умолчанию) | транскрибация интервью и анализ сегментов |
+Потребляет публичные аудио- и видеоссылки и, если media доступно, создает transcript text вместе с transcript quality metadata.
 
-### Embeddings
+### Privacy
 
-| Runtime | Модель | Роль |
-|---|---|---|
-| Primary | `jinaai/jina-embeddings-v5-text-nano` | локальные similarity и consistency checks внутри backend-процесса |
-| Fallback | lexical cosine similarity | детерминированный запасной path при недоступности локального embedding backend |
+Разделяет запись кандидата на PII, operational metadata и safe model content.
+
+### Profile
+
+Строит канонический профиль кандидата из operational и safe слоев.
+
+### Extraction
+
+Преобразует safe text, transcript material и связанное evidence в структурированные decision signals.
+
+### AI Detect
+
+Добавляет дополнительные индикаторы подлинности текста и AI-assisted writing. Эти сигналы не заменяют решение комиссии; они работают как caution inputs для scoring и explanation.
 
 ### Scoring
 
-| Слой | Модель / метод | Роль |
-|---|---|---|
-| Baseline | rule-based scoring | прозрачный базовый score |
-| Refinement | `GradientBoostingRegressor` | ML-уточнение score |
-| Calibration | `ScoreCalibrator` | опциональный post-processing score |
+Вычисляет итоговую оценку кандидата, confidence, ranking, recommendation category и review routing.
+
+### Explanation
+
+Преобразует score и evidence в reviewer-facing narrative, factor blocks и caution summaries.
+
+### Review
+
+Обслуживает workspace кандидатов, рекомендации комиссии, решения председателя и видимость audit.
+
+### Storage
+
+Сохраняет candidate layers, projections, outputs scoring, outputs explanation и committee events.
+
+---
+
+## Публичная карта этапов
+
+Документация использует публичные названия этапов. Текущее соответствие package names в коде:
+
+| Публичный этап | Текущий package |
+|---|---|
+| `Gateway` | `backend/app/modules/gateway` |
+| `Input Intake` | `backend/app/modules/intake` |
+| `ASR` | `backend/app/modules/asr` |
+| `Privacy` | `backend/app/modules/privacy` |
+| `Profile` | `backend/app/modules/profile` |
+| `Extraction` | `backend/app/modules/extraction` |
+| `AI Detect` | `backend/app/modules/extraction/ai_detector.py` |
+| `Scoring` | `backend/app/modules/scoring` |
+| `Explanation` | `backend/app/modules/explanation` |
+| `Review` | `backend/app/modules/workspace` и `backend/app/modules/review` |
+| `Storage` | `backend/app/modules/storage` |
+| `Demo Layer` | `backend/app/modules/demo` |
 
 ---
 
 ## Модель управления данными
 
-### Layer 1: Secure PII Vault
+### Слой 1: защищенные PII
 
-Хранит зашифрованные PII и административно-чувствительные данные: имена, адреса, контакты, guardians, IDs и supporting documents.
+Хранит зашифрованные или защищенные identity data: официальные имена, контакты, адреса, реквизиты документов и связанную административную информацию.
 
-### Layer 2: Operational Metadata
+### Слой 2: операционные метаданные
 
-Хранит workflow-метаданные: age eligibility, language-threshold status, selected program, language exam type, completeness, data flags и наличие видео.
+Хранит metadata, видимые workflow: выбранная программа, completeness, data flags и eligibility markers, полученные на intake.
 
-### Layer 3: Safe Model Input
+### Слой 3: безопасный аналитический контент
 
-Хранит model-facing контент: redacted transcript, essay text, internal test answers, ASR confidence и ASR quality flags.
+Хранит redacted transcript text, essay text при наличии, transcript-derived fallback content, internal answers и безопасное evidence для downstream analytical stages.
 
 ---
 
-## Диаграмма 2. Privacy-by-Design
+## Диаграмма 2. Слои разделения данных
 
 ```mermaid
 flowchart TD
-    Raw["Raw Candidate Payload"]
-    Privacy["M3 Privacy"]
+    Raw["Payload кандидата"]
+    Privacy["Privacy"]
 
-    subgraph Layer1["Layer 1: Secure PII Vault"]
-        PII1["Полное имя"]
-        PII2["IIN и данные документа"]
-        PII3["Адрес и контакты"]
-        PII4["Данные родителей или guardian"]
+    subgraph PII["Слой 1: Защищенные PII"]
+        L1A["Идентичность и контакты"]
+        L1B["Адрес и документы"]
+        L1C["Семья и опекуны"]
     end
 
-    subgraph Layer2["Layer 2: Operational Metadata"]
-        META1["Age eligibility"]
-        META2["Language threshold flag"]
-        META3["Selected program и language exam"]
-        META4["Completeness и data flags"]
+    subgraph Metadata["Слой 2: Операционные метаданные"]
+        L2A["Программа и intake metadata"]
+        L2B["Completeness и flags"]
+        L2C["Состояние workflow"]
     end
 
-    subgraph Layer3["Layer 3: Safe Model Input"]
-        SAFE1["Redacted transcript"]
-        SAFE2["Essay text"]
-        SAFE3["Project descriptions"]
-        SAFE4["Internal test answers"]
-        SAFE5["Experience summary"]
+    subgraph Safe["Слой 3: Безопасный аналитический контент"]
+        L3A["Transcript text"]
+        L3B["Essay или transcript fallback"]
+        L3C["Internal answers"]
+        L3D["Evidence для extraction"]
     end
 
-    AI["AI и ML-модули"]
+    subgraph Models["Аналитические этапы"]
+        Profile["Profile"]
+        Extraction["Extraction"]
+        AIDetect["AI Detect"]
+        Scoring["Scoring"]
+        Explanation["Explanation"]
+    end
 
     Raw --> Privacy
-    Privacy --> Layer1
-    Privacy --> Layer2
-    Privacy --> Layer3
-    Layer3 --> AI
+    Privacy --> PII
+    Privacy --> Metadata
+    Privacy --> Safe
+    Safe --> Profile
+    Profile --> Extraction
+    Extraction --> AIDetect
+    Extraction --> Scoring
+    AIDetect -. caution signals .-> Scoring
+    Scoring --> Explanation
+    PII -. никогда не передается .-> Models
 
-    Layer1 -. never sent .-> AI
-    Layer2 -. not used for demographic scoring .-> AI
+    style PII fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style Metadata fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style Safe fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style Models fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
 ```
 
 ---
 
-## Диаграмма 3. Базовая модель данных
+## Диаграмма 3. Workflow комиссии
 
 ```mermaid
-erDiagram
-    candidates ||--o| candidate_pii : has
-    candidates ||--o| candidate_metadata : has
-    candidates ||--o| candidate_model_inputs : has
-    candidates ||--o| nlp_signals : has
-    candidates ||--o| candidate_scores : has
-    candidates ||--o| candidate_explanations : has
-    candidates ||--o{ reviewer_actions : has
-    audit_log }o--|| candidates : references
+flowchart LR
+    Candidate["Карточка кандидата"]
+    Reviewer["Член комиссии"]
+    Chair["Председатель комиссии"]
+    Admin["Администратор"]
+    Recommendation["Рекомендация члена комиссии"]
+    Final["Итоговое решение председателя"]
+    Audit["Журнал действий"]
 
-    candidates {
-        uuid id PK
-        uuid intake_id
-        string dedupe_key
-        string selected_program
-        string pipeline_status
-        timestamp created_at
-        timestamp updated_at
-    }
+    Candidate --> Reviewer
+    Candidate --> Chair
 
-    candidate_pii {
-        uuid id PK
-        uuid candidate_id FK
-        bytes encrypted_data
-    }
+    Reviewer --> Recommendation
+    Recommendation -. видно председателю .-> Chair
+    Chair --> Final
+    Final -. видно члену комиссии как итог .-> Reviewer
+    Recommendation -. видно администратору .-> Admin
+    Final -. видно администратору .-> Admin
+    Recommendation --> Audit
+    Final --> Audit
 
-    candidate_metadata {
-        uuid id PK
-        uuid candidate_id FK
-        boolean age_eligible
-        boolean language_threshold_met
-        string language_exam_type
-        boolean has_video
-        float data_completeness
-        jsonb data_flags
-    }
+    style Recommendation fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style Final fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style Audit fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+```
 
-    candidate_model_inputs {
-        uuid id PK
-        uuid candidate_id FK
-        text video_transcript
-        text essay_text
-        jsonb internal_test_answers
-        jsonb project_descriptions
-        text experience_summary
-        float asr_confidence
-        jsonb asr_flags
-    }
+---
 
-    nlp_signals {
-        uuid id PK
-        uuid candidate_id FK
-        jsonb signals
-        string model_used
-        int processing_time_ms
-    }
+## Диаграмма 4. Frontend и API
 
-    candidate_scores {
-        uuid id PK
-        uuid candidate_id FK
-        jsonb sub_scores
-        float review_priority_index
-        string recommendation_status
-        float confidence
-        boolean shortlist_eligible
-        int ranking_position
-        jsonb score_payload
-    }
+```mermaid
+flowchart LR
+    subgraph UI["Frontend workspace"]
+        Login["/login"]
+        Pool["/candidates"]
+        Ranking["/dashboard"]
+        Detail["/dashboard/[id]"]
+        Upload["/upload"]
+        Users["/admin/users"]
+        AuditPage["/audit"]
+    end
 
-    candidate_explanations {
-        uuid id PK
-        uuid candidate_id FK
-        text summary
-        jsonb positive_factors
-        jsonb caution_flags
-        jsonb data_quality_notes
-        text reviewer_guidance
-        jsonb report_payload
-    }
+    subgraph API["Backend API"]
+        Auth["Auth"]
+        Gateway["Gateway"]
+        Review["Review"]
+        Admin["Admin"]
+    end
 
-    reviewer_actions {
-        uuid id PK
-        uuid candidate_id FK
-        string reviewer_id
-        string action_type
-        string previous_status
-        string new_status
-        text comment
-    }
+    Login --> Auth
+    Pool --> Review
+    Ranking --> Review
+    Detail --> Review
+    Upload --> Gateway
+    Users --> Admin
+    AuditPage --> Admin
 
-    audit_log {
-        uuid id PK
-        string entity_type
-        uuid entity_id
-        string action
-        string actor
-        jsonb details
-    }
+    style UI fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style API fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
 ```
 
 ---
@@ -350,23 +332,11 @@ erDiagram
 ## Структура репозитория
 
 ```text
-.agent/
-  memory/
-backend/
-  app/
-    core/
-    modules/
-    schemas/
-  tests/
-docs/
-  eng/
-  rus/
-frontend/
-  src/
-  e2e/
-scripts/
+backend/app/core/             config, db session, auth, RBAC dependencies
+backend/app/modules/          runtime packages for gateway, stages, review, storage
+backend/tests/                unit, integration, and evaluation coverage
+frontend/src/app/             Next.js routes and API proxy
+frontend/src/components/      shared UI and candidate-review components
+docs/eng/                     English project documentation
+docs/rus/                     Russian project documentation
 ```
-
----
-
-Projet Documentation

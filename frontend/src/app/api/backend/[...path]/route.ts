@@ -12,18 +12,12 @@ function getBackendBaseUrl(): string {
   ).replace(/\/$/, "");
 }
 
-function getReviewerApiKey(): string {
-  return (process.env.REVIEWER_API_KEY ?? process.env.API_KEY ?? "").trim();
-}
-
 function buildBackendUrl(path: string[], search: string): string {
   return `${getBackendBaseUrl()}/api/v1/${path.join("/")}${search}`;
 }
 
-function buildHeaders(request: NextRequest, path: string[], hasBody: boolean): Headers {
+function buildHeaders(request: NextRequest, hasBody: boolean): Headers {
   const headers = new Headers();
-  const reviewerApiKey = getReviewerApiKey();
-  const rootSegment = path[0];
 
   if (request.headers.get("accept")) {
     headers.set("accept", request.headers.get("accept")!);
@@ -35,10 +29,6 @@ function buildHeaders(request: NextRequest, path: string[], hasBody: boolean): H
 
   if (request.headers.get("cookie")) {
     headers.set("cookie", request.headers.get("cookie")!);
-  }
-
-  if (reviewerApiKey && (rootSegment === "dashboard" || rootSegment === "audit")) {
-    headers.set("X-API-Key", reviewerApiKey);
   }
 
   return headers;
@@ -55,7 +45,7 @@ async function proxyRequest(
     buildBackendUrl(path, request.nextUrl.search),
     {
       method: request.method,
-      headers: buildHeaders(request, path, hasBody),
+      headers: buildHeaders(request, hasBody),
       body,
       cache: "no-store",
     },

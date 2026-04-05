@@ -1,4 +1,4 @@
-export type RecommendationStatus =
+﻿export type RecommendationStatus =
   | "STRONG_RECOMMEND"
   | "RECOMMEND"
   | "WAITLIST"
@@ -26,7 +26,6 @@ export interface CandidateScore {
   manual_review_required: boolean;
   human_in_loop_required: boolean;
   uncertainty_flag: boolean;
-  shortlist_eligible: boolean;
   review_recommendation: ReviewRecommendation;
   review_reasons: string[];
   top_strengths: string[];
@@ -35,6 +34,12 @@ export interface CandidateScore {
   caution_flags: string[];
   scoring_version: string;
 }
+
+export type PipelineQualityStatus =
+  | "healthy"
+  | "degraded"
+  | "partial"
+  | "manual_review_required";
 
 
 export interface EvidenceItem {
@@ -59,7 +64,7 @@ export interface CautionBlock {
   suggested_action: string;
 }
 
-export interface ExplainabilityReport {
+export interface ExplanationReport {
   candidate_id: string;
   scoring_version: string;
   selected_program: string;
@@ -84,7 +89,6 @@ export interface CandidateListItem {
   review_priority_index: number;
   recommendation_status: RecommendationStatus;
   confidence: number;
-  shortlist_eligible: boolean;
   ranking_position: number;
   top_strengths: string[];
   caution_flags: string[];
@@ -102,7 +106,6 @@ export interface CandidatePoolListItem {
   review_priority_index: number | null;
   recommendation_status: RecommendationStatus | null;
   confidence: number | null;
-  shortlist_eligible: boolean;
   ranking_position: number | null;
   top_strengths: string[];
   caution_flags: string[];
@@ -110,24 +113,33 @@ export interface CandidatePoolListItem {
 }
 
 export interface RawCandidateContent {
-  essay_text: string | null;
-  video_transcript: string | null;
+  essay: LocalizedTextContent | null;
+  video_transcript: LocalizedTextContent | null;
+}
+
+export interface LocalizedTextContent {
+  original_text: string;
+  original_locale: "ru" | "en" | null;
+  interface_text: string | null;
+  interface_locale: "ru" | "en" | null;
 }
 
 export interface CandidateDetail {
   candidate_id: string;
   name: string;
   score: CandidateScore;
-  explanation: ExplainabilityReport;
+  explanation: ExplanationReport;
   raw_content?: RawCandidateContent | null;
   audit_logs?: ReviewerAction[];
   committee_members?: CommitteeMemberStatus[];
+  committee_resolution?: CommitteeResolutionSummary | null;
 }
 
 export interface ReviewerAction {
   id: string;
   candidate_id: string;
-  reviewer_id: string;
+  reviewer_user_id: string | null;
+  reviewer_name: string;
   action_type: string;
   previous_status: string;
   new_status: string;
@@ -146,6 +158,14 @@ export interface CommitteeMemberStatus {
   last_activity_at: string | null;
 }
 
+export interface CommitteeResolutionSummary {
+  chair_user_id: string | null;
+  chair_name: string;
+  decision_status: RecommendationStatus;
+  decision_comment: string | null;
+  decided_at: string;
+}
+
 export interface AuditFeedItem {
   id: string;
   entity_type: string;
@@ -153,7 +173,8 @@ export interface AuditFeedItem {
   candidate_id: string | null;
   action_type: string;
   actor: string;
-  reviewer_id: string | null;
+  reviewer_user_id: string | null;
+  reviewer_name: string | null;
   previous_status: string | null;
   new_status: string | null;
   comment: string | null;
@@ -163,7 +184,6 @@ export interface AuditFeedItem {
 
 export interface DashboardStats {
   total_candidates: number;
-  shortlisted: number;
   pending_review: number;
   processed: number;
   avg_confidence: number;
@@ -194,12 +214,49 @@ export interface SessionInfo {
 
 export interface AdminUser extends AuthUser {}
 
+export interface PipelineMetricsOverview {
+  total_runs: number;
+  healthy_runs: number;
+  degraded_runs: number;
+  partial_runs: number;
+  manual_review_runs: number;
+  degraded_rate: number;
+  manual_review_rate: number;
+  avg_total_latency_ms: number;
+  p50_total_latency_ms: number;
+  p95_total_latency_ms: number;
+  avg_stage_latencies_ms: Record<string, number>;
+  fallback_counts: Record<string, number>;
+  quality_flag_counts: Record<string, number>;
+}
+
+export interface PipelineRunMetric {
+  audit_id: string;
+  candidate_id: string | null;
+  recommendation_status: string | null;
+  pipeline_quality_status: PipelineQualityStatus;
+  quality_flags: string[];
+  total_latency_ms: number;
+  stage_latencies_ms: Record<string, number>;
+  created_at: string;
+  details: Record<string, unknown>;
+}
+
+export interface PipelineMetrics {
+  overview: PipelineMetricsOverview;
+  recent_runs: PipelineRunMetric[];
+}
+
 export interface PipelineResult {
   candidate_id: string;
   pipeline_status: string;
   score: CandidateScore;
   completeness: number;
   data_flags: string[];
+  pipeline_quality_status?: PipelineQualityStatus;
+  quality_flags?: string[];
+  stage_latencies_ms?: Record<string, number>;
+  total_latency_ms?: number;
 }
 
 export interface FixtureMeta {

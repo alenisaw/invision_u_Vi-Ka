@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { LayoutGrid, List } from "lucide-react";
 import Header from "@/components/layout/Header";
 import CandidatePoolTable, {
   type CandidatePoolTableItem,
@@ -31,14 +32,22 @@ type CandidatePoolItem = CandidatePoolTableItem & {
   searchText: string;
 };
 
-function buildPoolItem(candidate: CandidatePoolListItem, viewLabel: string, pendingLabel: string): CandidatePoolItem {
+function buildPoolItem(
+  candidate: CandidatePoolListItem,
+  viewLabel: string,
+  pendingLabel: string,
+  locale: "ru" | "en",
+): CandidatePoolItem {
   const processed = candidate.stage === "processed";
+  const qualityStatus = deriveQualityStatus(candidate);
   return {
     id: candidate.candidate_id,
     kind: processed ? "processed" : "raw",
     name: candidate.name,
     selectedProgram: candidate.selected_program,
     stageLabel: processed ? "common.processed" : "common.raw",
+    qualityStatus,
+    sourceQualityLabel: getSourceQualityLabel(candidate, qualityStatus, locale),
     completeness: candidate.data_completeness,
     notes: candidate.data_flags.length > 0 ? candidate.data_flags : processed ? candidate.top_strengths : [candidate.pipeline_status],
     reviewPriorityIndex: candidate.review_priority_index,
@@ -91,7 +100,7 @@ function CandidatesPageInner() {
 
   const items = useMemo(() => {
     const prepared = pool.map((candidate) =>
-      buildPoolItem(candidate, t("candidates.action.view"), t("candidates.status.raw")),
+      buildPoolItem(candidate, t("candidates.action.view"), t("candidates.status.raw"), locale),
     ).map((item) => ({ ...item, stageLabel: t(item.stageLabel) }));
 
     const query = search.trim().toLowerCase();
@@ -137,24 +146,22 @@ function CandidatesPageInner() {
   return (
     <>
       <Header />
-      <main className="min-w-0 p-6 lg:p-10 pb-24 relative">
-        <div className="container-app">
-            <div className="mb-8">
-              <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] mb-3 tracking-[-0.05em]">
+      <main className="min-w-0 px-5 py-6 lg:px-8 lg:py-8 pb-24 relative">
+        <div className="container-app page-shell">
+            <div className="page-stack">
+            <div>
+              <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[900] tracking-[-0.05em]">
                 {t("candidates.title")}
               </h1>
-              <p className="text-[1rem] text-muted max-w-[72ch] leading-relaxed">
-                {t("candidates.description")}
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <StatCard label={t("candidates.total")} value={String(stats.total)} tone="lime" />
               <StatCard label={t("candidates.processed")} value={String(stats.processed)} tone="blue" />
               <StatCard label={t("candidates.raw")} value={String(stats.raw)} tone="neutral" />
             </div>
 
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex flex-wrap gap-2">
                 <FilterChip active={stageFilter === "all"} onClick={() => setStageFilter("all")} label={t("common.all")} />
                 <FilterChip active={stageFilter === "raw"} onClick={() => setStageFilter("raw")} label={t("common.raw")} />
@@ -164,7 +171,7 @@ function CandidatesPageInner() {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value as SortValue)}
-                className="chip py-3 px-6 pr-16 font-[700] w-full xl:w-[240px] appearance-none outline-none cursor-pointer transition-all"
+                className="chip py-3 px-6 pr-16 font-[700] w-full xl:w-[320px] appearance-none outline-none cursor-pointer transition-all"
                 style={{
                   backgroundImage:
                     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E\")",
@@ -181,7 +188,7 @@ function CandidatesPageInner() {
               </select>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row gap-4">
               <input
                 type="text"
                 value={search}
@@ -198,7 +205,10 @@ function CandidatesPageInner() {
                       : "text-muted hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  {t("common.table")}
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <List className="h-4 w-4" />
+                    {t("common.list")}
+                  </span>
                 </button>
                 <button
                   onClick={() => setViewMode("grid")}
@@ -208,13 +218,16 @@ function CandidatesPageInner() {
                       : "text-muted hover:bg-[var(--surface-hover)]"
                   }`}
                 >
-                  {t("common.grid")}
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    {t("common.grid")}
+                  </span>
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="card p-5 mb-8 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
+              <div className="card p-5 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
                 <div className="text-[0.95rem] font-[700] text-[var(--brand-coral)]">
                   {error}
                 </div>
@@ -227,6 +240,10 @@ function CandidatesPageInner() {
               </div>
             ) : viewMode === "table" ? (
               <CandidatePoolTable items={items} highlightedId={highlightId} />
+            ) : items.length === 0 ? (
+              <div className="card p-12 text-center">
+                <p className="text-[1rem] font-[600] text-muted">{t("candidates.noResults")}</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {items.map((item) => {
@@ -236,13 +253,13 @@ function CandidatesPageInner() {
                   return (
                     <div
                       key={item.id}
-                      className="card p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1"
+                      className="card p-7 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 min-h-[22rem]"
                       style={{
                         outline: isHighlighted ? "3px solid var(--brand-blue)" : "none",
                         outlineOffset: "-3px",
                       }}
                     >
-                      <div className="mb-4 min-h-[5.5rem]">
+                      <div className="mb-5 min-h-[5.75rem]">
                         <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight mb-3 min-h-[2.75rem]">
                           {item.name}
                         </h3>
@@ -251,18 +268,24 @@ function CandidatesPageInner() {
                         </span>
                       </div>
 
-                      <p className="text-[0.9rem] text-muted line-clamp-2 mb-5 min-h-[2.8rem] leading-relaxed">
+                      <p className="text-[0.95rem] text-muted line-clamp-2 mb-6 min-h-[3rem] leading-relaxed">
                         {localizeProgramName(item.selectedProgram, locale)}
                       </p>
 
-                      <div className="grid grid-cols-1 gap-3 mb-5">
+                      <div className="mb-4">
+                        <span className={`badge ${getQualityBadge(item.qualityStatus)}`}>
+                          {item.sourceQualityLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 mb-6">
                         <MetricCard
                           label={t("candidates.table.completeness")}
                           value={item.completeness != null ? `${Math.round(item.completeness * 100)}%` : t("candidates.completeness.pending")}
                         />
                       </div>
 
-                      <div className="flex flex-wrap content-start gap-2 mb-6 min-h-[3.25rem]">
+                      <div className="flex flex-wrap content-start gap-2 mb-7 min-h-[4rem]">
                         {localizedNotes.length > 0 ? (
                           localizedNotes.map((note) => (
                             <span key={`${item.id}-${note}`} className="badge badge--neutral">
@@ -293,12 +316,7 @@ function CandidatesPageInner() {
                 })}
               </div>
             )}
-
-            {!loading && items.length === 0 && (
-              <div className="text-center py-20 text-muted font-[700] text-[1.1rem]">
-                {t("candidates.empty")}
-              </div>
-            )}
+            </div>
         </div>
       </main>
     </>
@@ -373,4 +391,50 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <div className="text-[1.2rem] font-[800] font-numbers">{value}</div>
     </div>
   );
+}
+
+function deriveQualityStatus(candidate: CandidatePoolListItem) {
+  const flags = new Set([...(candidate.data_flags ?? []), ...(candidate.caution_flags ?? [])]);
+  if (candidate.stage === "raw") return "pending" as const;
+  if (
+    flags.has("asr_processing_failed") ||
+    flags.has("empty_signal_envelope") ||
+    flags.has("no_structured_signals")
+  ) {
+    return "degraded" as const;
+  }
+  if (
+    flags.has("low_asr_confidence") ||
+    flags.has("speech_authenticity_risk") ||
+    flags.has("possible_ai_use") ||
+    flags.has("authenticity_or_ai_risk") ||
+    flags.has("low_cross_source_consistency")
+  ) {
+    return "partial" as const;
+  }
+  return "healthy" as const;
+}
+
+function getSourceQualityLabel(
+  candidate: CandidatePoolListItem,
+  status: ReturnType<typeof deriveQualityStatus>,
+  locale: "ru" | "en",
+) {
+  if (candidate.stage === "raw") {
+    return locale === "ru" ? "Ожидает обработки" : "Pending processing";
+  }
+  if (status === "healthy") {
+    return locale === "ru" ? "Источник подтвержден" : "Source healthy";
+  }
+  if (status === "degraded") {
+    return locale === "ru" ? "Сниженное качество" : "Degraded source";
+  }
+  return locale === "ru" ? "Нужна проверка" : "Needs review";
+}
+
+function getQualityBadge(status?: CandidatePoolItem["qualityStatus"]) {
+  if (status === "healthy") return "badge--lime";
+  if (status === "degraded") return "badge--coral";
+  if (status === "partial") return "badge--blue";
+  return "badge--neutral";
 }

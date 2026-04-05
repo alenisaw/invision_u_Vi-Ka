@@ -10,14 +10,14 @@
 
 ---
 
-AI-assisted admissions decision-support system for inVision U. The repository contains a FastAPI backend, a Next.js reviewer frontend, PostgreSQL persistence, demo fixtures, scoring evaluation assets, and synchronized English/Russian project documentation.
+AI-assisted admissions decision-support system for inVision U. The repository contains a FastAPI backend, a Next.js committee workspace, PostgreSQL persistence, demo fixtures, scoring assets, and synchronized English/Russian documentation for the current runtime state.
 
 ---
 
 ## Document Structure
 
 - [Overview](#overview)
-- [Implemented Modules](#implemented-modules)
+- [Runtime Stages](#runtime-stages)
 - [Repository Layout](#repository-layout)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
@@ -27,35 +27,43 @@ AI-assisted admissions decision-support system for inVision U. The repository co
 
 ## Overview
 
-The system ingests candidate submissions, isolates sensitive data, prepares safe model input, extracts structured evaluation signals, computes explainable scores, and exposes reviewer-facing ranking and detail views.
+The platform supports the work of the admissions committee from candidate submission to committee review. The current implementation includes:
 
-The current branch is a full-stack implementation with:
-
-- synchronous pipeline submission through `POST /api/v1/pipeline/submit`
-- Groq-backed `M5` extraction by default with `meta-llama/llama-4-scout-17b-16e-instruct`
-- local embeddings through `jinaai/jina-embeddings-v5-text-nano`
-- localized reviewer dashboard, candidate pool, upload, shortlist, and audit pages in `frontend/`
-- PostgreSQL-backed persistence for candidate layers, scores, explanations, reviewer actions, and audit logs
+- a video-first input flow with required `contacts.email` and `content.video_url`
+- optional ASR transcription for interview audio or video
+- privacy separation before any model-facing processing
+- structured signal extraction from safe candidate content
+- candidate scoring, confidence estimation, and ranking
+- explanation blocks with evidence and caution signals
+- role-based committee review for `admin`, `chair`, and `reviewer`
+- PostgreSQL-backed persistence for candidates, scores, explanations, committee decisions, and audit events
 - a local Docker stack for `postgres + backend + frontend`
 
-The platform remains human-in-the-loop: recommendation categories are advisory and reviewer overrides are logged.
+The system remains human-in-the-loop: AI outputs are advisory, committee recommendations are auditable, and the final decision belongs to the admissions workflow rather than to the model layer.
 
 ---
 
-## Implemented Modules
+## Runtime Stages
 
-- `M0 Demo`: demo candidate fixtures and demo-run endpoints
-- `M1 Gateway`: API routing and backend pipeline orchestration
-- `M2 Intake`: candidate intake validation and initial persistence
-- `M3 Privacy`: three-layer separation of PII, metadata, and model-safe content
-- `M4 Profile`: unified candidate profile assembly
-- `M5 NLP`: structured signal extraction from safe candidate content
-- `M6 Scoring`: program-aware scoring, ranking, confidence, and review routing
-- `M7 Explainability`: reviewer-facing summaries, factor blocks, cautions, and evidence
-- `M8 Dashboard`: reviewer-facing dashboard API with safe candidate identity projection
-- `M9 Storage`: SQLAlchemy models and repository layer
-- `M10 Audit`: reviewer overrides, reviewer actions, and audit feed APIs
-- `M13 ASR`: interview transcription and transcript quality analysis
+The current pipeline is documented as runtime stages rather than as internal `M*` package names:
+
+- `Input Intake` - validates incoming candidate payloads and creates the base candidate record
+- `ASR` - produces transcript text from candidate audio or video material when media is available
+- `Privacy` - separates PII, operational metadata, and safe model content
+- `Profile` - assembles the canonical candidate profile from safe and operational layers
+- `Extraction` - extracts structured decision signals from text and transcript evidence
+- `AI Detect` - adds supplementary authenticity and AI-assisted-writing checks
+- `Scoring` - computes the candidate score, confidence, ranking, and recommendation bands
+- `Explanation` - produces reviewer-facing summaries, factor blocks, and caution markers
+- `Review` - exposes committee workspaces, chair decisions, and audit history
+- `Storage` - persists candidates, projections, scores, explanations, and committee events
+
+Supporting layers:
+
+- `Gateway` - public API entrypoint and pipeline orchestration
+- `Demo Layer` - demo fixtures and demo execution routes
+
+Internal code packages still use `m*` names for now. The public documentation uses stage names and keeps package mapping in the module catalog.
 
 ---
 
@@ -67,7 +75,7 @@ The platform remains human-in-the-loop: recommendation categories are advisory a
 backend/
   app/
     core/                  configuration, database, security, dependencies
-    modules/               backend modules M0-M13
+    modules/               backend runtime packages
     schemas/               shared API envelopes
   tests/                   unit, integration, and evaluation tests
 docs/
@@ -84,9 +92,7 @@ scripts/
 
 ## Quick Start
 
-Create a local env file from `.env.example` and set `GROQ_API_KEY` for the active Llama-based pipeline path. The embedding model runs locally without a Jina API key.
-
-The local embedding model is downloaded from Hugging Face on first use and then reused from the local cache.
+Create a local env file from `.env.example` and set `GROQ_API_KEY` for the active Llama-based pipeline path. The embedding backend runs locally.
 
 Install backend dependencies:
 
@@ -94,7 +100,7 @@ Install backend dependencies:
 python -m pip install -r backend/requirements.txt
 ```
 
-Run the backend from the repository root:
+Run the backend:
 
 ```bash
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -115,27 +121,14 @@ cd backend
 python -m pytest tests -q
 ```
 
-Reviewer dashboard access:
-
-```bash
-curl -H "X-API-Key: $API_KEY" http://localhost:8000/api/v1/dashboard/stats
-```
-
-Reviewer routes under `dashboard/*` and `audit/*` require `X-API-Key`.
-When using the Next.js frontend, the built-in proxy under `/api/backend/*` injects the reviewer key server-side for those routes.
-
 Current UI behavior:
 
+- `/login` is the default entry route
 - `/candidates` shows the live candidate pool split into `raw` and `processed`
-- demo fixtures are launched from `/upload`, not mixed into the live candidate list
-- upload is video-first: `contacts.email` and `content.video_url` are required, `content.essay_text` is optional
-- when essay text is missing, narrative extraction can fall back to the ASR transcript
-
-Run the M6 evaluation bundle:
-
-```bash
-python backend/tests/m6_scoring/run_evaluation.py
-```
+- `/dashboard` shows processed candidate ranking and candidate detail views
+- `/upload` handles form submission, JSON submission, and demo scenario launch
+- `/admin/users` manages committee accounts and roles
+- `/audit` is available to administrators for audit review
 
 ---
 
@@ -195,8 +188,4 @@ The stack exposes:
 - `backend` on `http://localhost:8000`
 - `postgres` on `localhost:5432`
 
-`docker-compose.template.yml` remains in the repository as an older scaffold, but the active local stack is `docker-compose.yml`.
-
 ---
-
-Projet Documentation

@@ -1,225 +1,158 @@
-# Scoring and Decision Policy
-
----
-
-## Document Structure
-
-- [Purpose](#purpose)
-- [Inputs](#inputs)
-- [Sub-Scores](#sub-scores)
-- [Why These Sub-Scores Exist](#why-these-sub-scores-exist)
-- [What Program Fit Means](#what-program-fit-means)
-- [Scoring Formula](#scoring-formula)
-- [Why the Weights Matter](#why-the-weights-matter)
-- [Program-Aware Weight Profiles](#program-aware-weight-profiles)
-- [Decision Categories](#decision-categories)
-- [Human-in-the-Loop Routing](#human-in-the-loop-routing)
-- [Evaluation Workflow](#evaluation-workflow)
+# Scoring and Authenticity Advisory
 
 ---
 
 ## Purpose
 
-`M6` converts structured NLP signals into auditable decision-support output for admissions reviewers. It combines deterministic scoring, ML refinement, confidence estimation, program-aware routing, and explicit manual-review escalation.
+The `Scoring` stage converts structured extraction output into committee-facing decision support. It produces:
+
+- candidate score
+- confidence
+- recommendation status
+- manual review routing
+- caution flags
+
+The score is not a final admission decision. The final outcome belongs to the admissions committee.
 
 ---
 
 ## Inputs
 
-`M6` consumes a canonical `SignalEnvelope` that includes:
+The scoring stage consumes a canonical signal envelope that includes:
 
 - candidate id
 - selected program
-- canonical program id
 - completeness
 - data flags
-- structured signals
-
-Each signal provides:
-
-- normalized value
-- confidence
-- source list
-- evidence snippets
-- compact reasoning
+- extracted signals
+- transcript- and essay-derived evidence
+- authenticity advisory flags when available
 
 ---
 
-## Sub-Scores
+## Core dimensions
 
-The scoring policy uses the following sub-score families:
+The current score is based on eight dimensions:
 
-| Sub-score | Meaning |
+| Dimension | Meaning |
 |---|---|
-| `leadership_potential` | leadership behaviors, ownership, coordination |
-| `growth_trajectory` | resilience, learning, progress after setbacks |
-| `motivation_clarity` | clarity of goals and reason for applying |
+| `leadership_potential` | ownership, coordination, influence |
+| `growth_trajectory` | progress after setbacks, resilience |
+| `motivation_clarity` | clarity of goals and application intent |
 | `initiative_agency` | self-started action and proactivity |
-| `learning_agility` | ability to adapt and learn quickly |
-| `communication_clarity` | clarity, structure, articulation |
-| `ethical_reasoning` | fairness, decision quality, civic orientation |
-| `program_fit` | alignment between candidate trajectory and selected program |
+| `learning_agility` | speed of adaptation and learning |
+| `communication_clarity` | clarity and structure of expression |
+| `ethical_reasoning` | fairness, responsibility, judgment |
+| `program_fit` | alignment with the selected academic track |
 
 ---
 
-## Why These Sub-Scores Exist
+## Score structure
 
-The scoring design deliberately avoids a single opaque impression score. Each sub-score isolates one reviewer-relevant dimension of candidate potential:
+The scoring stage uses three layers:
 
-- `leadership_potential` captures whether the candidate already coordinates people, takes responsibility, or influences outcomes;
-- `growth_trajectory` captures whether the candidate learns from setbacks and shows upward movement rather than static achievement only;
-- `motivation_clarity` captures whether the candidate understands why they are applying and what they want to build or study;
-- `initiative_agency` captures whether the candidate acts without waiting for perfect conditions;
-- `learning_agility` captures whether the candidate can adapt, learn quickly, and absorb feedback;
-- `communication_clarity` captures whether the candidate can explain ideas clearly enough for collaborative work;
-- `ethical_reasoning` captures whether the candidate shows fairness, responsibility, and judgment;
-- `program_fit` captures whether the selected academic track matches the candidate's stated direction.
+1. Rule-based baseline
+2. ML refinement
+3. Decision policy and confidence routing
 
-These dimensions were chosen because the system is intended to identify early-stage potential, not only polished self-presentation or prior privilege.
+The main result shown in the UI is **Candidate score**.
 
----
-
-## What Program Fit Means
-
-`program_fit` does not mean social fit, personality fit, or demographic fit. In `M6`, it means one narrow and auditable thing:
-
-- how strongly the candidate's goals, interests, projects, vocabulary, and examples align with the selected program.
-
-At the configuration level, `program_fit` is currently computed from `program_alignment`, which comes from `M5`. That upstream signal is based on safe evidence such as:
-
-- transcript content;
-- essay intent;
-- project descriptions;
-- internal-test reasoning where relevant.
-
-`program_fit` matters because a strong candidate can still be weakly aligned with the specific program they selected. The system should distinguish:
-
-- high general potential;
-- high potential for this exact track.
-
-This keeps the pipeline from treating every strong applicant as equally relevant for every program.
-
----
-
-## Scoring Formula
-
-### Rule-Based Baseline
-
-`M6` first computes a deterministic baseline score from weighted sub-scores:
-
-```text
-baseline_rpi =
-  w1 * leadership_potential +
-  w2 * growth_trajectory +
-  w3 * motivation_clarity +
-  w4 * initiative_agency +
-  w5 * learning_agility +
-  w6 * communication_clarity +
-  w7 * ethical_reasoning +
-  w8 * program_fit
-```
-
-The exact weights are controlled by:
-
-- `backend/app/modules/m6_scoring/m6_scoring_config.yaml`
-
-### ML Refinement
-
-The ML layer uses `GradientBoostingRegressor` to refine the baseline.
-
-```text
-final_raw_score = blend(baseline_rpi, ml_rpi)
-```
-
-### Decision Policy
-
-The final decision layer applies:
-
-- threshold bands
-- completeness penalties where configured
-- confidence and uncertainty logic
-- manual-review routing
-- program-aware policy profiles
-
----
-
-## Why the Weights Matter
-
-The weights are the policy layer that converts multiple sub-scores into a single review-priority score. They matter because they answer a real admissions question:
-
-- which dimensions should dominate the decision when evidence is mixed?
-
-Without weights, every signal family would influence the final score equally, which would be a poor fit for this use case. The chosen weighting scheme makes the model prioritize:
-
-- leadership and growth first;
-- motivation and initiative next;
-- learning and communication after that;
-- ethics and program match as necessary balancing dimensions.
-
-The default baseline profile is:
-
-| Sub-score | Default weight | Why it matters |
-|---|---:|---|
-| `leadership_potential` | `0.20` | The system is meant to surface future changemakers, so demonstrated ownership and influence matter most. |
-| `growth_trajectory` | `0.18` | Early-stage candidates may not have polished achievements yet, so growth and resilience carry strong signal value. |
-| `motivation_clarity` | `0.15` | Strong intent and direction reduce the risk of accidental or weak-fit applications. |
-| `initiative_agency` | `0.15` | Initiative is a core marker of early potential in educational and project-based contexts. |
-| `learning_agility` | `0.12` | Ability to learn quickly matters strongly, but should not dominate over demonstrated agency and growth. |
-| `communication_clarity` | `0.10` | Clear expression matters, but the system should not over-reward polished speaking alone. |
-| `ethical_reasoning` | `0.05` | Ethical judgment is important, but should operate as a balancing dimension rather than the main driver. |
-| `program_fit` | `0.05` | Fit matters, but the system should not over-penalize a promising candidate for imperfect wording alone. |
-
-This design intentionally reduces the chance that a candidate is over-rewarded only for style, surface polish, or program-specific keyword stuffing.
-
----
-
-## Program-Aware Weight Profiles
-
-Different tracks require different emphasis, so `M6` overrides the default profile with program-aware weights.
-
-### Why these profiles exist
-
-The purpose is not to judge candidates by personality stereotypes. The purpose is to adjust scoring toward the type of evidence most relevant to each track.
-
-### Current logic by program
-
-| Program | Main emphasis | Why |
-|---|---|---|
-| `general_admissions` | leadership, growth, motivation | Neutral admissions baseline for mixed or undecided cases. |
-| `creative_engineering` | initiative, learning agility, program fit | Engineering tracks reward building, experimentation, prototyping, and problem-solving action. |
-| `digital_products_and_services` | initiative, communication, program fit | Product work needs proactive execution, user-oriented thinking, and the ability to explain product ideas. |
-| `sociology_of_innovation_and_leadership` | leadership, ethical reasoning, program fit | This track values social systems thinking, values, inclusion, and people-centered leadership. |
-| `public_governance_and_development` | ethical reasoning, communication, leadership | Governance-related tracks require judgment, public responsibility, and strong reasoning in institutional contexts. |
-| `digital_media_and_marketing` | communication, initiative, motivation | Media and marketing rely more heavily on clarity, storytelling, audience awareness, and proactive content creation. |
-
-### Important policy constraint
-
-Program-specific weighting only changes the importance of safe, explainable sub-scores. It does not introduce demographic features, family background, region, gender, or other restricted fields into scoring.
-
-### Diagram 1. M6 Scoring Flow
+### Diagram 1. Score composition
 
 ```mermaid
 flowchart LR
-    Envelope["SignalEnvelope"]
-    Rules["Rule-Based Baseline"]
-    Features["Feature Assembly"]
-    GBR["GBR Refinement"]
-    Blend["Score Blend"]
-    Policy["Decision Policy"]
-    Score["CandidateScore"]
+    Envelope["Signal envelope"]
+    Rules["Rule-based baseline"]
+    ML["ML refinement"]
+    Blend["Score blend"]
+    Policy["Decision policy"]
+    Output["Candidate score + confidence"]
 
     Envelope --> Rules
-    Envelope --> Features
-    Features --> GBR
+    Envelope --> ML
     Rules --> Blend
-    GBR --> Blend
+    ML --> Blend
     Blend --> Policy
-    Policy --> Score
+    Policy --> Output
 ```
 
 ---
 
-## Decision Categories
+## Confidence and routing
+
+Confidence is tracked separately from score.
+
+This allows the platform to:
+
+- keep a stable candidate score
+- lower confidence when evidence quality is weak
+- route degraded cases to manual review
+- show caution flags without auto-rejecting the candidate
+
+Review-routing fields include:
+
+- `manual_review_required`
+- `human_in_loop_required`
+- `uncertainty_flag`
+- `review_recommendation`
+
+---
+
+## Authenticity advisory
+
+The platform no longer frames this layer as a hard `AI detect` verdict.
+
+Instead, it uses an **Authenticity advisory** layer that contributes:
+
+- writing authenticity risk
+- cross-source inconsistency signals
+- speech authenticity risk
+- caution flags for committee review
+
+These signals:
+
+- do **not** directly lower the candidate score
+- may lower confidence
+- may trigger or reinforce manual review
+- are surfaced as advisory evidence for reviewers
+
+### Speech authenticity
+
+The audio path can raise a `speech_authenticity_risk` flag when the media appears unnaturally uniform. This is treated as a caution signal, not as an automatic proof of synthetic speech.
+
+### Diagram 2. Authenticity advisory behavior
+
+```mermaid
+flowchart LR
+    Text["Text evidence"]
+    Audio["Audio evidence"]
+    Advisory["Authenticity advisory"]
+    Confidence["Confidence"]
+    Review["Manual review routing"]
+    Score["Candidate score"]
+
+    Text --> Advisory
+    Audio --> Advisory
+    Advisory --> Confidence
+    Advisory --> Review
+    Advisory -. no direct penalty .-> Score
+```
+
+---
+
+## Program-aware weighting
+
+The score uses program-aware weight profiles so different tracks can emphasize different evidence patterns. The intent is not to encode stereotypes, but to align weighting with the academic demands of the selected track.
+
+Examples:
+
+- digital media and marketing: communication, initiative, motivation
+- creative engineering: initiative, learning agility, fit
+- public governance: ethical reasoning, communication, leadership
+
+---
+
+## Decision categories
 
 Primary recommendation categories:
 
@@ -228,62 +161,43 @@ Primary recommendation categories:
 - `WAITLIST`
 - `DECLINED`
 
-These categories are separate from manual-review routing.
+These categories are separate from:
+
+- confidence
+- manual review routing
+- the final chair decision
 
 ---
 
-## Human-in-the-Loop Routing
+## Evaluation posture
 
-Review-routing fields:
+The current system should be presented as a **decision-support and triage platform**, not as a fully validated autonomous admissions model.
 
-- `manual_review_required`
-- `human_in_loop_required`
-- `uncertainty_flag`
-- `review_recommendation`
+At this stage:
 
-This allows `M6` to express:
-
-- a stable recommendation category;
-- a separate escalation decision;
-- a separate confidence signal.
+- synthetic evaluation is used for development and stress testing
+- committee review remains the final authority
+- authenticity advisory is a caution layer, not a plagiarism verdict
+- degraded pipelines must be surfaced explicitly
 
 ---
 
-## Evaluation Workflow
+## Current implementation notes
 
-The evaluation bundle lives under:
+Scoring behavior is configured in:
 
-`backend/tests/m6_scoring/`
+- `backend/app/modules/scoring/scoring_config.yaml`
 
-It supports:
+Evaluation artifacts and tests live under:
 
-- baseline vs GBR comparison
-- balanced vs stress scenarios
-- threshold and decision-policy optimization
-- notebook review
-- CSV and JSON report export
+- `backend/tests/scoring/`
 
-### Diagram 2. Evaluation Workflow
+Recommended reporting metrics include:
 
-```mermaid
-flowchart LR
-    Fixtures["Synthetic Fixtures"]
-    Training["Training Split"]
-    Testing["Testing Split"]
-    Model["GBR Model"]
-    Eval["Evaluation Scripts"]
-    Reports["CSV / JSON Reports"]
-    Notebook["Notebook Review"]
+- average latency
+- p95 latency
+- degraded pipeline rate
+- manual review rate
+- authenticity advisory rate
+- ASR low-confidence rate
 
-    Fixtures --> Training
-    Fixtures --> Testing
-    Training --> Model
-    Testing --> Eval
-    Model --> Eval
-    Eval --> Reports
-    Reports --> Notebook
-```
-
----
-
-Projet Documentation

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -9,8 +8,12 @@ from app.main import app
 
 
 def test_http_exceptions_use_common_error_envelope() -> None:
-    with TestClient(app) as client:
-        response = client.post("/api/v1/pipeline/batch", json=[])
+    with patch(
+        "app.main.AuthService.bootstrap_admin_user",
+        new=AsyncMock(return_value=None),
+    ):
+        with TestClient(app) as client:
+            response = client.post("/api/v1/pipeline/batch", json=[])
 
     assert response.status_code == 422
     body = response.json()
@@ -22,8 +25,12 @@ def test_http_exceptions_use_common_error_envelope() -> None:
 
 
 def test_request_validation_errors_use_common_error_envelope() -> None:
-    with TestClient(app) as client:
-        response = client.post("/api/v1/candidates/intake", json={})
+    with patch(
+        "app.main.AuthService.bootstrap_admin_user",
+        new=AsyncMock(return_value=None),
+    ):
+        with TestClient(app) as client:
+            response = client.post("/api/v1/candidates/intake", json={})
 
     assert response.status_code == 422
     body = response.json()
@@ -34,10 +41,10 @@ def test_request_validation_errors_use_common_error_envelope() -> None:
     assert body["error"]["details"]["errors"]
 
 
-def test_reviewer_auth_errors_use_common_error_envelope() -> None:
+def test_authenticated_route_errors_use_common_error_envelope() -> None:
     with patch(
-        "app.core.dependencies.get_settings",
-        return_value=SimpleNamespace(api_key="test-reviewer-key"),
+        "app.main.AuthService.bootstrap_admin_user",
+        new=AsyncMock(return_value=None),
     ):
         with TestClient(app) as client:
             response = client.get("/api/v1/dashboard/stats")
@@ -46,4 +53,4 @@ def test_reviewer_auth_errors_use_common_error_envelope() -> None:
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "UNAUTHORIZED"
-    assert body["error"]["message"] == "Missing X-API-Key header"
+    assert body["error"]["message"] == "Authentication is required"

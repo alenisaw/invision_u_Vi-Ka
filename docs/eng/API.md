@@ -1,26 +1,6 @@
 # API Reference
 
----
-
-## Document Structure
-
-- [Overview](#overview)
-- [Response Envelope](#response-envelope)
-- [System Endpoints](#system-endpoints)
-- [Demo Endpoints](#demo-endpoints)
-- [Candidate Intake Endpoints](#candidate-intake-endpoints)
-- [Pipeline Endpoints](#pipeline-endpoints)
-- [Diagram 1. Full Pipeline Endpoint Flow](#diagram-1-full-pipeline-endpoint-flow)
-- [Direct Scoring Endpoints](#direct-scoring-endpoints)
-- [Reviewer Endpoints](#reviewer-endpoints)
-- [Diagram 2. Reviewer Workflow Surface](#diagram-2-reviewer-workflow-surface)
-- [Canonical Contracts](#canonical-contracts)
-
----
-
 ## Overview
-
-This document lists the endpoints implemented in the current branch. It excludes planned endpoints that do not yet exist in code.
 
 Backend base URL:
 
@@ -30,11 +10,27 @@ Frontend proxy base URL:
 
 `http://localhost:3000/api/backend/*`
 
-The Next.js proxy rewrites `/api/backend/*` to backend `/api/v1/*`. It automatically injects `X-API-Key` for `dashboard/*` and `audit/*` requests when `REVIEWER_API_KEY` is configured on the server side.
+The Next.js proxy rewrites `/api/backend/*` to backend `/api/v1/*`.
 
----
+Authentication model:
 
-## Response Envelope
+- login creates an HTTP-only session cookie
+- protected routes use backend session auth
+- role access is enforced with RBAC
+
+The public documentation uses stage names:
+
+- `Input Intake`
+- `ASR`
+- `Privacy`
+- `Profile`
+- `Extraction`
+- `AI Detect`
+- `Scoring`
+- `Explanation`
+- `Review`
+
+## Response envelope
 
 Successful response:
 
@@ -68,326 +64,185 @@ Error response:
 }
 ```
 
-The same envelope is returned for non-2xx API errors such as validation failures, auth failures, and not-found responses.
-
----
-
-## System Endpoints
+## Public endpoints
 
 ### `GET /`
 
-Returns application metadata.
+Application metadata.
 
 ### `GET /health`
 
-Returns a lightweight health response.
-
----
-
-## Demo Endpoints
+Health response.
 
 ### `GET /api/v1/demo/candidates`
 
-Lists all available demo candidate fixtures with metadata.
+List demo fixtures.
 
 ### `GET /api/v1/demo/candidates/{slug}`
 
-Returns one fixture with its full payload.
+Read one demo fixture.
 
 ### `POST /api/v1/demo/candidates/{slug}/run`
 
-Loads the fixture payload and runs it through the full synchronous pipeline.
-
-Response shape matches `POST /api/v1/pipeline/submit`.
-
----
-
-## Candidate Intake Endpoints
+Run a demo fixture through the live pipeline.
 
 ### `POST /api/v1/candidates/intake`
 
-Validates the candidate submission, creates the candidate record, stores encrypted PII and metadata, and returns a `candidate_id`.
+Validate and persist a candidate input payload.
 
-Key response fields:
-
-- `candidate_id`
-- `pipeline_status`
-- `message`
-
-Example request:
-
-```json
-{
-  "personal": {
-    "first_name": "Aida",
-    "last_name": "Example",
-    "date_of_birth": "2007-06-15",
-    "citizenship": "KZ"
-  },
-  "contacts": {
-    "email": "aida@example.com",
-    "telegram": "@aida"
-  },
-  "academic": {
-    "selected_program": "Digital Media and Marketing"
-  },
-  "content": {
-    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "essay_text": "I want to build media products that help communities."
-  },
-  "internal_test": {
-    "answers": [
-      {
-        "question_id": "q1",
-        "answer": "I would choose the fair option because responsibility matters."
-      }
-    ]
-  }
-}
-```
-
-Current intake rules:
+Current input rules:
 
 - `contacts.email` is required
-- `content.video_url` is required and must pass public video URL validation
+- `content.video_url` is required
 - `content.essay_text` is optional
-- `content.transcript_text` is optional and can replace essay text in downstream narrative extraction
-- extra unknown fields are ignored
-
----
-
-## Pipeline Endpoints
+- `content.transcript_text` is optional and can replace essay text downstream
 
 ### `POST /api/v1/pipeline/submit`
 
-Runs the implemented backend flow:
+Run the synchronous analytical pipeline:
 
-`M2 -> optional M13 -> M3 -> M4 -> M5 -> M6 -> M7`
-
-The response includes:
-
-- `candidate_id`
-- `pipeline_status`
-- `score`
-- `completeness`
-- `data_flags`
+`Input Intake -> optional ASR -> Privacy -> Profile -> Extraction -> Scoring -> Explanation`
 
 ### `POST /api/v1/pipeline/batch`
 
-Runs the same flow for a list of candidate payloads. The current batch path is processed sequentially inside the API process.
+Run the same flow for multiple payloads.
 
----
+## Auth endpoints
 
-## Diagram 1. Full Pipeline Endpoint Flow
+### `POST /api/v1/auth/login`
 
-```mermaid
-sequenceDiagram
-    actor Client
-    participant Gateway as M1 Gateway
-    participant Intake as M2
-    participant ASR as M13
-    participant Privacy as M3
-    participant Profile as M4
-    participant NLP as M5
-    participant Score as M6
-    participant Explain as M7
-
-    Client->>Gateway: POST /api/v1/pipeline/submit
-    Gateway->>Intake: validate and create candidate
-    Gateway->>ASR: optional transcription
-    Gateway->>Privacy: split into layers
-    Gateway->>Profile: build profile
-    Gateway->>NLP: extract signals
-    Gateway->>Score: compute score
-    Gateway->>Explain: build explanation
-    Gateway-->>Client: pipeline result
-```
-
----
-
-## Direct Scoring Endpoints
-
-### `POST /api/v1/pipeline/score-signals`
-
-Scores one candidate from a canonical `SignalEnvelope`.
-
-### `POST /api/v1/pipeline/score-signals/batch`
-
-Scores and ranks a batch of `SignalEnvelope` objects.
-
-### `POST /api/v1/pipeline/score-signals/train-synthetic`
-
-Trains the scoring refinement layer on synthetic data.
-
-Query parameters:
-
-- `sample_count`
-- `seed`
-
-### `POST /api/v1/pipeline/score-signals/evaluate-synthetic`
-
-Runs synthetic holdout evaluation for `M6`.
-
-Query parameters:
-
-- `train_sample_count`
-- `test_sample_count`
-- `seed`
-
----
-
-## Reviewer Endpoints
-
-All endpoints in this section require `X-API-Key`.
-
-### `GET /api/v1/dashboard/stats`
-
-Returns dashboard summary metrics:
-
-- `total_candidates`
-- `processed`
-- `shortlisted`
-- `pending_review`
-- `avg_confidence`
-- `by_status`
-
-### `GET /api/v1/dashboard/candidates`
-
-Returns ranked reviewer-facing candidate list items with safe projected names.
-
-The frontend uses these records for the processed reviewer ranking.
-
-### `GET /api/v1/dashboard/candidate-pool`
-
-Returns the live candidate pool for the `/candidates` screen, split by stage:
-
-- `raw`
-- `processed`
-
-Demo fixtures are intentionally not mixed into this endpoint.
-
-### `GET /api/v1/dashboard/candidates/{candidate_id}`
-
-Returns the full reviewer detail view:
-
-- candidate identity
-- `score`
-- `explanation`
-- `raw_content`
-- `audit_logs`
-
-### `POST /api/v1/dashboard/candidates/{candidate_id}/override`
-
-Overrides the recommendation status and writes an audit entry.
+Create a session cookie.
 
 Request body:
 
 ```json
 {
-  "reviewer_id": "committee-reviewer",
-  "new_status": "RECOMMEND",
-  "comment": "Manual adjustment after committee review"
+  "email": "reviewer@invisionu.local",
+  "password": "333333"
 }
 ```
 
-### `GET /api/v1/dashboard/shortlist`
+### `POST /api/v1/auth/logout`
 
-Returns the current shortlist derived from persisted score state.
+Invalidate the current session.
 
-### `POST /api/v1/dashboard/candidates/{candidate_id}/actions`
+### `GET /api/v1/auth/me`
 
-Creates non-override reviewer actions such as:
+Return the current authenticated user.
 
-- `comment`
-- `shortlist_add`
-- `shortlist_remove`
+## Admin endpoints
 
-### `GET /api/v1/dashboard/candidates/{candidate_id}/actions`
+All endpoints below require the `admin` role.
 
-Returns reviewer action history for one candidate.
+### `GET /api/v1/admin/users`
+
+List users.
+
+### `POST /api/v1/admin/users`
+
+Create a user.
+
+### `PATCH /api/v1/admin/users/{user_id}`
+
+Update a user role, password, name, or active flag.
 
 ### `GET /api/v1/audit/feed?limit=100`
 
-Returns the global audit feed ordered by newest first.
+Global audit feed.
 
----
+## Review workspace endpoints
 
-## Diagram 2. Reviewer Workflow Surface
+All endpoints below require a session cookie and one of these roles:
 
-```mermaid
-flowchart TD
-    Browser["Browser UI"]
-    Proxy["Next.js Proxy"]
-    Stats["Dashboard Stats"]
-    List["Candidate Ranking"]
-    Detail["Candidate Detail"]
-    Override["Override Action"]
-    Actions["Reviewer Actions"]
-    Audit["Audit Feed"]
+- `reviewer`
+- `chair`
+- `admin` for read access where stated
 
-    Browser --> Proxy
-    Proxy --> Stats
-    Proxy --> List
-    Proxy --> Detail
-    Detail --> Override
-    Detail --> Actions
-    Override --> Audit
-    Actions --> Audit
+### `GET /api/v1/dashboard/stats`
+
+Review workspace summary metrics.
+
+Roles:
+
+- `reviewer`
+- `chair`
+- `admin`
+
+### `GET /api/v1/dashboard/candidates`
+
+Processed candidate ranking list.
+
+Roles:
+
+- `reviewer`
+- `chair`
+- `admin`
+
+### `GET /api/v1/dashboard/candidate-pool`
+
+Live candidate pool split into:
+
+- `raw`
+- `processed`
+
+Roles:
+
+- `reviewer`
+- `chair`
+- `admin`
+
+### `GET /api/v1/dashboard/candidates/{candidate_id}`
+
+Candidate detail response with:
+
+- candidate identity projection
+- candidate score
+- explanation output
+- safe source content
+- committee action log
+- committee visibility state
+
+Roles:
+
+- `reviewer`
+- `chair`
+- `admin`
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/viewed`
+
+Record that the current reviewer or chair opened the candidate.
+
+Roles:
+
+- `reviewer`
+- `chair`
+
+### `POST /api/v1/dashboard/candidates/{candidate_id}/decision`
+
+Submit a committee recommendation or chair decision for the current authenticated user.
+
+Request body:
+
+```json
+{
+  "new_status": "RECOMMEND",
+  "comment": "The candidate demonstrates sustained initiative and a clear fit for the program."
+}
 ```
 
----
+Behavior:
 
-## Canonical Contracts
+- for `reviewer`, this stores a private committee recommendation tied to `user.id`
+- for `chair`, this stores the final chair decision and updates the persisted candidate status
 
-### M5 Output
+### `GET /api/v1/audit/feed`
 
-`M5` emits `SignalEnvelope` with:
+Administrative review and audit feed.
 
-- `candidate_id`
-- `signal_schema_version`
-- `m5_model_version`
-- `selected_program`
-- `program_id`
-- `completeness`
-- `data_flags`
-- `signals`
+Roles:
 
-Each signal contains:
+- `admin`
 
-- `value`
-- `confidence`
-- `source`
-- `evidence`
-- `reasoning`
+## Notes on stage naming
 
-### M6 Output
-
-`M6` emits `CandidateScore` with four primary recommendation categories:
-
-- `STRONG_RECOMMEND`
-- `RECOMMEND`
-- `WAITLIST`
-- `DECLINED`
-
-Separate review-routing fields:
-
-- `manual_review_required`
-- `human_in_loop_required`
-- `uncertainty_flag`
-- `review_recommendation`
-- `ranking_position`
-- `shortlist_eligible`
-
-### M7 Output
-
-`M7` emits reviewer-facing explanation content:
-
-- `summary`
-- `positive_factors`
-- `caution_blocks`
-- `reviewer_guidance`
-- `data_quality_notes`
-
----
-
-Projet Documentation
+Current code packages still use internal `m*` names. Public API documentation uses runtime stage names to describe the analytical flow and committee workflow more clearly.

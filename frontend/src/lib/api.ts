@@ -10,10 +10,12 @@ import type {
   FixtureDetail,
   FixtureSummary,
   PipelineResult,
+  PipelineMetrics,
   RecommendationStatus,
   ReviewerAction,
   SessionInfo,
 } from "@/types";
+import type { Locale } from "@/lib/i18n";
 
 export class ApiError extends Error {
   status: number;
@@ -79,20 +81,8 @@ export const reviewerApi = {
     api.get<CandidateListItem[]>("/api/backend/dashboard/candidates"),
   listCandidatePool: () =>
     api.get<CandidatePoolListItem[]>("/api/backend/dashboard/candidate-pool"),
-  getCandidateDetail: (candidateId: string) =>
-    api.get<CandidateDetail>(`/api/backend/dashboard/candidates/${candidateId}`),
-  overrideCandidateDecision: (
-    candidateId: string,
-    body: {
-      reviewer_id: string;
-      new_status: RecommendationStatus;
-      comment: string;
-    },
-  ) =>
-    api.post<ReviewerAction>(
-      `/api/backend/dashboard/candidates/${candidateId}/override`,
-      body,
-    ),
+  getCandidateDetail: (candidateId: string, locale: Locale) =>
+    api.get<CandidateDetail>(`/api/backend/dashboard/candidates/${candidateId}?locale=${locale}`),
   recordCandidateViewed: (candidateId: string) =>
     api.post<ReviewerAction>(`/api/backend/dashboard/candidates/${candidateId}/viewed`, {}),
   submitCommitteeDecision: (
@@ -102,7 +92,6 @@ export const reviewerApi = {
       comment: string;
     },
   ) => api.post<ReviewerAction>(`/api/backend/dashboard/candidates/${candidateId}/decision`, body),
-  listShortlist: () => api.get<CandidateListItem[]>("/api/backend/dashboard/shortlist"),
   listAuditFeed: (limit = 100) =>
     api.get<AuditFeedItem[]>(`/api/backend/audit/feed?limit=${limit}`),
 };
@@ -122,6 +111,8 @@ export const authApi = {
 
 export const adminApi = {
   listUsers: () => api.get<AdminUser[]>("/api/backend/admin/users"),
+  getPipelineMetrics: (limit = 100) =>
+    api.get<PipelineMetrics>(`/api/backend/admin/metrics/pipeline?limit=${limit}`),
   createUser: (body: {
     email: string;
     full_name: string;

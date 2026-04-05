@@ -1,0 +1,295 @@
+﻿scoring_version: "scoring-v1"
+default_blend_weight_ml: 0.20
+default_model_family: "gbr"
+default_calibration_mode: "none"
+supported_signal_schema_versions:
+  - "v1"
+default_program_id: "general_admissions"
+trusted_model_artifact_dirs:
+  - "backend/app/modules/scoring/artifacts"
+trusted_report_dirs:
+  - "backend/tests/scoring/results"
+  - "backend/app/modules/scoring/artifacts"
+
+subscore_signal_weights:
+  leadership_potential:
+    leadership_indicators: 0.6
+    team_leadership: 0.4
+  growth_trajectory:
+    growth_trajectory: 0.6
+    challenges_overcome: 0.4
+  motivation_clarity:
+    motivation_clarity: 0.6
+    goal_specificity: 0.4
+  initiative_agency:
+    agency_signals: 0.4
+    self_started_projects: 0.3
+    proactivity_examples: 0.3
+  learning_agility:
+    learning_agility: 1.0
+  communication_clarity:
+    clarity_score: 0.4
+    structure_score: 0.3
+    idea_articulation: 0.3
+  ethical_reasoning:
+    ethical_reasoning: 0.7
+    civic_orientation: 0.3
+  program_fit:
+    program_alignment: 1.0
+
+scoring_weights:
+  leadership_potential: 0.20
+  growth_trajectory: 0.18
+  motivation_clarity: 0.15
+  initiative_agency: 0.15
+  learning_agility: 0.12
+  communication_clarity: 0.10
+  ethical_reasoning: 0.05
+  program_fit: 0.05
+
+program_catalog:
+  general_admissions:
+    display_name: "General Admissions"
+    aliases:
+      - "General Admissions"
+      - "Foundation Year"
+      - "Подготовительный год"
+      - "Foundation"
+    fit_keywords:
+      - "growth"
+      - "learning"
+      - "motivation"
+      - "future"
+      - "study"
+      - "university"
+      - "development"
+      - "opportunity"
+  creative_engineering:
+    display_name: "Креативная инженерия"
+    aliases:
+      - "Креативная инженерия"
+      - "Creative Engineering"
+    fit_keywords:
+      - "engineering"
+      - "prototype"
+      - "hardware"
+      - "systems"
+      - "build"
+      - "maker"
+      - "design thinking"
+      - "problem solving"
+      - "robotics"
+      - "product"
+  digital_products_and_services:
+    display_name: "Инновационные цифровые продукты и сервисы"
+    aliases:
+      - "Инновационные цифровые продукты и сервисы"
+      - "Innovative IT Product Design and Development"
+      - "Инновационные IT продукты"
+    fit_keywords:
+      - "digital product"
+      - "product"
+      - "ux"
+      - "ui"
+      - "service"
+      - "data"
+      - "startup"
+      - "user"
+      - "platform"
+      - "analytics"
+  sociology_of_innovation_and_leadership:
+    display_name: "Социология инноваций и лидерства"
+    aliases:
+      - "Социология инноваций и лидерства"
+      - "Sociology of Innovation and Leadership"
+    fit_keywords:
+      - "community"
+      - "society"
+      - "culture"
+      - "research"
+      - "inclusion"
+      - "social"
+      - "leadership"
+      - "values"
+      - "adaptation"
+      - "people"
+  public_governance_and_development:
+    display_name: "Стратегии государственного управления и развития"
+    aliases:
+      - "Стратегии государственного управления и развития"
+      - "Legislative Reforms"
+      - "Public Governance and Development"
+    fit_keywords:
+      - "policy"
+      - "government"
+      - "city"
+      - "region"
+      - "public"
+      - "economy"
+      - "strategy"
+      - "governance"
+      - "development"
+      - "data analysis"
+  digital_media_and_marketing:
+    display_name: "Цифровые медиа и маркетинг"
+    aliases:
+      - "Цифровые медиа и маркетинг"
+      - "Искусство + медиа"
+      - "Digital Media and Marketing"
+    fit_keywords:
+      - "media"
+      - "marketing"
+      - "storytelling"
+      - "journalism"
+      - "video"
+      - "podcast"
+      - "pr"
+      - "communication"
+      - "audience"
+      - "content"
+
+program_weight_profiles:
+  general_admissions:
+    leadership_potential: 0.20
+    growth_trajectory: 0.18
+    motivation_clarity: 0.15
+    initiative_agency: 0.15
+    learning_agility: 0.12
+    communication_clarity: 0.10
+    ethical_reasoning: 0.05
+    program_fit: 0.05
+  creative_engineering:
+    leadership_potential: 0.18
+    growth_trajectory: 0.16
+    motivation_clarity: 0.12
+    initiative_agency: 0.18
+    learning_agility: 0.14
+    communication_clarity: 0.08
+    ethical_reasoning: 0.04
+    program_fit: 0.10
+  digital_products_and_services:
+    leadership_potential: 0.16
+    growth_trajectory: 0.14
+    motivation_clarity: 0.14
+    initiative_agency: 0.18
+    learning_agility: 0.12
+    communication_clarity: 0.12
+    ethical_reasoning: 0.04
+    program_fit: 0.10
+  sociology_of_innovation_and_leadership:
+    leadership_potential: 0.18
+    growth_trajectory: 0.14
+    motivation_clarity: 0.13
+    initiative_agency: 0.10
+    learning_agility: 0.12
+    communication_clarity: 0.11
+    ethical_reasoning: 0.12
+    program_fit: 0.10
+  public_governance_and_development:
+    leadership_potential: 0.17
+    growth_trajectory: 0.13
+    motivation_clarity: 0.13
+    initiative_agency: 0.10
+    learning_agility: 0.11
+    communication_clarity: 0.12
+    ethical_reasoning: 0.14
+    program_fit: 0.10
+  digital_media_and_marketing:
+    leadership_potential: 0.12
+    growth_trajectory: 0.14
+    motivation_clarity: 0.14
+    initiative_agency: 0.15
+    learning_agility: 0.10
+    communication_clarity: 0.18
+    ethical_reasoning: 0.07
+    program_fit: 0.10
+
+status_order:
+  - STRONG_RECOMMEND
+  - RECOMMEND
+  - WAITLIST
+  - DECLINED
+
+status_thresholds:
+  strong_recommend_min: 0.78
+  recommend_min: 0.65
+  waitlist_min: 0.44
+  declined_completeness_max: 0.50
+
+confidence_band_thresholds:
+  high_min: 0.78
+  medium_min: 0.60
+
+uncertainty_policy:
+  hard_flags:
+    - requires_human_review
+    - no_speech_detected
+  declined_manual_review_score_min: 0.30
+  low_confidence_max: 0.43
+  low_signal_confidence_max: 0.53
+  low_coverage_max: 0.35
+  low_quality_completeness_max: 0.40
+  disagreement_max: 0.30
+  soft_caution_min: 4
+  narrow_margin_max: 0.008
+  instability_radius_base: 0.012
+  instability_confidence_weight: 0.055
+  instability_disagreement_weight: 0.060
+  instability_low_quality_weight: 0.040
+  manual_review_trigger_count: 3
+  uncertainty_flag_trigger_count: 3
+
+confidence_rules:
+  mean_signal_confidence_risk_min: 0.58
+  signal_coverage_risk_min: 0.58
+  completeness_risk_min: 0.42
+  hard_uncertainty_completeness_max: 0.35
+  model_disagreement_risk_min: 0.20
+  soft_caution_risk_min: 2
+  weak_score_strength_max: 0.34
+  weak_score_coverage_max: 0.68
+  manual_review_risk_score_min: 3
+  high_confidence_bonus_coverage_min: 0.85
+  high_confidence_bonus_signal_confidence_min: 0.80
+  high_confidence_bonus_value: 0.05
+  soft_caution_penalty_step: 0.02
+  soft_caution_penalty_max: 0.06
+
+confidence_weights:
+  mean_signal_confidence: 0.38
+  signal_coverage: 0.24
+  completeness: 0.18
+  agreement: 0.10
+  score_strength: 0.10
+
+shortlist_eligible_statuses:
+  - STRONG_RECOMMEND
+  - RECOMMEND
+
+modifier_signal_names:
+  - authenticity_risk
+  - essay_transcript_consistency
+  - claims_evidence_match
+  - ai_writing_risk
+  - voice_consistency
+  - specificity_score
+
+critical_data_flags:
+  - requires_human_review
+  - low_asr_confidence
+  - unclear_segments_high
+  - no_speech_detected
+
+soft_caution_flags:
+  - authenticity_or_ai_risk
+  - speech_authenticity_risk
+  - low_cross_source_consistency
+  - weak_claim_support
+  - voice_inconsistency
+  - generic_evidence
+
+status_summary_templates:
+  STRONG_RECOMMEND: "High-priority candidate with strong evidence and stable signals."
+  RECOMMEND: "Positive candidate with enough evidence to move forward."
+  WAITLIST: "Borderline candidate worth keeping in reserve for review."
+  DECLINED: "Current signal quality or fit is not strong enough to move forward."

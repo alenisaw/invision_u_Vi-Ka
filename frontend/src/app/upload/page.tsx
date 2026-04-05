@@ -233,25 +233,9 @@ export default function UploadPage() {
       <Header />
       <main className="p-6 lg:p-8 pb-20">
         <div className="container-app max-w-6xl">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
-              <div className="max-w-[56rem]">
-                <div className="eyebrow mb-3">{t("nav.upload")}</div>
-                <h1 className="text-[clamp(2.2rem,1.9rem+2vw,3.8rem)] font-[900] tracking-[-0.05em] mb-3">
-                  {t("upload.title")}
-                </h1>
-                <p className="text-[1rem] text-muted leading-relaxed max-w-[72ch]">
-                  {t("upload.description")}
-                </p>
-              </div>
-              <div className="max-w-[24rem]">
-                <div className="text-[0.74rem] font-[800] uppercase tracking-[0.14em] text-muted mb-2">
-                  {t("upload.videoLead")}
-                </div>
-                <p className="text-[0.9rem] leading-relaxed text-muted-strong">
-                  {t("upload.videoHint")}
-                </p>
-              </div>
-            </div>
+            <h1 className="mb-8 text-[clamp(2.2rem,1.9rem+2vw,3.8rem)] font-[900] tracking-[-0.05em]">
+              {t("upload.title")}
+            </h1>
 
             <div className="flex gap-2 mb-6 flex-wrap">
               {(["form", "json", "demo"] as const).map((currentTab) => (
@@ -499,12 +483,7 @@ export default function UploadPage() {
 
             {tab === "demo" && (
               <section className="card p-6 lg:p-7">
-                <div className="flex flex-col gap-2 mb-6">
-                  <div className="eyebrow">{t("nav.demo")}</div>
-                  <p className="text-[0.98rem] text-muted max-w-[70ch]">
-                    {t("upload.demo.description")}
-                  </p>
-                </div>
+                <div className="mb-6 text-[1rem] font-[800]">{t("upload.tab.demo")}</div>
 
                 {fixturesLoading ? (
                   <div className="text-muted font-[700]">{t("common.loading")}</div>
@@ -664,7 +643,7 @@ function DemoGroup({
 }) {
   return (
     <div>
-      <div className="eyebrow mb-4">{title}</div>
+      <div className="mb-4 text-[0.95rem] font-[800]">{title}</div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         {fixtures.map((fixture) => (
           <DemoCard

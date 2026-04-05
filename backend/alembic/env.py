@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from logging.config import fileConfig
 from pathlib import Path
@@ -15,7 +15,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app.core.config import get_settings
 from app.core.database import Base
-from app.modules.m9_storage import models  # noqa: F401
+from app.modules.storage import models  # noqa: F401
 
 
 config = context.config

@@ -73,7 +73,7 @@ function ComparePageInner() {
         );
 
         try {
-          const result = await reviewerApi.getCandidateDetail(states[i].id);
+          const result = await reviewerApi.getCandidateDetail(states[i].id, locale);
           setStates((prev) =>
             prev.map((s, j) =>
               j === i ? { ...s, status: "done", result } : s,
@@ -92,7 +92,7 @@ function ComparePageInner() {
     }
 
     loadAll();
-  }, [states.length]);
+  }, [states.length, locale]);
 
   const allDone = states.length > 0 && states.every((s) => s.status === "done");
   const completedResults = states.filter((s) => s.result).map((s) => s.result!);

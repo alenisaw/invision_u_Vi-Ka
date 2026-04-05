@@ -33,7 +33,7 @@ export function buildCandidatePayload(prefix: string): TestCandidateFixture {
         language_score: 6.5,
       },
       content: {
-        video_url: `https://example.com/interview/${uniqueKey}`,
+        video_url: `https://youtu.be/dQw4w9WgXcQ?candidate=${uniqueKey}`,
         essay_text:
           "I led a student design club, organized project teams, learned from setbacks, and want to build digital products that improve access to education.",
       },
@@ -57,7 +57,7 @@ export async function submitCandidate(
   return body.data as PipelineResult;
 }
 
-export function chooseShortlistOverrideStatus(
+export function chooseCommitteeStatus(
   currentStatus: RecommendationStatus,
 ): RecommendationStatus {
   if (currentStatus === "STRONG_RECOMMEND") {

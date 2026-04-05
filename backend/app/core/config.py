@@ -14,8 +14,8 @@ class Settings(BaseSettings):
 
     app_name: str = "inVision U Candidate Selection System"
     app_description: str = (
-        "Backend API for candidate intake, scoring pipeline, "
-        "and reviewer dashboard."
+        "Backend API for candidate intake, analytical scoring, "
+        "and committee review workflows."
     )
     app_version: str = "1.0.0"
     app_env: str = "development"
@@ -26,7 +26,6 @@ class Settings(BaseSettings):
     backend_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
     api_v1_prefix: str = "/api/v1"
-    api_key: str | None = None
     session_cookie_name: str = "invisionu_session"
     session_ttl_hours: int = 168
     session_secret: str = "change-me-auth-session-secret"

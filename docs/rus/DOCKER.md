@@ -1,59 +1,26 @@
 # Docker Guide
 
----
+## Актуальный стек
 
-## Структура документа
-
-- [Назначение](#назначение)
-- [Docker-артефакты репозитория](#docker-артефакты-репозитория)
-- [Основной стек репозитория](#основной-стек-репозитория)
-- [Диаграмма 1. Топология контейнеров](#диаграмма-1-топология-контейнеров)
-- [Контейнер для M6](#контейнер-для-m6)
-
----
-
-## Назначение
-
-Этот документ описывает Docker-артефакты, которые реально присутствуют в текущей ветке репозитория, и то, как они используются.
-
----
-
-## Docker-артефакты репозитория
-
-| Файл | Назначение |
-|---|---|
-| `backend/Dockerfile` | образ backend-приложения |
-| `frontend/Dockerfile` | production-образ Next.js frontend |
-| `docker-compose.yml` | основной локальный стек `postgres + backend + frontend` |
-| `docker-compose.template.yml` | более старый scaffold с placeholder-сервисами |
-| `docker-compose.m6.yml` | отдельный compose для evaluation и notebook workflow модуля `M6` |
-| `scripts/stack.sh` | обертка над compose-командами (`up`, `down`, `reset`, `logs`) |
-
----
-
-## Основной стек репозитория
-
-Основной рабочий стек в текущем репозитории:
+Основной локальный стек описан в:
 
 - `docker-compose.yml`
 
-Он поднимает:
+Сервисы:
 
 - `postgres`
 - `backend`
 - `frontend`
 
-Текущее поведение:
+## Текущее поведение
 
-- `backend` на старте прогоняет Alembic migration и затем запускает `uvicorn`
-- `backend` получает model-конфигурацию через env: `M5_LLM_MODEL`, `M13_ASR_MODEL`, `EMBEDDING_MODEL`, `EMBEDDING_DEVICE`
-- `frontend` получает `BACKEND_URL` и `REVIEWER_API_KEY` через env-переменные
-- reviewer-экраны работают через Next.js proxy, который серверно добавляет `X-API-Key`
-- для основного LLM + ASR path достаточно `GROQ_API_KEY`; локальные embeddings не требуют Jina API key
-- локальная embedding-модель скачивается с Hugging Face при первом использовании и затем переиспользуется из локального cache
-- стек предназначен для локальной интеграции, демо и smoke-проверок
+- `backend` на старте прогоняет Alembic migrations и затем запускает `uvicorn`
+- `frontend` получает `BACKEND_URL`
+- frontend-аутентификация использует session cookie через backend proxy
+- доступ по ролям ограничивается на backend через RBAC
+- основной внешний секрет для стандартного аналитического пути: `GROQ_API_KEY`
 
-Типовые команды:
+## Команды
 
 ```bash
 ./scripts/stack.sh up
@@ -62,37 +29,28 @@
 ./scripts/stack.sh logs
 ```
 
-`docker-compose.template.yml` остается в репозитории как старый шаблон, но основным стеком сейчас не является.
-
----
-
-## Диаграмма 1. Топология контейнеров
+## Топология сервисов
 
 ```mermaid
 flowchart LR
-    Frontend["frontend"]
-    Backend["backend"]
-    DB["postgres"]
+    subgraph ClientLayer["Клиентский слой"]
+        Browser["Browser"]
+        Frontend["frontend"]
+    end
 
+    subgraph ApiLayer["API слой"]
+        Backend["backend"]
+    end
+
+    subgraph DataLayer["Слой данных"]
+        DB["postgres"]
+    end
+
+    Browser --> Frontend
     Frontend --> Backend
     Backend --> DB
+
+    style ClientLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style ApiLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
+    style DataLayer fill:transparent,stroke:#7d7d7d,stroke-dasharray: 5 5
 ```
-
----
-
-## Контейнер для M6
-
-Для `M6` по-прежнему есть отдельный контейнерный workflow:
-
-- `backend/app/modules/m6_scoring/Dockerfile.m6`
-- `docker-compose.m6.yml`
-
-Он используется для:
-
-- synthetic evaluation
-- локального notebook-доступа на порту `8888`
-- изолированных scoring-экспериментов без запуска полного frontend-стека
-
----
-
-Projet Documentation

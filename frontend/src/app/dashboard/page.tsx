@@ -3,18 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LayoutGrid, List } from "lucide-react";
 import Header from "@/components/layout/Header";
-import { useLocale } from "@/components/providers/LocaleProvider";
 import FilterPanel from "@/components/dashboard/FilterPanel";
 import RankingTable from "@/components/dashboard/RankingTable";
 import StatusBadge from "@/components/dashboard/StatusBadge";
+import { useLocale } from "@/components/providers/LocaleProvider";
 import { reviewerApi } from "@/lib/api";
+import { formatDate, formatPercent, localizeLabels, getStatusLabel } from "@/lib/i18n";
 import {
-  formatDate,
-  formatPercent,
-  localizeLabels,
-  getStatusLabel,
-} from "@/lib/i18n";
+  derivePipelineDisplayStatus,
+  getAuthenticityAdvisoryBadge,
+  getAuthenticityAdvisoryLabel,
+  getPipelineStatusBadge,
+  getPipelineStatusLabel,
+} from "@/lib/pipeline-ui";
 import type { CandidateListItem, DashboardStats, RecommendationStatus } from "@/types";
 
 export default function DashboardPage() {
@@ -24,7 +27,6 @@ export default function DashboardPage() {
   const [candidates, setCandidates] = useState<CandidateListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [filter, setFilter] = useState<RecommendationStatus | "ALL">("ALL");
   const [sort, setSort] = useState("rpi_desc");
   const [search, setSearch] = useState("");
@@ -45,7 +47,6 @@ export default function DashboardPage() {
   async function loadDashboard() {
     setLoading(true);
     setError("");
-
     try {
       const [nextStats, nextCandidates] = await Promise.all([
         reviewerApi.getDashboardStats(),
@@ -108,37 +109,43 @@ export default function DashboardPage() {
   return (
     <>
       <Header />
-      <main className="min-w-0 p-6 lg:p-10 pb-24">
-        <div className="container-app">
-            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] mb-2 tracking-tighter">
+      <main className="min-w-0 px-5 py-6 lg:px-8 lg:py-8 pb-24">
+        <div className="container-app page-shell">
+          <div className="page-stack">
+            <h1 className="text-[clamp(2.2rem,2rem+2vw,3.5rem)] font-[800] tracking-tighter">
               {t("dashboard.title")}
             </h1>
-            <p className="text-[1rem] mb-10 text-muted">
-              {t("dashboard.description")}
-            </p>
 
-            {loading && (
+            {loading ? (
               <div className="card p-12 text-center">
                 <p className="text-[1rem] font-[600] text-muted">{t("dashboard.loading")}</p>
               </div>
-            )}
+            ) : null}
 
-            {error && (
-              <div className="card p-5 mb-8 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
-                <div className="text-[0.95rem] font-[700] text-[var(--brand-coral)]">
-                  {error}
-                </div>
+            {error ? (
+              <div className="card p-5 border border-[var(--brand-coral)]/25 bg-[var(--brand-coral)]/8">
+                <div className="text-[0.95rem] font-[700] text-[var(--brand-coral)]">{error}</div>
               </div>
-            )}
+            ) : null}
 
-            {stats && !loading && (
+            {stats && !loading ? (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-10">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                   {(Object.entries(stats.by_status) as [RecommendationStatus, number][]).map(
-                    ([status, count]) => (
+                    ([status, count], index) => (
                       <div
                         key={status}
                         className="rounded-[1.2rem] px-6 py-6 text-center flex flex-col justify-center min-h-[120px] bg-[var(--surface-subtle)]"
+                        style={{
+                          background:
+                            index === 0
+                              ? "linear-gradient(180deg, rgba(193, 241, 29, 0.22), var(--surface-subtle))"
+                              : index === 1
+                                ? "linear-gradient(180deg, rgba(61, 237, 241, 0.2), var(--surface-subtle))"
+                                : index === 2
+                                  ? "linear-gradient(180deg, rgba(255, 154, 121, 0.16), var(--surface-subtle))"
+                                  : "linear-gradient(180deg, rgba(255,255,255,0.02), var(--surface-subtle))",
+                        }}
                       >
                         <div className="text-[0.75rem] font-[700] uppercase tracking-[0.12em] mb-2 text-muted">
                           {getStatusLabel(status, locale)}
@@ -157,12 +164,12 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                   <FilterPanel activeFilter={filter} onFilterChange={setFilter} />
                   <select
                     value={sort}
                     onChange={(event) => setSort(event.target.value)}
-                    className="chip py-3 px-6 pr-12 font-[700] w-full lg:w-[350px]"
+                    className="chip py-3 px-6 pr-12 font-[700] w-full lg:w-[320px]"
                   >
                     {sortOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -172,7 +179,7 @@ export default function DashboardPage() {
                   </select>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <input
                     type="text"
                     placeholder={t("dashboard.searchPlaceholder")}
@@ -189,7 +196,10 @@ export default function DashboardPage() {
                           : "text-muted"
                       }`}
                     >
-                      {t("common.table")}
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <List className="h-4 w-4" />
+                        {locale === "ru" ? "Список" : "List"}
+                      </span>
                     </button>
                     <button
                       onClick={() => setViewMode("grid")}
@@ -199,7 +209,10 @@ export default function DashboardPage() {
                           : "text-muted"
                       }`}
                     >
-                      {t("dashboard.cards")}
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <LayoutGrid className="h-4 w-4" />
+                        {t("common.grid")}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -211,6 +224,12 @@ export default function DashboardPage() {
                       selected={selected}
                       onToggleSelect={handleToggleSelect}
                     />
+                  ) : filtered.length === 0 ? (
+                    <div className="card p-12 text-center">
+                      <p className="text-[1rem] font-[600] text-muted">
+                        {t("dashboard.emptyFiltered")}
+                      </p>
+                    </div>
                   ) : (
                     <CandidateGrid
                       candidates={filtered}
@@ -220,11 +239,12 @@ export default function DashboardPage() {
                   )}
                 </div>
               </>
-            )}
+            ) : null}
+          </div>
         </div>
       </main>
 
-      {selected.size >= 2 && (
+      {selected.size >= 2 ? (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-8 px-6 py-5 bg-[#111213] border-t border-[var(--brand-line)] backdrop-blur-xl">
           <span className="text-[1rem] font-[800] text-[var(--brand-ink)]">
             {t("dashboard.selectedCount", { count: selected.size })}
@@ -246,7 +266,7 @@ export default function DashboardPage() {
             {t("dashboard.reset")}
           </button>
         </div>
-      )}
+      ) : null}
     </>
   );
 }
@@ -264,59 +284,72 @@ function CandidateGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      {candidates.map((candidate) => (
-        <div
-          key={candidate.candidate_id}
-          className="card p-6 flex flex-col transition-all duration-300 relative"
-          style={{
-            outline: selected.has(candidate.candidate_id) ? "3px solid var(--brand-blue)" : "none",
-            outlineOffset: "-3px",
-          }}
-        >
-          <div className="flex justify-between items-start mb-4 gap-4">
-            <div className="flex-1">
-              <span className="text-[0.8rem] font-[900] text-muted font-numbers opacity-50">
-                #{candidate.ranking_position}
-              </span>
-              <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight mt-1">
-                <Link href={`/dashboard/${candidate.candidate_id}`} className="hover:underline">
-                  {candidate.name}
-                </Link>
-              </h3>
+      {candidates.map((candidate) => {
+        const qualityStatus = derivePipelineDisplayStatus(candidate.caution_flags);
+
+        return (
+          <div
+            key={candidate.candidate_id}
+            className="card p-7 flex flex-col transition-all duration-300 relative min-h-[27rem]"
+            style={{
+              outline: selected.has(candidate.candidate_id) ? "3px solid var(--brand-blue)" : "none",
+              outlineOffset: "-3px",
+            }}
+          >
+            <div className="flex justify-between items-start mb-5 gap-4">
+              <div className="flex-1">
+                <span className="text-[0.8rem] font-[900] text-muted font-numbers opacity-50">
+                  #{candidate.ranking_position}
+                </span>
+                <h3 className="text-[1.15rem] font-[900] leading-tight tracking-tight mt-1">
+                  <Link href={`/dashboard/${candidate.candidate_id}`} className="hover:underline">
+                    {candidate.name}
+                  </Link>
+                </h3>
+              </div>
+              <input
+                type="checkbox"
+                checked={selected.has(candidate.candidate_id)}
+                onChange={() => onToggleSelect(candidate.candidate_id)}
+                className="accent-[var(--brand-blue)] w-5 h-5 cursor-pointer mt-1"
+              />
             </div>
-            <input
-              type="checkbox"
-              checked={selected.has(candidate.candidate_id)}
-              onChange={() => onToggleSelect(candidate.candidate_id)}
-              className="accent-[var(--brand-blue)] w-5 h-5 cursor-pointer mt-1"
-            />
-          </div>
 
-          <p className="text-[0.9rem] text-muted line-clamp-2 mb-6 h-[2.8rem] leading-relaxed">
-            {candidate.selected_program}
-          </p>
+            <p className="text-[0.95rem] text-muted line-clamp-2 mb-7 min-h-[3rem] leading-relaxed">
+              {candidate.selected_program}
+            </p>
 
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <MetricCard label={t("dashboard.rpiScore")} value={formatPercent(candidate.review_priority_index)} />
-            <MetricCard label={t("common.confidence")} value={formatPercent(candidate.confidence)} />
-          </div>
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <MetricCard label={locale === "ru" ? "Оценка кандидата" : "Candidate score"} value={formatPercent(candidate.review_priority_index)} />
+              <MetricCard label={t("common.confidence")} value={formatPercent(candidate.confidence)} />
+            </div>
 
-          <div className="flex flex-wrap gap-2 mb-6 min-h-[2.5rem]">
-            {localizeLabels(candidate.top_strengths.slice(0, 3), locale).map((strength) => (
-              <span key={`${candidate.candidate_id}-${strength}`} className="badge badge--neutral">
-                {strength}
+            <div className="mb-5 flex flex-wrap gap-2">
+              <span className={`badge ${getPipelineStatusBadge(qualityStatus)}`}>
+                {getPipelineStatusLabel(qualityStatus, locale)}
               </span>
-            ))}
-          </div>
+              <span className={`badge ${getAuthenticityAdvisoryBadge(candidate.caution_flags)}`}>
+                {getAuthenticityAdvisoryLabel(candidate.caution_flags, locale)}
+              </span>
+            </div>
 
-          <div className="mt-auto pt-5 flex items-center justify-between border-t border-[var(--brand-line)]">
-            <StatusBadge status={candidate.recommendation_status} />
-            <span className="text-[0.8rem] font-[700] text-muted font-numbers">
-              {formatDate(candidate.created_at, locale)}
-            </span>
+            <div className="flex flex-wrap content-start gap-2 mb-7 min-h-[4.25rem]">
+              {localizeLabels(candidate.top_strengths.slice(0, 3), locale).map((strength) => (
+                <span key={`${candidate.candidate_id}-${strength}`} className="badge badge--neutral">
+                  {strength}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-auto pt-5 flex items-center justify-between border-t border-[var(--brand-line)] gap-4">
+              <StatusBadge status={candidate.recommendation_status} />
+              <span className="text-[0.8rem] font-[700] text-muted font-numbers">
+                {formatDate(candidate.created_at, locale)}
+              </span>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

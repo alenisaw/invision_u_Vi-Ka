@@ -11,7 +11,7 @@ import UserMenu from "./UserMenu";
 
 export default function Header() {
   const pathname = usePathname();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const { user } = useAuth();
 
   const navLinks = [
@@ -19,6 +19,9 @@ export default function Header() {
     { href: "/dashboard", label: t("nav.dashboard") },
     { href: "/upload", label: t("nav.upload") },
     ...(user?.role === "admin" ? [{ href: "/admin/users", label: t("nav.users") }] : []),
+    ...(user?.role === "admin"
+      ? [{ href: "/admin/metrics", label: locale === "ru" ? "Метрики" : "Metrics" }]
+      : []),
     ...(user?.role === "admin" ? [{ href: "/audit", label: t("nav.audit") }] : []),
   ];
 
@@ -42,17 +45,21 @@ export default function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="relative text-[0.94rem] font-[700] transition-colors"
+              className={`group relative text-[0.94rem] font-[700] transition-colors duration-200 ${
+                isActive ? "" : "hover:text-[var(--brand-ink)]"
+              }`}
               style={{
                 color: isActive ? "var(--brand-ink)" : "var(--brand-muted-strong)",
               }}
             >
               {link.label}
               <span
-                className="absolute -bottom-1 left-0 w-full h-[2px] transition-transform duration-[350ms] ease-in-out origin-left"
+                className={`absolute -bottom-1 left-0 h-[2px] transition-all duration-[350ms] ease-in-out origin-left ${
+                  isActive ? "scale-x-100 opacity-100" : "scale-x-[0.32] opacity-30 group-hover:scale-x-100 group-hover:opacity-100"
+                }`}
                 style={{
                   background: "var(--brand-lime)",
-                  transform: isActive ? "scaleX(1)" : "scaleX(0)",
+                  width: "100%",
                 }}
               />
             </Link>

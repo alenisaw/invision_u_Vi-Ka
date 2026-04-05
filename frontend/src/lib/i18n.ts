@@ -177,13 +177,6 @@ const translations: Record<Locale, TranslationDictionary> = {
     "dashboard.compare.parameter": "Параметр",
     "dashboard.compare.aiConfidence": "Уверенность ИИ",
     "dashboard.compare.openCard": "Открыть карту #{index}",
-    "shortlist.title": "Шорт-лист",
-    "shortlist.count": "Кандидатов в шорт-листе: {count}",
-    "shortlist.export": "Экспорт CSV",
-    "shortlist.loading": "Загружаем шорт-лист...",
-    "shortlist.loadError": "Не удалось загрузить шорт-лист.",
-    "shortlist.empty": "В шорт-листе пока нет кандидатов",
-    "shortlist.rank": "Ранг #{value}",
     "audit.title": "Журнал действий",
     "audit.description": "Все действия рецензентов и системные события зафиксированы для прозрачности",
     "audit.loading": "Загружаем журнал действий...",
@@ -194,6 +187,82 @@ const translations: Record<Locale, TranslationDictionary> = {
     "audit.action": "Действие",
     "audit.statusChange": "Смена статуса",
     "audit.comment": "Комментарий",
+    "audit.actionViewed": "Просмотрено",
+    "audit.actionRecommendation": "Рекомендация члена комиссии",
+    "audit.actionChairDecision": "Решение председателя комиссии",
+    "login.eyebrow": "Информационная система приемной комиссии",
+    "login.title": "Вход в invisionU",
+    "login.description":
+      "Платформа предназначена для приема анкет, обработки видеоматериалов, формирования аналитической оценки кандидатов и сопровождения решений приемной комиссии.",
+    "login.email": "Email",
+    "login.password": "Пароль",
+    "login.submit": "Войти",
+    "login.error": "Не удалось выполнить вход.",
+    "login.quickTitle": "Демонстрационные учетные записи",
+    "login.quickDescription":
+      "Ниже доступны предзаполненные демонстрационные учетные записи с различными уровнями доступа.",
+    "login.accessEyebrow": "Авторизация",
+    "userMenu.login": "Войти",
+    "userMenu.logout": "Выйти из аккаунта",
+    "adminUsers.title": "Пользователи и доступ",
+    "adminUsers.description":
+      "Управление закрытым контуром комиссии: роли, доступы и быстрые demo-учетки.",
+    "adminUsers.createTitle": "Создать аккаунт",
+    "adminUsers.createDescription":
+      "Администратор вручную выдает доступ. Публичной регистрации нет.",
+    "adminUsers.listTitle": "Текущие аккаунты",
+    "adminUsers.listDescription":
+      "Изменяйте роль, активность и пароль прямо на карточке пользователя.",
+    "adminUsers.email": "Email",
+    "adminUsers.fullName": "Имя",
+    "adminUsers.password": "Пароль",
+    "adminUsers.active": "Активен",
+    "adminUsers.createdAt": "Создан",
+    "adminUsers.lastLogin": "Последний вход",
+    "adminUsers.save": "Сохранить",
+    "adminUsers.create": "Создать",
+    "adminUsers.loading": "Загружаю пользователей...",
+    "adminUsers.loadError": "Не удалось загрузить пользователей.",
+    "adminUsers.createError": "Не удалось создать пользователя.",
+    "adminUsers.updateError": "Не удалось обновить данные пользователя.",
+    "adminUsers.empty": "Пока нет пользователей",
+    "adminUsers.noLogin": "Еще не входил",
+    "adminUsers.accessPack": "Стартовый набор доступа",
+    "adminUsers.accessPackDescription":
+      "Эти аккаунты поднимаются автоматически и подходят для проверки ролей.",
+    "adminUsers.accounts": "аккаунтов",
+    "adminUsers.activeCount": "активных",
+    "adminUsers.role": "Роль",
+    "committee.reviewerTitle": "Рекомендация члена комиссии",
+    "committee.reviewerDescription":
+      "Укажите рекомендацию по кандидату и коротко обоснуйте принятое решение. Ваше заключение увидит председатель комиссии.",
+    "committee.chairTitle": "Решение председателя комиссии",
+    "committee.chairDescription":
+      "Ниже показаны статусы по каждому члену комиссии. Председатель комиссии принимает итоговое решение по кандидату на основании рекомендаций и материалов профиля.",
+    "committee.adminTitle": "Сводка по комиссии",
+    "committee.adminDescription":
+      "Просмотр статусов членов комиссии и итогового решения без права утверждения.",
+    "committee.recommendation": "Рекомендация",
+    "committee.rationale": "Обоснование рекомендации",
+    "committee.rationalePlaceholder":
+      "Опишите причины рекомендации в официальной форме: сильные стороны, риски и вывод комиссии.",
+    "committee.submitReviewer": "Сохранить рекомендацию",
+    "committee.submitChair": "Утвердить итоговое решение",
+    "committee.saving": "Сохранение...",
+    "committee.successReviewer": "Рекомендация члена комиссии сохранена.",
+    "committee.successChair": "Итоговое решение председателя комиссии сохранено.",
+    "committee.error": "Не удалось сохранить решение комиссии.",
+    "committee.title": "Статусы членов комиссии",
+    "committee.member": "Член комиссии",
+    "committee.status": "Статус ознакомления",
+    "committee.recommendationLabel": "Рекомендация",
+    "committee.reason": "Обоснование",
+    "committee.activity": "Последняя активность",
+    "committee.viewed": "Просмотрел",
+    "committee.notViewed": "Не просмотрел",
+    "committee.recommendationPending": "Рекомендация не предоставлена",
+    "committee.noComment": "Обоснование пока не указано",
+    "committee.noActivity": "Активность отсутствует",
     "candidateDetail.loadErrorCard": "Не удалось загрузить карточку кандидата.",
     "candidateDetail.loadingTitle": "Загружаю профиль кандидата",
     "candidateDetail.loadingDescription": "Подтягиваю score, explainability и reviewer-данные.",
@@ -208,16 +277,6 @@ const translations: Record<Locale, TranslationDictionary> = {
     "candidateDetail.transcript": "Транскрипция видео",
     "candidateDetail.history": "История решений",
     "candidateDetail.unknownComment": "Комментарий не указан",
-    "override.title": "Переопределение решения",
-    "override.description": "Измените рекомендацию ИИ для кандидата {id}",
-    "override.reviewerId": "ID проверяющего",
-    "override.newStatus": "Новый статус",
-    "override.comment": "Комментарий комиссии",
-    "override.commentPlaceholder": "Укажите причину изменения решения...",
-    "override.success": "Изменение сохранено в журнале и применено к кандидату.",
-    "override.error": "Не удалось применить изменение решения.",
-    "override.saving": "Сохраняем...",
-    "override.submit": "Применить решение",
     "explanation.title": "Выводы от ИИ",
     "explanation.positive": "Положительные качества",
     "explanation.cautions": "Зоны внимания",
@@ -402,13 +461,6 @@ const translations: Record<Locale, TranslationDictionary> = {
     "dashboard.compare.parameter": "Parameter",
     "dashboard.compare.aiConfidence": "AI confidence",
     "dashboard.compare.openCard": "Open card #{index}",
-    "shortlist.title": "Shortlist",
-    "shortlist.count": "Candidates in shortlist: {count}",
-    "shortlist.export": "Export CSV",
-    "shortlist.loading": "Loading shortlist...",
-    "shortlist.loadError": "Failed to load shortlist.",
-    "shortlist.empty": "No candidates in the shortlist yet",
-    "shortlist.rank": "Rank #{value}",
     "audit.title": "Audit log",
     "audit.description": "All reviewer actions and system events are recorded for transparency",
     "audit.loading": "Loading audit log...",
@@ -419,6 +471,80 @@ const translations: Record<Locale, TranslationDictionary> = {
     "audit.action": "Action",
     "audit.statusChange": "Status change",
     "audit.comment": "Comment",
+    "audit.actionViewed": "Viewed",
+    "audit.actionRecommendation": "Committee recommendation",
+    "audit.actionChairDecision": "Chair decision",
+    "login.eyebrow": "Admissions committee information system",
+    "login.title": "Sign in to invisionU",
+    "login.description":
+      "The platform supports candidate intake, media processing, analytical scoring, and the admissions committee review workflow.",
+    "login.email": "Email",
+    "login.password": "Password",
+    "login.submit": "Sign in",
+    "login.error": "Failed to sign in.",
+    "login.quickTitle": "Demo accounts",
+    "login.quickDescription": "Pre-seeded demonstration accounts with different access roles are available below.",
+    "login.accessEyebrow": "Authorization",
+    "userMenu.login": "Sign in",
+    "userMenu.logout": "Sign out",
+    "adminUsers.title": "Users and Access",
+    "adminUsers.description":
+      "Manage the closed committee workspace: roles, access, and demo seed accounts.",
+    "adminUsers.createTitle": "Create account",
+    "adminUsers.createDescription":
+      "Access is provisioned manually by an admin. There is no public sign-up.",
+    "adminUsers.listTitle": "Current accounts",
+    "adminUsers.listDescription": "Update role, active state, and password directly on each card.",
+    "adminUsers.email": "Email",
+    "adminUsers.fullName": "Name",
+    "adminUsers.password": "Password",
+    "adminUsers.active": "Active",
+    "adminUsers.createdAt": "Created",
+    "adminUsers.lastLogin": "Last login",
+    "adminUsers.save": "Save",
+    "adminUsers.create": "Create",
+    "adminUsers.loading": "Loading users...",
+    "adminUsers.loadError": "Failed to load users.",
+    "adminUsers.createError": "Failed to create the user.",
+    "adminUsers.updateError": "Failed to update the user.",
+    "adminUsers.empty": "No users yet",
+    "adminUsers.noLogin": "Never signed in",
+    "adminUsers.accessPack": "Default access pack",
+    "adminUsers.accessPackDescription":
+      "These accounts are seeded automatically and cover each access level.",
+    "adminUsers.accounts": "accounts",
+    "adminUsers.activeCount": "active",
+    "adminUsers.role": "Role",
+    "committee.reviewerTitle": "Committee member recommendation",
+    "committee.reviewerDescription":
+      "Record your recommendation for the candidate and provide a concise justification. Your assessment will be visible to the Chair of the Committee.",
+    "committee.chairTitle": "Chair decision",
+    "committee.chairDescription":
+      "Review the status of each committee member below. The Chair of the Committee records the final decision after reviewing the recommendations and candidate materials.",
+    "committee.adminTitle": "Committee overview",
+    "committee.adminDescription":
+      "Read-only overview of committee participation and the final candidate outcome.",
+    "committee.recommendation": "Recommendation",
+    "committee.rationale": "Recommendation rationale",
+    "committee.rationalePlaceholder":
+      "Summarize the reasoning in a formal tone: strengths, risks, and the committee conclusion.",
+    "committee.submitReviewer": "Save recommendation",
+    "committee.submitChair": "Save final decision",
+    "committee.saving": "Saving...",
+    "committee.successReviewer": "Committee recommendation saved.",
+    "committee.successChair": "Final chair decision saved.",
+    "committee.error": "Failed to save the committee decision.",
+    "committee.title": "Committee member statuses",
+    "committee.member": "Committee member",
+    "committee.status": "Review status",
+    "committee.recommendationLabel": "Recommendation",
+    "committee.reason": "Rationale",
+    "committee.activity": "Last activity",
+    "committee.viewed": "Viewed",
+    "committee.notViewed": "Not viewed",
+    "committee.recommendationPending": "Recommendation not submitted",
+    "committee.noComment": "No rationale provided yet",
+    "committee.noActivity": "No activity",
     "candidateDetail.loadErrorCard": "Failed to load candidate card.",
     "candidateDetail.loadingTitle": "Loading candidate profile",
     "candidateDetail.loadingDescription": "Loading score, explainability, and reviewer data.",
@@ -433,16 +559,6 @@ const translations: Record<Locale, TranslationDictionary> = {
     "candidateDetail.transcript": "Video transcript",
     "candidateDetail.history": "Decision history",
     "candidateDetail.unknownComment": "No comment provided",
-    "override.title": "Decision override",
-    "override.description": "Override the AI recommendation for candidate {id}",
-    "override.reviewerId": "Reviewer ID",
-    "override.newStatus": "New status",
-    "override.comment": "Committee comment",
-    "override.commentPlaceholder": "Explain why the decision changed...",
-    "override.success": "The change was saved to the audit log and applied to the candidate.",
-    "override.error": "Failed to apply the decision override.",
-    "override.saving": "Saving...",
-    "override.submit": "Apply decision",
     "explanation.title": "AI conclusions",
     "explanation.positive": "Positive factors",
     "explanation.cautions": "Attention areas",
@@ -455,6 +571,35 @@ const translations: Record<Locale, TranslationDictionary> = {
     "demoCompare.detail": "Detailed comparison",
     "demoCompare.profileLink": "Profile: {name}",
     "header.rickroll": "Never gonna give U up",
+  },
+};
+
+const translationOverrides: Record<Locale, TranslationDictionary> = {
+  ru: {
+    "common.processed": "Обработанные",
+    "candidates.processed": "Обработанные",
+    "dashboard.rpiScore": "Оценка кандидата",
+    "dashboard.table.rpi": "Оценка кандидата",
+    "common.list": "Список",
+    "common.grid": "Сетка",
+    "dashboard.cards": "Сетка",
+    "dashboard.aiRisk": "Проверка ИИ",
+    "dashboard.aiRisk.clear": "Не выявлено",
+    "dashboard.aiRisk.review": "Требует проверки",
+    "dashboard.aiRisk.high": "Повышенный риск",
+  },
+  en: {
+    "common.processed": "Processed",
+    "candidates.processed": "Processed",
+    "dashboard.rpiScore": "Candidate score",
+    "dashboard.table.rpi": "Candidate score",
+    "common.list": "List",
+    "common.grid": "Grid",
+    "dashboard.cards": "Grid",
+    "dashboard.aiRisk": "AI integrity",
+    "dashboard.aiRisk.clear": "No risk",
+    "dashboard.aiRisk.review": "Review needed",
+    "dashboard.aiRisk.high": "Elevated risk",
   },
 };
 
@@ -548,10 +693,33 @@ const severityLabels: Record<string, { ru: string; en: string }> = {
   advisory: { ru: "Обратите внимание", en: "Advisory" },
 };
 
+const shortSignalLabels: Record<string, { ru: string; en: string }> = {
+  leadership_potential: { ru: "Лидерство", en: "Leadership" },
+  growth_trajectory: { ru: "Рост", en: "Growth" },
+  motivation_clarity: { ru: "Мотивация", en: "Motivation" },
+  initiative_agency: { ru: "Инициатива", en: "Initiative" },
+  learning_agility: { ru: "Обучаемость", en: "Learning" },
+  communication_clarity: { ru: "Коммуникация", en: "Communication" },
+  ethical_reasoning: { ru: "Этика", en: "Ethics" },
+  program_fit: { ru: "Соответствие", en: "Fit" },
+  essay_replaced_by_video_transcript: { ru: "Эссе заменено транскрипцией", en: "Essay replaced by transcript" },
+  missing_essay: { ru: "Нет эссе", en: "No essay" },
+  missing_video: { ru: "Нет видео", en: "No video" },
+  missing_video_transcript: { ru: "Нет транскрипции", en: "No transcript" },
+  possible_ai_use: { ru: "Риск ИИ", en: "AI risk" },
+  authenticity_or_ai_risk: { ru: "Риск ИИ", en: "AI risk" },
+  essay_mismatch: { ru: "Несовпадение", en: "Mismatch" },
+  voice_inconsistency: { ru: "Непоследовательность", en: "Inconsistency" },
+};
+
 export function translate(locale: Locale, key: string, values?: Record<string, string | number>): string {
   const dictionary = translations[locale] ?? translations[DEFAULT_LOCALE];
-  const fallback = translations[DEFAULT_LOCALE][key] ?? key;
-  const template = dictionary[key] ?? fallback;
+  const override = translationOverrides[locale]?.[key];
+  const fallback =
+    translationOverrides[DEFAULT_LOCALE]?.[key] ??
+    translations[DEFAULT_LOCALE][key] ??
+    key;
+  const template = override ?? dictionary[key] ?? fallback;
 
   if (!values) {
     return template;
@@ -581,7 +749,7 @@ function prettifyKey(value: string): string {
 }
 
 export function localizeLabel(value: string, locale: Locale): string {
-  return signalLabels[value]?.[locale] ?? prettifyKey(value);
+  return shortSignalLabels[value]?.[locale] ?? signalLabels[value]?.[locale] ?? prettifyKey(value);
 }
 
 export function localizeLabels(values: string[], locale: Locale): string[] {
@@ -612,6 +780,28 @@ export function formatDateTime(iso: string, locale: Locale): string {
 
 export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(0)}%`;
+}
+
+export type AiRiskLevel = "clear" | "review" | "high";
+
+export function getAiRiskLevel(flags: string[]): AiRiskLevel {
+  const normalized = new Set(flags);
+
+  if (
+    normalized.has("possible_ai_use") ||
+    normalized.has("authenticity_or_ai_risk")
+  ) {
+    return "high";
+  }
+
+  if (
+    normalized.has("essay_mismatch") ||
+    normalized.has("voice_inconsistency")
+  ) {
+    return "review";
+  }
+
+  return "clear";
 }
 
 export function getProgramOptions(locale: Locale): Array<{ value: string; label: string }> {
